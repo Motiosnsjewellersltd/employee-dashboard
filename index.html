@@ -817,6 +817,22 @@
       }
     }
 
+  
+    /* SMOOTH PROFILE LOADING FIX */
+    .inline-message button {
+      margin-left: 10px;
+      min-height: 36px;
+      padding: 6px 12px;
+    }
+
+    @media(max-width: 768px) {
+      .inline-message button {
+        display: block;
+        width: 100%;
+        margin: 10px 0 0 0;
+      }
+    }
+
   </style>
 </head>
 
@@ -1112,6 +1128,8 @@ let loggedUser = null;
 let DB = { users: [], leaves: [], notifications: [], chats: [] };
 let loaded = { users:false, leaves:false, notifications:false, chats:false };
 let employeeLeavesCache = {};
+let employeeLeavesLoaded = {};
+let employeeLeavesLoading = {};
 let activeChatUserId = "";
 let chatSending = false;
 let chatPollTimer = null;
@@ -1150,16 +1168,21 @@ const DEFAULT_ADMIN = {
   designation:"Admin", department:"Admin", status:"Active", dob:"", doj:"", exitDate:"", photo:""
 };
 
-function api(action, payload = {}) {
+function api(action, payload = {}, timeoutMs = 45000) {
   if (!API_URL || API_URL.includes("PASTE_YOUR")) {
     return Promise.reject(new Error("Apps Script Web App URL index.html me paste karo."));
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   return fetch(API_URL, {
     method: "POST",
-    body: JSON.stringify({ action, ...payload })
+    body: JSON.stringify({ action, ...payload }),
+    signal: controller.signal
   })
   .then(async r => {
+    clearTimeout(timer);
     const text = await r.text();
 
     let res;
@@ -1176,6 +1199,13 @@ function api(action, payload = {}) {
 
     if (!res.ok) throw new Error(res.error || "API error");
     return res.result;
+  })
+  .catch(err => {
+    clearTimeout(timer);
+    if (err.name === "AbortError") {
+      throw new Error("Request timeout. Internet ya Apps Script slow hai. Please retry.");
+    }
+    throw err;
   });
 }
 
@@ -1806,20 +1836,16 @@ function forceReloadLeaves(userId) {
   const user = userId ? DB.users.find(u => u.id === userId) : loggedUser;
   if (!user) return;
 
-  showLoading("Leaves Reload", "Google Sheet se selected employee ki leaves reload ho rahi hai...", 30);
+  const key = nameKey(user.name);
+  employeeLeavesLoaded[key] = false;
+
+  const targetIsModal = document.getElementById("profileModal").classList.contains("show");
+  if (targetIsModal) document.getElementById("profileModalBody").innerHTML = profileHtml(user, true);
+  else document.getElementById("myProfile").innerHTML = profileHtml(user, true);
 
   return getLeavesForUser(user, true).then(() => {
-    updateLoading("Leaves loaded.", 100);
-    setTimeout(hideLoading, 300);
-
-    if (document.getElementById("profileModal").classList.contains("show")) {
-      document.getElementById("profileModalBody").innerHTML = profileHtml(user);
-    } else {
-      renderMyProfile();
-    }
-  }).catch(e => {
-    hideLoading();
-    alert("Leaves reload error: " + e.message);
+    if (targetIsModal) document.getElementById("profileModalBody").innerHTML = profileHtml(user, false);
+    else document.getElementById("myProfile").innerHTML = profileHtml(user, false);
   });
 }
 
@@ -1830,73 +1856,53 @@ function openProfile(id) {
   const user = DB.users.find(u => u.id === id);
   if (!user) return;
 
-  document.getElementById("profileModalBody").innerHTML = `
-    <div style="min-height:180px;display:flex;align-items:center;justify-content:center;text-align:center;">
-      <div>
-        <h2>Loading...</h2>
-        <div class="hint">Leave data load ho raha hai.</div>
-      </div>
-    </div>`;
+  const key = nameKey(user.name);
+  document.getElementById("profileModalBody").innerHTML = profileHtml(user, !employeeLeavesLoaded[key]);
   openModal("profileModal");
 
-  getLeavesForUser(user, false)
-    .then(() => {
-      document.getElementById("profileModalBody").innerHTML = profileHtml(user);
-    })
-    .catch(e => {
-      document.getElementById("profileModalBody").innerHTML = `<div class="inline-message error show">${safe(e.message)}</div>`;
+  if (!employeeLeavesLoaded[key]) {
+    getLeavesForUser(user, false).then(() => {
+      if (document.getElementById("profileModal").classList.contains("show")) {
+        document.getElementById("profileModalBody").innerHTML = profileHtml(user, false);
+      }
     });
+  }
 }
 
 function renderMyProfile() {
   const box = document.getElementById("myProfile");
-  box.innerHTML = `
-    <div style="min-height:180px;display:flex;align-items:center;justify-content:center;text-align:center;">
-      <div>
-        <h2>Loading...</h2>
-        <div class="hint">Leave data load ho raha hai.</div>
-      </div>
-    </div>`;
+  const key = nameKey(loggedUser.name);
 
-  getLeavesForUser(loggedUser, false)
-    .then(() => {
-      box.innerHTML = profileHtml(loggedUser);
-    })
-    .catch(e => {
-      box.innerHTML = `<div class="inline-message error show">${safe(e.message)}</div>`;
+  box.innerHTML = profileHtml(loggedUser, !employeeLeavesLoaded[key]);
+
+  if (!employeeLeavesLoaded[key]) {
+    getLeavesForUser(loggedUser, false).then(() => {
+      box.innerHTML = profileHtml(loggedUser, false);
     });
+  }
 }
 
-function profileHtml(user) {
+function profileHtml(user, leavesLoading) {
   if (!user) return "";
 
   const userNameKey = nameKey(user.name);
-  const leaveData = DB.leaves.filter(l => {
+  const leaveError = employeeLeavesCache[userNameKey] && employeeLeavesCache[userNameKey]._error ? employeeLeavesCache[userNameKey]._error : "";
+
+  const leaveData = (DB.leaves || []).filter(l => {
     const lk = l.employeeKey || nameKey(l.employeeName);
     return lk === userNameKey;
   });
+
   const balance = calculateLeaveBalance(leaveData);
 
-  return `
-    <div class="profile-head">
-      ${avatar(user, true)}
-      <div><h1>${safe(user.name)}</h1><div class="hint">${safe(user.designation)} | ${safe(user.department)}</div></div>
-    </div>
-
-    <div class="profile-grid">
-      ${info("Mobile", user.mobile)}
-      ${info("DOB", user.dob)}
-      ${info("DOJ", user.doj)}
-      ${info("Exit / Leave Date", user.exitDate || "-")}
-      ${info("Working Period", workingPeriod(user.doj, user.exitDate))}
-      ${info("Status", user.status)}
-      ${info("Role", user.role)}
-      ${info("Designation", user.designation)}
-      ${info("Department", user.department)}
-      ${info("Password", user.password)}
-    </div>
-
+  const leaveArea = leavesLoading ? `
     <h2 style="margin-top:20px;">Leave Balance</h2>
+    <div class="inline-message warning show">
+      Leave data background me load ho raha hai. Details page use kar sakte ho, page hang nahi hoga.
+    </div>
+  ` : `
+    <h2 style="margin-top:20px;">Leave Balance</h2>
+    ${leaveError ? `<div class="inline-message error show">Leave load issue: ${safe(leaveError)} <button class="btn-light" onclick="forceReloadLeaves('${safe(user.id)}')">Retry</button></div>` : ""}
     <div class="leave-cards">
       ${leaveCard("Financial Year", balance.fy)}
       ${leaveCard("Earned Till Current Month", balance.earned)}
@@ -1921,6 +1927,28 @@ function profileHtml(user) {
         <tbody>${leaveData.map(l => `<tr><td data-label="Month/Year">${safe(formatMonth(l.month))}</td><td data-label="Leave">${safe(l.leaves)}</td></tr>`).join("") || `<tr><td data-label="Status" colspan="2">No leave data</td></tr>`}</tbody>
       </table>
     </div>
+  `;
+
+  return `
+    <div class="profile-head">
+      ${avatar(user, true)}
+      <div><h1>${safe(user.name)}</h1><div class="hint">${safe(user.designation)} | ${safe(user.department)}</div></div>
+    </div>
+
+    <div class="profile-grid">
+      ${info("Mobile", user.mobile)}
+      ${info("DOB", user.dob)}
+      ${info("DOJ", user.doj)}
+      ${info("Exit / Leave Date", user.exitDate || "-")}
+      ${info("Working Period", workingPeriod(user.doj, user.exitDate))}
+      ${info("Status", user.status)}
+      ${info("Role", user.role)}
+      ${info("Designation", user.designation)}
+      ${info("Department", user.department)}
+      ${info("Password", user.password)}
+    </div>
+
+    ${leaveArea}
   `;
 }
 
