@@ -679,6 +679,106 @@
       }
     }
 
+  
+    /* MOBILE TABLE CARD VIEW FIX - NO LEFT RIGHT SCROLL FOR IMPORTANT TABLES */
+    @media(max-width: 768px) {
+      .mobile-card-table {
+        border: none !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+        max-height: none !important;
+      }
+
+      .mobile-card-table table,
+      .mobile-card-table thead,
+      .mobile-card-table tbody,
+      .mobile-card-table th,
+      .mobile-card-table td,
+      .mobile-card-table tr {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      .mobile-card-table table {
+        min-width: 0 !important;
+      }
+
+      .mobile-card-table thead {
+        display: none !important;
+      }
+
+      .mobile-card-table tr {
+        background: #ffffff !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 16px !important;
+        margin-bottom: 12px !important;
+        padding: 10px !important;
+        box-shadow: 0 8px 20px rgba(11,95,165,.08);
+      }
+
+      .mobile-card-table td {
+        border: none !important;
+        border-bottom: 1px solid #e2f1fb !important;
+        padding: 10px 6px !important;
+        display: grid !important;
+        grid-template-columns: 42% 58% !important;
+        gap: 8px !important;
+        align-items: start !important;
+        word-break: break-word !important;
+        white-space: normal !important;
+      }
+
+      .mobile-card-table td:last-child {
+        border-bottom: none !important;
+      }
+
+      .mobile-card-table td::before {
+        content: attr(data-label);
+        color: var(--primary);
+        font-weight: 900;
+      }
+
+      .profile-grid {
+        gap: 10px !important;
+      }
+
+      .info-box {
+        padding: 12px !important;
+      }
+
+      .leave-cards {
+        gap: 10px !important;
+      }
+
+      .leave-card {
+        padding: 12px !important;
+      }
+
+      .leave-card strong {
+        font-size: 22px !important;
+      }
+
+      .profile-head {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 5;
+        padding-top: 8px;
+      }
+
+      .profile-head .avatar.big {
+        width: 72px !important;
+        height: 72px !important;
+        min-width: 72px !important;
+        font-size: 28px !important;
+      }
+
+      .profile-head h1 {
+        font-size: 25px !important;
+      }
+    }
+
   </style>
 </head>
 
@@ -724,6 +824,16 @@
     </aside>
 
     <main class="main">
+
+      <section class="section active" id="loadingSection">
+        <div class="panel" style="min-height:220px;display:flex;align-items:center;justify-content:center;text-align:center;">
+          <div>
+            <h2>Loading...</h2>
+            <div class="hint" style="margin-top:10px;">Please wait, data loading ho raha hai.</div>
+          </div>
+        </div>
+      </section>
+
       <section class="section" id="dashboardSection">
         <div class="cards" id="dashboardCards"></div>
 
@@ -962,6 +1072,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwmDRfzRNOWolc5cI2hoxnL
 
 let loggedUser = null;
 let DB = { users: [], leaves: [], notifications: [], chats: [] };
+let loaded = { users:false, leaves:false, notifications:false, chats:false };
 let activeChatUserId = "";
 let dashboardFilter = "All";
 
@@ -1076,10 +1187,11 @@ function login() {
   const username = document.getElementById("loginUsername").value;
   const password = document.getElementById("loginPassword").value;
 
+  showMsg("loginMsg", "warning", "Login ho raha hai, please wait...");
+
   api("login", { username, password })
     .then(data => {
       loggedUser = data.user;
-      DB = data.init;
       sessionStorage.setItem("loggedUser", JSON.stringify(loggedUser));
       openApp();
     })
@@ -1102,13 +1214,35 @@ function openApp() {
   document.getElementById("panelName").innerText = loggedUser.role + " Panel";
   buildMenu();
 
-  api("getInitData", { userId: loggedUser.id, role: loggedUser.role })
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  const loader = document.getElementById("loadingSection");
+  if (loader) loader.classList.add("active");
+
+  api("getInitData", {
+    userId: loggedUser.id,
+    role: loggedUser.role,
+    includeUsers: true,
+    includeLeaves: false,
+    includeNotifications: false,
+    includeChats: false
+  })
     .then(data => {
-      DB = data;
+      DB.users = data.users || [];
+      loaded.users = true;
       buildFilters();
 
-      if (loggedUser.role === "Employee") showSection("profile");
-      else showSection("dashboard");
+      if (loggedUser.role === "Employee") {
+        showSection("profile");
+      } else {
+        showSection("dashboard");
+      }
+    })
+    .catch(err => {
+      if (loader) {
+        loader.innerHTML = `<div class="panel"><h2>Loading Error</h2><div class="inline-message error show">${safe(err.message)}</div></div>`;
+      } else {
+        alert(err.message);
+      }
     });
 }
 
@@ -1137,21 +1271,87 @@ function buildMenu() {
   `;
 }
 
+
+function mergeInitData(data) {
+  if (data.users && data.users.length) {
+    DB.users = data.users;
+    loaded.users = true;
+  }
+
+  if (data.leaves) {
+    DB.leaves = data.leaves;
+    loaded.leaves = true;
+  }
+
+  if (data.notifications) {
+    DB.notifications = data.notifications;
+    loaded.notifications = true;
+  }
+
+  if (data.chats) {
+    DB.chats = data.chats;
+    loaded.chats = true;
+  }
+
+  buildFilters();
+}
+
+function loadDataParts(parts) {
+  const needLeaves = parts.includes("leaves") && !loaded.leaves;
+  const needNotifications = parts.includes("notifications") && !loaded.notifications;
+  const needChats = parts.includes("chats") && !loaded.chats;
+
+  if (!needLeaves && !needNotifications && !needChats) return Promise.resolve();
+
+  showLoading("Loading Data", "Required data load ho raha hai...", 35);
+
+  return api("getInitData", {
+    userId: loggedUser.id,
+    role: loggedUser.role,
+    includeUsers: false,
+    includeLeaves: needLeaves,
+    includeNotifications: needNotifications,
+    includeChats: needChats
+  })
+    .then(data => {
+      mergeInitData(data);
+      updateLoading("Data loaded.", 100);
+      setTimeout(hideLoading, 300);
+    })
+    .catch(err => {
+      hideLoading();
+      alert("Data loading error: " + err.message);
+      throw err;
+    });
+}
+
+
 function showSection(name) {
   closeMobileMenu();
-  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
-  document.querySelectorAll(".menu-item").forEach(m => m.classList.remove("active"));
 
-  document.getElementById(name + "Section").classList.add("active");
-  const menu = document.querySelector(`[data-section="${name}"]`);
-  if (menu) menu.classList.add("active");
+  const required = [];
+  if (name === "profile") required.push("leaves");
+  if (name === "reminder") required.push("notifications");
+  if (name === "notifications") required.push("notifications");
+  if (name === "chat") required.push("chats");
 
-  if (name === "dashboard") renderDashboard();
-  if (name === "employees") renderEmployees();
-  if (name === "profile") renderMyProfile();
-  if (name === "reminder") renderReminder();
-  if (name === "notifications") renderNotifications();
-  if (name === "chat") { renderChatUsers(); renderChatMessages(); }
+  loadDataParts(required).then(() => {
+    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+    document.querySelectorAll(".menu-item").forEach(m => m.classList.remove("active"));
+
+    const section = document.getElementById(name + "Section");
+    if (section) section.classList.add("active");
+
+    const menu = document.querySelector(`[data-section="${name}"]`);
+    if (menu) menu.classList.add("active");
+
+    if (name === "dashboard") renderDashboard();
+    if (name === "employees") renderEmployees();
+    if (name === "profile") renderMyProfile();
+    if (name === "reminder") renderReminder();
+    if (name === "notifications") renderNotifications();
+    if (name === "chat") { renderChatUsers(); renderChatMessages(); renderAdminChatHistory(); }
+  });
 }
 
 /*************************************************
@@ -1375,6 +1575,7 @@ function uploadEmployeesExcel() {
     })
     .then(res => {
       updateLoading(`Done. Added: ${res.added}, Updated: ${res.updated}, Skipped: ${res.skipped}`, 100);
+      loaded.leaves = true;
       return refreshAll(false).then(() => res);
     })
     .then(res => {
@@ -1592,18 +1793,18 @@ function profileHtml(user) {
       ${leaveCard("Current Balance", balance.balance)}
     </div>
 
-    <div class="table-wrap" style="max-height:260px;">
+    <div class="table-wrap mobile-card-table" style="max-height:260px;">
       <table>
         <thead><tr><th>Month/Year</th><th>Earned</th><th>Used</th><th>Balance</th></tr></thead>
-        <tbody>${balance.rows.map(r => `<tr><td>${r.month}</td><td>${r.earned}</td><td>${r.used}</td><td style="color:var(--green);">${r.balance}</td></tr>`).join("")}</tbody>
+        <tbody>${balance.rows.map(r => `<tr><td data-label="Month/Year">${r.month}</td><td data-label="Earned">${r.earned}</td><td data-label="Used">${r.used}</td><td data-label="Balance" style="color:var(--green);">${r.balance}</td></tr>`).join("")}</tbody>
       </table>
     </div>
 
     <h2 style="margin-top:20px;">Monthwise Leaves</h2>
-    <div class="table-wrap" style="max-height:260px;">
+    <div class="table-wrap mobile-card-table" style="max-height:260px;">
       <table>
         <thead><tr><th>Month/Year</th><th>Leave</th></tr></thead>
-        <tbody>${leaveData.map(l => `<tr><td>${safe(formatMonth(l.month))}</td><td>${safe(l.leaves)}</td></tr>`).join("") || `<tr><td colspan="2">No leave data</td></tr>`}</tbody>
+        <tbody>${leaveData.map(l => `<tr><td data-label="Month/Year">${safe(formatMonth(l.month))}</td><td data-label="Leave">${safe(l.leaves)}</td></tr>`).join("") || `<tr><td data-label="Status" colspan="2">No leave data</td></tr>`}</tbody>
       </table>
     </div>
   `;
@@ -1905,6 +2106,7 @@ function sendChat() {
     }
   }).then(() => {
     document.getElementById("chatInput").value = "";
+    loaded.chats = true;
     refreshAll(false);
   });
 }
@@ -1928,11 +2130,20 @@ function openModal(id) { document.getElementById(id).classList.add("show"); }
 function closeModal(id) { document.getElementById(id).classList.remove("show"); }
 
 function refreshAll(showAlert) {
-  return api("getInitData", { userId: loggedUser.id, role: loggedUser.role }).then(data => {
-    DB = data;
-    buildFilters();
+  return api("getInitData", {
+    userId: loggedUser.id,
+    role: loggedUser.role,
+    includeUsers: true,
+    includeLeaves: loaded.leaves,
+    includeNotifications: loaded.notifications,
+    includeChats: loaded.chats
+  }).then(data => {
+    mergeInitData(data);
     const active = document.querySelector(".section.active");
-    if (active) showSection(active.id.replace("Section",""));
+    if (active) {
+      const name = active.id.replace("Section","");
+      if (name !== "loading") showSection(name);
+    }
     if (showAlert) alert(showAlert);
   });
 }
