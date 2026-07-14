@@ -1693,7 +1693,9 @@ function uploadLeavesExcel() {
 
       const leaves = rows.map(r => ({
         month: excelMonthYearToMMYYYY(pick(r, ["Month/Year", "Month", "MonthYear", "mm/yyyy"])),
+        employeeId: pick(r, ["EmployeeID", "Employee ID", "ID"]),
         employeeName: pick(r, ["Employee Name", "Name", "Name of Employee"]),
+        mobile: pick(r, ["Mobile", "Mobile No.", "Username / Mobile"]),
         leaves: pick(r, ["Leave", "Leaves", "No of Leaves"])
       })).filter(l => l.employeeName && l.month);
 
@@ -1836,7 +1838,7 @@ function forceReloadLeaves(userId) {
   const user = userId ? DB.users.find(u => u.id === userId) : loggedUser;
   if (!user) return;
 
-  const key = nameKey(user.name);
+  const key = String(user.id || nameKey(user.name));
   employeeLeavesLoaded[key] = false;
 
   const targetIsModal = document.getElementById("profileModal").classList.contains("show");
@@ -1856,7 +1858,7 @@ function openProfile(id) {
   const user = DB.users.find(u => u.id === id);
   if (!user) return;
 
-  const key = nameKey(user.name);
+  const key = String(user.id || nameKey(user.name));
   document.getElementById("profileModalBody").innerHTML = profileHtml(user, !employeeLeavesLoaded[key]);
   openModal("profileModal");
 
@@ -1871,7 +1873,7 @@ function openProfile(id) {
 
 function renderMyProfile() {
   const box = document.getElementById("myProfile");
-  const key = nameKey(loggedUser.name);
+  const key = String(loggedUser.id || nameKey(loggedUser.name));
 
   box.innerHTML = profileHtml(loggedUser, !employeeLeavesLoaded[key]);
 
@@ -1889,6 +1891,7 @@ function profileHtml(user, leavesLoading) {
   const leaveError = employeeLeavesCache[userNameKey] && employeeLeavesCache[userNameKey]._error ? employeeLeavesCache[userNameKey]._error : "";
 
   const leaveData = (DB.leaves || []).filter(l => {
+    if (l.employeeId && user.id) return String(l.employeeId) === String(user.id);
     const lk = l.employeeKey || nameKey(l.employeeName);
     return lk === userNameKey;
   });
