@@ -491,6 +491,194 @@
       .sidebar:hover { width:76px; }
       .sidebar:hover .menu-text, .sidebar:hover .brand-text { display:none; }
     }
+  
+    /* MOBILE VIEW FIX - LMS STYLE */
+    .mobile-menu-btn,
+    .mobile-menu-backdrop {
+      display: none;
+    }
+
+    @media(max-width: 768px) {
+      body {
+        overflow-x: hidden;
+      }
+
+      .mobile-menu-btn {
+        display: flex !important;
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 80;
+        width: 48px;
+        height: 48px;
+        border: none;
+        border-radius: 14px;
+        background: linear-gradient(135deg,#126db5,#2297e6);
+        color: #fff;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: 900;
+        box-shadow: 0 10px 25px rgba(11,95,165,.22);
+        cursor: pointer;
+      }
+
+      .mobile-menu-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.35);
+        z-index: 60;
+      }
+
+      body.mobile-menu-open .mobile-menu-backdrop {
+        display: block;
+      }
+
+      .sidebar {
+        left: auto !important;
+        right: -280px !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: 270px !important;
+        padding: 16px 12px !important;
+        z-index: 70 !important;
+        border-radius: 22px 0 0 22px;
+        box-shadow: -15px 0 38px rgba(0,0,0,.22);
+        transition: right .25s ease !important;
+        overflow-y: auto !important;
+      }
+
+      body.mobile-menu-open .sidebar {
+        right: 0 !important;
+      }
+
+      .sidebar:hover {
+        width: 270px !important;
+      }
+
+      .brand-text,
+      .sidebar:hover .brand-text,
+      .menu-text,
+      .sidebar:hover .menu-text {
+        display: block !important;
+      }
+
+      .brand {
+        padding-right: 52px;
+      }
+
+      .menu-item {
+        min-height: 52px;
+        font-size: 17px;
+        margin-bottom: 10px;
+      }
+
+      .menu-icon {
+        width: 28px;
+        min-width: 28px;
+        font-size: 18px;
+      }
+
+      .main {
+        margin-left: 0 !important;
+        padding: 72px 10px 12px 10px !important;
+        width: 100% !important;
+      }
+
+      .panel {
+        border-radius: 18px;
+        padding: 14px;
+      }
+
+      .panel-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .panel-head .actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .cards {
+        grid-template-columns: 1fr !important;
+      }
+
+      .filters,
+      .row,
+      .profile-grid,
+      .leave-cards {
+        grid-template-columns: 1fr !important;
+      }
+
+      .table-wrap {
+        max-height: calc(100vh - 230px);
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      table {
+        min-width: 980px;
+      }
+
+      .chat-layout {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        min-height: auto !important;
+        height: auto !important;
+      }
+
+      .chat-list {
+        max-height: 260px !important;
+      }
+
+      .chat-box {
+        min-height: 62vh !important;
+        height: 62vh !important;
+      }
+
+      .chat-messages {
+        min-height: 0 !important;
+      }
+
+      .chat-input {
+        display: grid !important;
+        grid-template-columns: 1fr 84px !important;
+      }
+
+      .msg {
+        max-width: 82% !important;
+      }
+
+      .modal {
+        padding: 10px;
+        align-items: flex-start;
+      }
+
+      .modal-box {
+        width: 100%;
+        max-height: calc(100vh - 20px);
+        border-radius: 18px;
+        padding: 14px;
+      }
+
+      #notificationModal .modal-box > div[style*="grid-template-columns"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+      }
+
+      h1 { font-size: 28px; }
+      h2 { font-size: 24px; }
+      h3 { font-size: 20px; }
+
+      .login-card {
+        width: min(430px, 94vw);
+        padding: 24px;
+      }
+    }
+
   </style>
 </head>
 
@@ -520,6 +708,9 @@
   </div>
 
   <div class="app" id="app">
+    <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" onclick="toggleMobileMenu()">☰</button>
+    <div class="mobile-menu-backdrop" id="mobileMenuBackdrop" onclick="closeMobileMenu()"></div>
+
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-logo">MS</div>
@@ -755,7 +946,7 @@
  * IMPORTANT:
  * Paste your Apps Script Web App URL here.
  *************************************************/
-const API_URL = "Employees Dashboard online";
+const API_URL = "https://script.google.com/macros/s/AKfycbwmDRfzRNOWolc5cI2hoxnLQ_-eSZ8oPnqRNR6azEXRSBx8j2rd3rtr0fHwoJNyJjdS/exec";
 
 let loggedUser = null;
 let DB = { users: [], leaves: [], notifications: [], chats: [] };
@@ -776,8 +967,21 @@ function api(action, payload = {}) {
     method: "POST",
     body: JSON.stringify({ action, ...payload })
   })
-  .then(r => r.json())
-  .then(res => {
+  .then(async r => {
+    const text = await r.text();
+
+    let res;
+    try {
+      res = JSON.parse(text);
+    } catch (err) {
+      const clean = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 180);
+      throw new Error(
+        "Apps Script Web App URL galat ya deployment permission issue hai. " +
+        "Deploy > Web app me 'Who has access: Anyone' rakho aur /exec wala Web App URL index.html me paste karo. " +
+        "Response: " + clean
+      );
+    }
+
     if (!res.ok) throw new Error(res.error || "API error");
     return res.result;
   });
@@ -816,6 +1020,16 @@ function avatar(user, big=false) {
   return `<span class="${cls}">${safe((user.name || "E")[0] || "E").toUpperCase()}</span>`;
 }
 
+
+function toggleMobileMenu() {
+  document.body.classList.toggle("mobile-menu-open");
+}
+
+function closeMobileMenu() {
+  document.body.classList.remove("mobile-menu-open");
+}
+
+
 /*************************************************
  * LOGIN
  *************************************************/
@@ -836,6 +1050,7 @@ function login() {
 }
 
 function logout() {
+  closeMobileMenu();
   loggedUser = null;
   sessionStorage.removeItem("loggedUser");
   document.getElementById("app").style.display = "none";
@@ -884,6 +1099,7 @@ function buildMenu() {
 }
 
 function showSection(name) {
+  closeMobileMenu();
   document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
   document.querySelectorAll(".menu-item").forEach(m => m.classList.remove("active"));
 
