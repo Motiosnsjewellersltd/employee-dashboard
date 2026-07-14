@@ -901,6 +901,18 @@
     </main>
   </div>
 
+
+  <div class="modal" id="loadingModal">
+    <div class="modal-box" style="width:min(520px,94vw);">
+      <h2 id="loadingTitle">Processing</h2>
+      <div class="hint" id="loadingText" style="margin:12px 0 16px;">Please wait...</div>
+      <div style="height:14px;background:#e4f4ff;border-radius:999px;overflow:hidden;border:1px solid var(--border);">
+        <div id="loadingBar" style="height:100%;width:10%;background:linear-gradient(135deg,#126db5,#2297e6);border-radius:999px;transition:.25s;"></div>
+      </div>
+    </div>
+  </div>
+
+
   <div class="modal" id="profileModal">
     <div class="modal-box">
       <div class="panel-head">
@@ -952,6 +964,33 @@ let loggedUser = null;
 let DB = { users: [], leaves: [], notifications: [], chats: [] };
 let activeChatUserId = "";
 let dashboardFilter = "All";
+
+let isUploading = false;
+
+function showLoading(title, text, percent) {
+  const modal = document.getElementById("loadingModal");
+  if (!modal) return;
+
+  document.getElementById("loadingTitle").innerText = title || "Processing";
+  document.getElementById("loadingText").innerText = text || "Please wait...";
+  document.getElementById("loadingBar").style.width = Math.max(5, Math.min(100, percent || 10)) + "%";
+  modal.classList.add("show");
+}
+
+function updateLoading(text, percent) {
+  const modal = document.getElementById("loadingModal");
+  if (!modal) return;
+
+  if (text !== undefined) document.getElementById("loadingText").innerText = text;
+  if (percent !== undefined) document.getElementById("loadingBar").style.width = Math.max(5, Math.min(100, percent)) + "%";
+}
+
+function hideLoading() {
+  const modal = document.getElementById("loadingModal");
+  if (modal) modal.classList.remove("show");
+}
+
+
 
 const DEFAULT_ADMIN = {
   id:"admin", name:"Admin", mobile:"admin", password:"admin123", role:"Admin",
@@ -1305,52 +1344,103 @@ function editEmployee(id) {
 }
 
 function uploadEmployeesExcel() {
+  if (isUploading) return alert("Upload already running. Please wait.");
+
   const file = document.getElementById("employeeExcel").files[0];
   if (!file) return alert("Select Excel file.");
 
-  readExcel(file).then(rows => {
-    const users = rows.map(r => ({
-      name: pick(r, ["Name", "Employee Name", "Name of Employee"]),
-      mobile: pick(r, ["Mobile", "Mobile No.", "Number", "Username / Mobile"]),
-      password: pick(r, ["Password"]) || "1234",
-      dob: excelDateToDMY(pick(r, ["DOB", "Date of Birth"])),
-      role: pick(r, ["Role"]) || "Employee",
-      designation: pick(r, ["Designation", "Post"]),
-      department: pick(r, ["Department"]),
-      doj: excelDateToDMY(pick(r, ["DOJ", "Date of Joining"])),
-      status: pick(r, ["Status"]) || "Active"
-    })).filter(u => u.name);
+  isUploading = true;
+  showLoading("Employee Excel Upload", "Excel file read ho rahi hai...", 10);
 
-    api("bulkSaveUsers", { users }).then(res => {
-      alert(`Added: ${res.added}, Updated: ${res.updated}, Skipped: ${res.skipped}`);
-      refreshAll();
+  readExcel(file)
+    .then(rows => {
+      updateLoading(`Excel read complete. Total rows: ${rows.length}. Data prepare ho raha hai...`, 35);
+
+      const users = rows.map(r => ({
+        name: pick(r, ["Name", "Employee Name", "Name of Employee"]),
+        mobile: pick(r, ["Mobile", "Mobile No.", "Number", "Username / Mobile"]),
+        password: pick(r, ["Password"]) || "1234",
+        dob: excelDateToDMY(pick(r, ["DOB", "Date of Birth"])),
+        role: pick(r, ["Role"]) || "Employee",
+        designation: pick(r, ["Designation", "Post"]),
+        department: pick(r, ["Department"]),
+        doj: excelDateToDMY(pick(r, ["DOJ", "Date of Joining"])),
+        exitDate: excelDateToDMY(pick(r, ["ExitDate", "Exit Date", "Leave Date"])),
+        status: pick(r, ["Status"]) || "Active"
+      })).filter(u => u.name && u.mobile);
+
+      updateLoading(`Google Sheet me save ho raha hai. Valid rows: ${users.length}. Please wait...`, 65);
+
+      return api("bulkSaveUsers", { users });
+    })
+    .then(res => {
+      updateLoading(`Done. Added: ${res.added}, Updated: ${res.updated}, Skipped: ${res.skipped}`, 100);
+      return refreshAll(false).then(() => res);
+    })
+    .then(res => {
+      setTimeout(hideLoading, 700);
+      alert(`Employee upload complete.\nAdded: ${res.added}\nUpdated: ${res.updated}\nSkipped/Duplicate: ${res.skipped}`);
+    })
+    .catch(e => {
+      hideLoading();
+      alert("Employee upload error: " + e.message);
+    })
+    .finally(() => {
+      isUploading = false;
     });
-  });
 }
 
 /*************************************************
  * LEAVES
  *************************************************/
 function uploadLeavesExcel() {
+  if (isUploading) return alert("Upload already running. Please wait.");
+
   const file = document.getElementById("leaveExcel").files[0];
   if (!file) return alert("Select leave Excel.");
 
-  readExcel(file).then(rows => {
-    const leaves = rows.map(r => ({
-      month: pick(r, ["Month/Year", "Month", "MonthYear", "mm/yyyy"]),
-      employeeName: pick(r, ["Employee Name", "Name", "Name of Employee"]),
-      leaves: pick(r, ["Leave", "Leaves", "No of Leaves"])
-    })).filter(l => l.employeeName && l.month);
+  isUploading = true;
+  showLoading("Leave Excel Upload", "Excel file read ho rahi hai...", 10);
 
-    api("saveLeaves", { leaves })
-      .then(res => {
-        let msg = `Saved: ${res.saved}, Updated: ${res.updated}`;
-        if (res.missingNames && res.missingNames.length) msg += "\nMismatch names: " + res.missingNames.join(", ");
-        showMsg("leaveMsg", res.missingNames && res.missingNames.length ? "warning" : "success", msg);
-        refreshAll();
-      })
-      .catch(e => showMsg("leaveMsg", "error", e.message));
-  });
+  readExcel(file)
+    .then(rows => {
+      updateLoading(`Excel read complete. Total rows: ${rows.length}. Data prepare ho raha hai...`, 35);
+
+      const leaves = rows.map(r => ({
+        month: pick(r, ["Month/Year", "Month", "MonthYear", "mm/yyyy"]),
+        employeeName: pick(r, ["Employee Name", "Name", "Name of Employee"]),
+        leaves: pick(r, ["Leave", "Leaves", "No of Leaves"])
+      })).filter(l => l.employeeName && l.month);
+
+      updateLoading(`Google Sheet me save ho raha hai. Valid rows: ${leaves.length}. Large file me thoda time lag sakta hai...`, 65);
+
+      return api("saveLeaves", { leaves });
+    })
+    .then(res => {
+      const mismatch = res.missingNames && res.missingNames.length ? ` | Mismatch: ${res.missingNames.length}` : "";
+      updateLoading(`Done. Saved: ${res.saved}, Updated: ${res.updated}${mismatch}`, 100);
+      return refreshAll(false).then(() => res);
+    })
+    .then(res => {
+      setTimeout(hideLoading, 700);
+
+      let msg = `Leave upload complete.\nSaved: ${res.saved}\nUpdated: ${res.updated}`;
+      if (res.missingNames && res.missingNames.length) {
+        msg += `\nMismatch Names (${res.missingNames.length}):\n` + res.missingNames.slice(0, 40).join(", ");
+        if (res.missingNames.length > 40) msg += "\n...and more";
+      }
+
+      alert(msg);
+      showMsg("leaveMsg", res.missingNames && res.missingNames.length ? "warning" : "success", msg);
+    })
+    .catch(e => {
+      hideLoading();
+      showMsg("leaveMsg", "error", "Leave upload error: " + e.message);
+      alert("Leave upload error: " + e.message);
+    })
+    .finally(() => {
+      isUploading = false;
+    });
 }
 
 function readExcel(file) {
