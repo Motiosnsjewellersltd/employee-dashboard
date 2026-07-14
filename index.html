@@ -1407,7 +1407,7 @@ function uploadLeavesExcel() {
       updateLoading(`Excel read complete. Total rows: ${rows.length}. Data prepare ho raha hai...`, 35);
 
       const leaves = rows.map(r => ({
-        month: pick(r, ["Month/Year", "Month", "MonthYear", "mm/yyyy"]),
+        month: excelMonthYearToMMYYYY(pick(r, ["Month/Year", "Month", "MonthYear", "mm/yyyy"])),
         employeeName: pick(r, ["Employee Name", "Name", "Name of Employee"]),
         leaves: pick(r, ["Leave", "Leaves", "No of Leaves"])
       })).filter(l => l.employeeName && l.month);
@@ -1454,6 +1454,47 @@ function readExcel(file) {
     };
     reader.readAsArrayBuffer(file);
   });
+}
+
+
+
+function excelMonthYearToMMYYYY(value) {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (value instanceof Date && !isNaN(value)) {
+    return `${String(value.getMonth() + 1).padStart(2, "0")}/${value.getFullYear()}`;
+  }
+
+  if (typeof value === "number" && value > 20000 && value < 80000) {
+    const base = new Date(Date.UTC(1899, 11, 30));
+    const d = new Date(base.getTime() + value * 86400000);
+    return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
+  }
+
+  const s = String(value).trim();
+
+  let wrong = s.match(/^0?1[\/\-](\d{5})$/);
+  if (wrong) return excelMonthYearToMMYYYY(Number(wrong[1]));
+
+  if (/^\d{5}$/.test(s)) return excelMonthYearToMMYYYY(Number(s));
+
+  let m = s.match(/^(\d{1,2})\/(\d{4})$/);
+  if (m && Number(m[1]) >= 1 && Number(m[1]) <= 12) {
+    return `${String(m[1]).padStart(2, "0")}/${m[2]}`;
+  }
+
+  m = s.match(/^(\d{1,2})-(\d{4})$/);
+  if (m && Number(m[1]) >= 1 && Number(m[1]) <= 12) {
+    return `${String(m[1]).padStart(2, "0")}/${m[2]}`;
+  }
+
+  m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  if (m) return `${String(m[2]).padStart(2, "0")}/${m[3]}`;
+
+  const d = new Date(s);
+  if (!isNaN(d)) return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+
+  return s;
 }
 
 
@@ -1610,13 +1651,7 @@ function workingPeriod(doj, exitDate) {
 }
 
 function formatMonth(v) {
-  if (!v) return "";
-  const s = String(v).trim();
-  let m = s.match(/^(\d{1,2})\/(\d{4})$/);
-  if (m) return String(m[1]).padStart(2,"0") + "/" + m[2];
-  const d = new Date(s);
-  if (!isNaN(d)) return String(d.getMonth()+1).padStart(2,"0") + "/" + d.getFullYear();
-  return s;
+  return excelMonthYearToMMYYYY(v);
 }
 
 function calculateLeaveBalance(leaves) {
