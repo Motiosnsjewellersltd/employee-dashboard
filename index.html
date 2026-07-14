@@ -1141,6 +1141,16 @@ function safe(v) {
   return String(v ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
 }
 
+
+function nameKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9 ]/g, "");
+}
+
+
 function norm(v) { return String(v || "").trim().toLowerCase(); }
 function digits(v) { return String(v || "").replace(/\D/g, ""); }
 
@@ -1747,6 +1757,31 @@ function pick(row, keys) {
   return "";
 }
 
+
+function forceReloadLeaves() {
+  loaded.leaves = false;
+  showLoading("Leaves Reload", "Google Sheet se leaves reload ho rahi hai...", 30);
+  return api("getInitData", {
+    userId: loggedUser.id,
+    role: loggedUser.role,
+    includeUsers: false,
+    includeLeaves: true,
+    includeNotifications: false,
+    includeChats: false
+  }).then(data => {
+    DB.leaves = data.leaves || [];
+    loaded.leaves = true;
+    updateLoading("Leaves loaded.", 100);
+    setTimeout(hideLoading, 300);
+    const active = document.querySelector(".section.active");
+    if (active && active.id === "profileSection") renderMyProfile();
+  }).catch(e => {
+    hideLoading();
+    alert("Leaves reload error: " + e.message);
+  });
+}
+
+
 /*************************************************
  * PROFILE / LEAVE BALANCE
  *************************************************/
@@ -1763,7 +1798,11 @@ function renderMyProfile() {
 function profileHtml(user) {
   if (!user) return "";
 
-  const leaveData = DB.leaves.filter(l => norm(l.employeeName) === norm(user.name));
+  const userNameKey = nameKey(user.name);
+  const leaveData = DB.leaves.filter(l => {
+    const lk = l.employeeKey || nameKey(l.employeeName);
+    return lk === userNameKey;
+  });
   const balance = calculateLeaveBalance(leaveData);
 
   return `
@@ -1800,7 +1839,10 @@ function profileHtml(user) {
       </table>
     </div>
 
-    <h2 style="margin-top:20px;">Monthwise Leaves</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:20px;flex-wrap:wrap;">
+      <h2>Monthwise Leaves</h2>
+      ${leaveData.length ? "" : `<button class="btn-light" onclick="forceReloadLeaves()">Reload Leaves</button>`}
+    </div>
     <div class="table-wrap mobile-card-table" style="max-height:260px;">
       <table>
         <thead><tr><th>Month/Year</th><th>Leave</th></tr></thead>
