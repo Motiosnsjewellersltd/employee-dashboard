@@ -779,6 +779,44 @@
       }
     }
 
+  
+    /* CHAT STABILITY FIX */
+    .chat-input .btn[disabled] {
+      opacity: .65;
+      cursor: not-allowed;
+    }
+
+    @media(max-width: 768px) {
+      .chat-layout {
+        gap: 12px !important;
+      }
+
+      .chat-box {
+        height: calc(100vh - 380px) !important;
+        min-height: 430px !important;
+      }
+
+      .chat-messages {
+        padding: 12px !important;
+      }
+
+      .msg {
+        max-width: 86% !important;
+        font-size: 15px !important;
+      }
+
+      .chat-user {
+        grid-template-columns: 52px 1fr 28px !important;
+      }
+
+      .chat-user-name {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: initial !important;
+        line-height: 1.2 !important;
+      }
+    }
+
   </style>
 </head>
 
@@ -999,7 +1037,7 @@
               <div class="chat-head" id="chatHead">Select employee</div>
               <div class="chat-messages" id="chatMessages"></div>
               <div class="chat-input">
-                <input id="chatInput" placeholder="Type message" onkeydown="if(event.key==='Enter') sendChat()">
+                <input id="chatInput" placeholder="Type message" onkeydown="handleChatEnter(event)">
                 <button class="btn" onclick="sendChat()">Send</button>
               </div>
             </div>
@@ -1073,7 +1111,11 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwmDRfzRNOWolc5cI2hoxnL
 let loggedUser = null;
 let DB = { users: [], leaves: [], notifications: [], chats: [] };
 let loaded = { users:false, leaves:false, notifications:false, chats:false };
+let employeeLeavesCache = {};
 let activeChatUserId = "";
+let chatSending = false;
+let chatPollTimer = null;
+let lastChatSilentFetch = 0;
 let dashboardFilter = "All";
 
 let isUploading = false;
@@ -1339,11 +1381,12 @@ function loadDataParts(parts) {
 function showSection(name) {
   closeMobileMenu();
 
+  if (name !== "chat") stopChatPolling();
+
   const required = [];
-  if (name === "profile") required.push("leaves");
+  // Profile leaves are loaded employee-wise, not full 9000-row sheet.
   if (name === "reminder") required.push("notifications");
   if (name === "notifications") required.push("notifications");
-  if (name === "chat") required.push("chats");
 
   loadDataParts(required).then(() => {
     document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
@@ -1360,7 +1403,7 @@ function showSection(name) {
     if (name === "profile") renderMyProfile();
     if (name === "reminder") renderReminder();
     if (name === "notifications") renderNotifications();
-    if (name === "chat") { renderChatUsers(); renderChatMessages(); renderAdminChatHistory(); }
+    if (name === "chat") startChatPage();
   });
 }
 
@@ -1585,7 +1628,8 @@ function uploadEmployeesExcel() {
     })
     .then(res => {
       updateLoading(`Done. Added: ${res.added}, Updated: ${res.updated}, Skipped: ${res.skipped}`, 100);
-      loaded.leaves = true;
+      employeeLeavesCache = {};
+      loaded.leaves = false;
       return refreshAll(false).then(() => res);
     })
     .then(res => {
@@ -1758,41 +1802,69 @@ function pick(row, keys) {
 }
 
 
-function forceReloadLeaves() {
-  loaded.leaves = false;
-  showLoading("Leaves Reload", "Google Sheet se leaves reload ho rahi hai...", 30);
-  return api("getInitData", {
-    userId: loggedUser.id,
-    role: loggedUser.role,
-    includeUsers: false,
-    includeLeaves: true,
-    includeNotifications: false,
-    includeChats: false
-  }).then(data => {
-    DB.leaves = data.leaves || [];
-    loaded.leaves = true;
+function forceReloadLeaves(userId) {
+  const user = userId ? DB.users.find(u => u.id === userId) : loggedUser;
+  if (!user) return;
+
+  showLoading("Leaves Reload", "Google Sheet se selected employee ki leaves reload ho rahi hai...", 30);
+
+  return getLeavesForUser(user, true).then(() => {
     updateLoading("Leaves loaded.", 100);
     setTimeout(hideLoading, 300);
-    const active = document.querySelector(".section.active");
-    if (active && active.id === "profileSection") renderMyProfile();
+
+    if (document.getElementById("profileModal").classList.contains("show")) {
+      document.getElementById("profileModalBody").innerHTML = profileHtml(user);
+    } else {
+      renderMyProfile();
+    }
   }).catch(e => {
     hideLoading();
     alert("Leaves reload error: " + e.message);
   });
 }
 
-
 /*************************************************
  * PROFILE / LEAVE BALANCE
  *************************************************/
 function openProfile(id) {
   const user = DB.users.find(u => u.id === id);
-  document.getElementById("profileModalBody").innerHTML = profileHtml(user);
+  if (!user) return;
+
+  document.getElementById("profileModalBody").innerHTML = `
+    <div style="min-height:180px;display:flex;align-items:center;justify-content:center;text-align:center;">
+      <div>
+        <h2>Loading...</h2>
+        <div class="hint">Leave data load ho raha hai.</div>
+      </div>
+    </div>`;
   openModal("profileModal");
+
+  getLeavesForUser(user, false)
+    .then(() => {
+      document.getElementById("profileModalBody").innerHTML = profileHtml(user);
+    })
+    .catch(e => {
+      document.getElementById("profileModalBody").innerHTML = `<div class="inline-message error show">${safe(e.message)}</div>`;
+    });
 }
 
 function renderMyProfile() {
-  document.getElementById("myProfile").innerHTML = profileHtml(loggedUser);
+  const box = document.getElementById("myProfile");
+  box.innerHTML = `
+    <div style="min-height:180px;display:flex;align-items:center;justify-content:center;text-align:center;">
+      <div>
+        <h2>Loading...</h2>
+        <div class="hint">Leave data load ho raha hai.</div>
+      </div>
+    </div>`;
+
+  getLeavesForUser(loggedUser, false)
+    .then(() => {
+      box.innerHTML = profileHtml(loggedUser);
+    })
+    .catch(e => {
+      box.innerHTML = `<div class="inline-message error show">${safe(e.message)}</div>`;
+    });
 }
 
 function profileHtml(user) {
@@ -1841,7 +1913,7 @@ function profileHtml(user) {
 
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:20px;flex-wrap:wrap;">
       <h2>Monthwise Leaves</h2>
-      ${leaveData.length ? "" : `<button class="btn-light" onclick="forceReloadLeaves()">Reload Leaves</button>`}
+      ${leaveData.length ? "" : `<button class="btn-light" onclick="forceReloadLeaves('${safe(user.id)}')">Reload Leaves</button>`}
     </div>
     <div class="table-wrap mobile-card-table" style="max-height:260px;">
       <table>
@@ -2058,6 +2130,103 @@ function renderNotifications() {
   `).join("") || `<div class="inline-message warning show">No notification history found.</div>`;
 }
 
+
+function stopChatPolling() {
+  if (chatPollTimer) {
+    clearInterval(chatPollTimer);
+    chatPollTimer = null;
+  }
+}
+
+function loadChatsSilent(force, otherId) {
+  const now = Date.now();
+
+  if (!force && now - lastChatSilentFetch < 2500) {
+    return Promise.resolve(DB.chats || []);
+  }
+
+  lastChatSilentFetch = now;
+
+  return api("getChatsForUser", {
+    userId: loggedUser.id,
+    role: loggedUser.role,
+    otherId: otherId || ""
+  }).then(chats => {
+    const incoming = chats || [];
+
+    if (otherId) {
+      DB.chats = (DB.chats || []).filter(m =>
+        !((m.from === loggedUser.id && m.to === otherId) || (m.from === otherId && m.to === loggedUser.id))
+      ).concat(incoming);
+    } else {
+      DB.chats = incoming;
+    }
+
+    loaded.chats = true;
+
+    const active = document.querySelector(".section.active");
+    if (active && active.id === "chatSection") {
+      renderChatUsers();
+      renderChatMessages();
+      renderAdminChatHistory();
+    }
+
+    return DB.chats;
+  }).catch(err => {
+    console.warn("Chat load error:", err.message);
+    return DB.chats || [];
+  });
+}
+
+function startChatPage() {
+  attachChatEnterFallback();
+  renderChatUsers();
+  renderChatMessages();
+  renderAdminChatHistory();
+
+  loadChatsSilent(true).then(() => {
+    renderChatUsers();
+    renderChatMessages();
+    renderAdminChatHistory();
+  });
+
+  stopChatPolling();
+  chatPollTimer = setInterval(() => {
+    const active = document.querySelector(".section.active");
+    if (!active || active.id !== "chatSection") {
+      stopChatPolling();
+      return;
+    }
+    loadChatsSilent(true);
+  }, 7000);
+}
+
+
+
+function handleChatEnter(event) {
+  if (event.key !== "Enter") return;
+  if (event.repeat) return;
+
+  event.preventDefault();
+  sendChat();
+}
+
+
+
+function attachChatEnterFallback() {
+  const input = document.getElementById("chatInput");
+  if (!input || input.dataset.enterAttached === "yes") return;
+
+  input.dataset.enterAttached = "yes";
+  input.addEventListener("keydown", function(event) {
+    if (event.key === "Enter" && !event.repeat) {
+      event.preventDefault();
+      sendChat();
+    }
+  });
+}
+
+
 /*************************************************
  * CHAT
  *************************************************/
@@ -2101,9 +2270,18 @@ function renderChatUsers() {
 
 function openChat(id) {
   activeChatUserId = id;
-  api("markChatRead", { userId: loggedUser.id, otherId: id }).then(() => refreshAll(false));
+
+  // Local read mark for instant UI.
+  (DB.chats || []).forEach(m => {
+    if (m.to === loggedUser.id && m.from === id) m.readByReceiver = true;
+  });
+
   renderChatUsers();
   renderChatMessages();
+
+  api("markChatRead", { userId: loggedUser.id, otherId: id })
+    .then(() => loadChatsSilent(true, id))
+    .catch(() => {});
 }
 
 function renderChatMessages() {
@@ -2117,7 +2295,7 @@ function renderChatMessages() {
   }
 
   const user = DB.users.find(u => u.id === activeChatUserId);
-  head.innerHTML = `${avatar(user)}<div><div>${safe(user.name)}</div><div class="online">Online</div></div>`;
+  head.innerHTML = `${avatar(user)}<div><div>${safe(user.name)}</div><div class="online">Chat</div></div>`;
 
   const msgs = messagesWith(activeChatUserId);
   box.innerHTML = msgs.map(m => `
@@ -2132,11 +2310,38 @@ function renderChatMessages() {
 }
 
 function sendChat() {
+  if (chatSending) return;
   if (!activeChatUserId) return alert("Select employee.");
-  const text = document.getElementById("chatInput").value.trim();
+
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
   if (!text) return;
 
   const to = DB.users.find(u => u.id === activeChatUserId);
+  if (!to) return alert("Employee not found.");
+
+  chatSending = true;
+  input.value = "";
+
+  const tempId = "TEMP-" + Date.now();
+  const tempMsg = {
+    id: tempId,
+    createdAt: Date.now(),
+    time: new Date().toISOString(),
+    from: loggedUser.id,
+    fromName: loggedUser.name,
+    to: to.id,
+    toName: to.name,
+    text: text,
+    attachment: null,
+    readByReceiver: false,
+    edited: false
+  };
+
+  DB.chats = (DB.chats || []).concat([tempMsg]);
+  loaded.chats = true;
+  renderChatUsers();
+  renderChatMessages();
 
   api("sendChat", {
     message: {
@@ -2146,11 +2351,17 @@ function sendChat() {
       toName: to.name,
       text
     }
-  }).then(() => {
-    document.getElementById("chatInput").value = "";
-    loaded.chats = true;
-    refreshAll(false);
-  });
+  })
+    .then(() => loadChatsSilent(true, activeChatUserId))
+    .catch(err => {
+      DB.chats = (DB.chats || []).filter(m => m.id !== tempId);
+      renderChatUsers();
+      renderChatMessages();
+      alert("Message send error: " + err.message);
+    })
+    .finally(() => {
+      chatSending = false;
+    });
 }
 
 function renderAdminChatHistory() {
@@ -2172,18 +2383,27 @@ function openModal(id) { document.getElementById(id).classList.add("show"); }
 function closeModal(id) { document.getElementById(id).classList.remove("show"); }
 
 function refreshAll(showAlert) {
+  const active = document.querySelector(".section.active");
+  const activeName = active ? active.id.replace("Section","") : "";
+
+  if (activeName === "chat") {
+    return loadChatsSilent(true).then(() => {
+      if (showAlert) alert(showAlert);
+    });
+  }
+
   return api("getInitData", {
     userId: loggedUser.id,
     role: loggedUser.role,
     includeUsers: true,
-    includeLeaves: loaded.leaves,
+    includeLeaves: false,
     includeNotifications: loaded.notifications,
-    includeChats: loaded.chats
+    includeChats: false
   }).then(data => {
     mergeInitData(data);
-    const active = document.querySelector(".section.active");
-    if (active) {
-      const name = active.id.replace("Section","");
+    const activeNow = document.querySelector(".section.active");
+    if (activeNow) {
+      const name = activeNow.id.replace("Section","");
       if (name !== "loading") showSection(name);
     }
     if (showAlert) alert(showAlert);
