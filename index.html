@@ -557,6 +557,7 @@
           <div class="panel-head">
             <h2>Employees Details</h2>
             <div class="actions">
+              <button class="btn-light" onclick="cleanupDuplicates()">Remove Duplicates</button>
               <button class="btn-light" onclick="deleteSelected()">Delete Selected</button>
               <button class="btn btn-red" onclick="deleteAll()">Delete All</button>
             </div>
@@ -754,7 +755,7 @@
  * IMPORTANT:
  * Paste your Apps Script Web App URL here.
  *************************************************/
-const API_URL = "https://script.google.com/macros/s/AKfycbwmDRfzRNOWolc5cI2hoxnLQ_-eSZ8oPnqRNR6azEXRSBx8j2rd3rtr0fHwoJNyJjdS/exec";
+const API_URL = "Employees Dashboard online";
 
 let loggedUser = null;
 let DB = { users: [], leaves: [], notifications: [], chats: [] };
@@ -988,6 +989,19 @@ function toggleAllRows(chk) {
   document.querySelectorAll(".rowCheck").forEach(c => c.checked = chk.checked);
 }
 
+
+function cleanupDuplicates() {
+  if (!confirm("Duplicate employees remove karne hain? Same mobile number wale duplicate records me latest row keep hogi.")) return;
+
+  api("cleanupDuplicateUsers", {})
+    .then(res => {
+      alert("Duplicate rows removed: " + res.deleted);
+      refreshAll();
+    })
+    .catch(e => alert(e.message));
+}
+
+
 function deleteSelected() {
   const ids = [...document.querySelectorAll(".rowCheck:checked")].map(c => c.value);
   if (!ids.length) return alert("Select employee.");
@@ -1083,11 +1097,11 @@ function uploadEmployeesExcel() {
       name: pick(r, ["Name", "Employee Name", "Name of Employee"]),
       mobile: pick(r, ["Mobile", "Mobile No.", "Number", "Username / Mobile"]),
       password: pick(r, ["Password"]) || "1234",
-      dob: pick(r, ["DOB", "Date of Birth"]),
+      dob: excelDateToDMY(pick(r, ["DOB", "Date of Birth"])),
       role: pick(r, ["Role"]) || "Employee",
       designation: pick(r, ["Designation", "Post"]),
       department: pick(r, ["Department"]),
-      doj: pick(r, ["DOJ", "Date of Joining"]),
+      doj: excelDateToDMY(pick(r, ["DOJ", "Date of Joining"])),
       status: pick(r, ["Status"]) || "Active"
     })).filter(u => u.name);
 
@@ -1135,6 +1149,43 @@ function readExcel(file) {
     reader.readAsArrayBuffer(file);
   });
 }
+
+
+function excelDateToDMY(value) {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (value instanceof Date && !isNaN(value)) {
+    const dd = String(value.getDate()).padStart(2, "0");
+    const mm = String(value.getMonth() + 1).padStart(2, "0");
+    const yy = value.getFullYear();
+    return `${dd}/${mm}/${yy}`;
+  }
+
+  if (typeof value === "number" && value > 20000 && value < 80000) {
+    const base = new Date(Date.UTC(1899, 11, 30));
+    const d = new Date(base.getTime() + value * 86400000);
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const yy = d.getUTCFullYear();
+    return `${dd}/${mm}/${yy}`;
+  }
+
+  const s = String(value).trim();
+
+  if (/^\d{5}$/.test(s)) {
+    const n = Number(s);
+    if (n > 20000 && n < 80000) return excelDateToDMY(n);
+  }
+
+  let m = s.match(/^(\d{1,2})[.\-](\d{1,2})[.\-](\d{4})$/);
+  if (m) return `${String(m[1]).padStart(2, "0")}/${String(m[2]).padStart(2, "0")}/${m[3]}`;
+
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${String(m[1]).padStart(2, "0")}/${String(m[2]).padStart(2, "0")}/${m[3]}`;
+
+  return s;
+}
+
 
 function pick(row, keys) {
   for (const k of keys) {
