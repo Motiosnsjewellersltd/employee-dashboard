@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  HR
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MessageType {
+  INVITATION
+  INFORMATION
+  CELEBRATION
+  NOTICE
+}
+
+model Employee {
+  id          String         @id @default(cuid())
+  name        String
+  mobile      String         @unique
+  password    String
+  role        Role           @default(EMPLOYEE)
+  designation String?
+  department  String?
+  dob         DateTime?
+  doj         DateTime?
+  exitDate    DateTime?
+  status      EmployeeStatus @default(ACTIVE)
+  photoUrl    String?        @db.LongText
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  lastSeenAt  DateTime?
+  deletedAt   DateTime?
+  deletedById String?
+  deletedByName String?
+
+  leaves              LeaveRecord[]
+  comments            ManagementComment[]
+  performances        PerformanceRecord[]
+  sentMessages        ChatMessage[] @relation("SentChatMessages")
+  chatParticipants    ChatParticipant[]
+  messageRecipients   MessageRecipient[]
+  createdNotifications NotificationBlast[] @relation("CreatedNotificationBlasts")
+
+  @@index([name])
+  @@index([role])
+  @@index([designation])
+  @@index([department])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model LeaveRecord {
+  id         String   @id @default(cuid())
+  employeeId String
+  monthYear  String
+  leave      Float    @default(0)
+  reason     String?  @db.Text
+  deletedAt  DateTime?
+  deletedById String?
+  deletedByName String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, monthYear])
+  @@index([monthYear])
+  @@index([deletedAt])
+}
+
+model ManagementComment {
+  id         String   @id @default(cuid())
+  employeeId String
+  monthYear  String
+  comment    String   @db.Text
+  score      Float?
+  createdAt  DateTime @default(now())
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model PerformanceRecord {
+  id         String   @id @default(cuid())
+  employeeId String
+  monthYear  String
+  planned    Float    @default(0)
+  actual     Float    @default(0)
+  onTime     Float    @default(0)
+  percentage Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, monthYear])
+}
+
+model ChatThread {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+}
+
+model ChatParticipant {
+  id         String   @id @default(cuid())
+  threadId   String
+  employeeId String
+  unread     Int      @default(0)
+  lastReadAt DateTime?
+
+  thread   ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  employee Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, employeeId])
+  @@index([employeeId])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  threadId      String
+  senderId      String
+  text          String   @db.Text
+  attachmentUrl String?  @db.Text
+  attachmentName String?
+  isEdited      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender Employee   @relation("SentChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+model NotificationBlast {
+  id          String      @id @default(cuid())
+  type        MessageType @default(INFORMATION)
+  text        String      @db.Text
+  attachmentUrl String?   @db.Text
+  attachmentName String?
+  filterType  String?
+  filterValue String?
+  createdById String
+  createdAt   DateTime    @default(now())
+
+  createdBy  Employee @relation("CreatedNotificationBlasts", fields: [createdById], references: [id], onDelete: Cascade)
+  recipients MessageRecipient[]
+}
+
+model MessageRecipient {
+  id             String   @id @default(cuid())
+  blastId         String
+  employeeId      String
+  readAt          DateTime?
+  clearedAt       DateTime?
+
+  blast    NotificationBlast @relation(fields: [blastId], references: [id], onDelete: Cascade)
+  employee Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([blastId, employeeId])
+  @@index([employeeId])
+}
+
+model LoginAttempt {
+  id           String   @id @default(cuid())
+  username     String
+  employeeId   String?
+  employeeName String?
+  success      Boolean  @default(false)
+  reason       String?
+  ipAddress    String?
+  userAgent    String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([success])
+  @@index([username])
+}
+
+
+model PermissionSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

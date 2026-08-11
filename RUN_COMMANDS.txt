@@ -1,0 +1,28 @@
+Employee Dashboard - Fixed Setup Commands
+
+Agar npm install complete ho chuka hai, yahin se continue karo:
+
+npx prisma generate
+npx prisma db push
+npm run db:seed
+npm run build
+npm run start
+
+Open:
+http://localhost:5020
+
+Default login:
+Username: admin
+Password: admin123
+
+PM2:
+pm2 start npm --name employee-dashboard -- start
+pm2 save
+
+Restart:
+pm2 restart employee-dashboard
+
+
+Update note:
+- Admin login user is hidden from Employee list/counts.
+- Employee profile popup table alignment/overflow fixed.

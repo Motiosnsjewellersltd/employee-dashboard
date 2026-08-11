@@ -1,0 +1,17 @@
+node_modules
+.next
+.vercel
+.env*
+!.env.example
+.DS_Store
+*.log
+*.exe
+*.zip
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+public/uploads/photos/*
+public/uploads/chat/*
+!public/uploads/photos/.gitkeep
+!public/uploads/chat/.gitkeep
