@@ -120,6 +120,23 @@ export default function DashboardApp() {
     hrCanResetPassword: "false",
     hrCanUploadLeaves: "true"
   });
+  const [employeeListPage, setEmployeeListPage] = useState(1);
+  const employeeEditScrollRef = useRef(0);
+
+  function openEmployeeEdit(user: User) {
+    employeeEditScrollRef.current = window.scrollY || document.documentElement.scrollTop || 0;
+    setEditUser(user);
+  }
+
+  async function finishEmployeeEdit() {
+    setEditUser(null);
+    await loadEmployees();
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: employeeEditScrollRef.current, left: 0, behavior: "auto" });
+      });
+    });
+  }
 
   async function loadMe() {
     const data = await api("/api/auth/me");
@@ -390,12 +407,12 @@ export default function DashboardApp() {
           <select value={dashboardQuick.designation} onChange={e => setDashboardQuick({ ...dashboardQuick, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
           <select value={dashboardQuick.department} onChange={e => setDashboardQuick({ ...dashboardQuick, department: e.target.value })}><option>All</option>{departments.map(d => <option key={d}>{d}</option>)}</select>
         </div></div>
-        <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={setEditUser} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} />
+        <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={openEmployeeEdit} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} />
       </section>}
       {section === "employees" && <section className="panel employees-section"><h1>Employees Details</h1><div className="filters">
         <input placeholder="Type or select name" value={filters.q} onChange={e => { const q = e.target.value; setFilters({ ...filters, q }); loadEmployees(q, filters.designation).catch(() => null); }} />
         <select value={filters.designation} onChange={e => { setFilters({ ...filters, designation: e.target.value }); loadEmployees(filters.q, e.target.value).catch(() => null); }}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
-      </div><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={setEditUser} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} loading={employeesLoading} /></section>}
+      </div><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} /></section>}
       {section === "add" && <EmployeeForm onSaved={() => { loadEmployees(); setSection("employees"); }} />}
       {section === "leaves" && isAdmin && canUploadLeaves && <LeavesUpload />}
       {section === "reminder" && <Reminder employees={activeEmployeeRows} />}
@@ -411,7 +428,7 @@ export default function DashboardApp() {
       {section === "systemHealth" && isAdmin && <SystemHealth />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={profileUser || session} leaves={profileLeaves} loading={profileLoading} openProfile={openProfile} />}
     </main>
-    {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={() => { setEditUser(null); loadEmployees(); }} />}
+    {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
     {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} />}
     <ToastHost />
     <ConfirmHost />
@@ -431,10 +448,16 @@ function Highlight({ text, term }: { text?: any; term?: string }) {
   return <>{parts.map((part, index) => part.toLowerCase() === q.toLowerCase() ? <mark className="search-highlight" key={index}>{part}</mark> : <React.Fragment key={index}>{part}</React.Fragment>)}</>;
 }
 
-function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, loading = false }: { title: string; employees: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; loading?: boolean }) {
+function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, loading = false, page: controlledPage, onPageChange }: { title: string; employees: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; loading?: boolean; page?: number; onPageChange?: (page: number) => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkMsg, setBulkMsg] = useState("");
-  const [page, setPage] = useState(1);
+  const [localPage, setLocalPage] = useState(1);
+  const page = controlledPage ?? localPage;
+  const setPage = (next: number | ((current: number) => number)) => {
+    const value = typeof next === "function" ? next(page) : next;
+    if (onPageChange) onPageChange(value);
+    else setLocalPage(value);
+  };
   const [pageSize, setPageSize] = useState(25);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
@@ -599,7 +622,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
   </div>;
 }
 
-function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => void }) {
+function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => void | Promise<void> }) {
   const [form, setForm] = useState<any>({
     name: user.name || "",
     mobile: user.mobile || "",
@@ -634,7 +657,7 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
         await api(`/api/employees/${user.id}/photo`, { method: "POST", body: fd });
       }
       setMsg("Employee updated.");
-      onSaved();
+      await onSaved();
     } catch (e: any) {
       setMsg(e.message);
     }
