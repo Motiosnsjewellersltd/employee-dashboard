@@ -1324,3 +1324,11 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .format-notes{display:grid;grid-template-columns:1fr;gap:6px;font-size:11px}
   .format-notes>b{width:auto}
 }
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+}
