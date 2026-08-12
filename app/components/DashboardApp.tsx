@@ -386,14 +386,14 @@ export default function DashboardApp() {
     <main className="main">
       <div className="app-topbar print-exclude">
         <div className="topbar-title"><span>Motisons Employee System</span><b>{sectionTitles[section]}</b></div>
-        <div className="global-search-wrap">
+        {session.role !== "EMPLOYEE" && <div className="global-search-wrap">
           <span className="global-search-icon">⌕</span>
           <input aria-label="Global employee search" placeholder="Search employee, mobile, designation..." value={globalSearch} onFocus={() => setGlobalSearchOpen(true)} onChange={e => { setGlobalSearch(e.target.value); setGlobalSearchOpen(true); }} />
           {globalSearch && <button className="global-search-clear" type="button" onClick={() => { setGlobalSearch(""); setGlobalSearchOpen(false); }}>×</button>}
           {globalSearchOpen && globalSearch.trim() && <div className="global-search-results">
             {globalMatches.length ? globalMatches.map(u => <button key={u.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => { openProfile(u); setGlobalSearchOpen(false); }}>{avatar(u)}<span><b><Highlight text={u.name} term={globalSearch} /></b><small>{u.designation || "-"} · {u.department || "-"} · <Highlight text={u.mobile} term={globalSearch} /></small></span></button>) : <div className="global-search-empty">No employee found</div>}
           </div>}
-        </div>
+        </div>}
         {isAdmin && <button className={dataQuality.affected ? "quality-badge attention" : "quality-badge"} type="button" onClick={() => goto("employees")} title={`Missing DOB: ${dataQuality.missingDob}, Mobile: ${dataQuality.missingMobile}, DOJ: ${dataQuality.missingDoj}`}><span>Data Quality</span><b>{dataQuality.affected}</b></button>}
         <NotificationBell onOpen={() => goto("notifications")} />
       </div>
@@ -426,7 +426,7 @@ export default function DashboardApp() {
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "recycle" && isAdmin && <RecycleBin />}
       {section === "systemHealth" && isAdmin && <SystemHealth />}
-      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={profileUser || session} leaves={profileLeaves} loading={profileLoading} openProfile={openProfile} />}
+      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || profileUser || session} leaves={profileLeaves} loading={profileLoading} openProfile={openProfile} />}
     </main>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
     {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} />}
