@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -37,7 +38,7 @@ model Employee {
   doj         DateTime?
   exitDate    DateTime?
   status      EmployeeStatus @default(ACTIVE)
-  photoUrl    String?        @db.LongText
+  photoUrl    String?        @db.Text
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   lastSeenAt  DateTime?
