@@ -15,3 +15,4 @@ public/uploads/photos/*
 public/uploads/chat/*
 !public/uploads/photos/.gitkeep
 !public/uploads/chat/.gitkeep
+RUN_COMMANDS.txt
