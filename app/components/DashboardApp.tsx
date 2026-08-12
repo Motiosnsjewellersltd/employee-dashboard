@@ -654,6 +654,22 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
   </div>;
 }
 
+function ImportFormatGuide({ type }: { type: "employees" | "leaves" }) {
+  if (type === "employees") {
+    return <div className="import-format-guide">
+      <div className="import-format-head"><div><b>Employee Excel Format</b><span>Upload file type: .xlsx only (CSV is not supported)</span></div><span className="format-badge">Row 1 = Headers</span></div>
+      <div className="format-scroll"><table className="format-table"><thead><tr><th>Name *</th><th>Mobile *</th><th>Password</th><th>Role</th><th>Designation</th><th>Department</th><th>DOB</th><th>DOJ</th><th>Exit Date</th><th>Status</th></tr></thead><tbody><tr><td>Rahul Sharma</td><td>9876543210</td><td>1234</td><td>EMPLOYEE</td><td>Sales Executive</td><td>Sales</td><td>15/08/1995</td><td>01/04/2024</td><td></td><td>ACTIVE</td></tr></tbody></table></div>
+      <div className="format-notes"><b>Exact rules:</b><span><strong>* Required:</strong> Name, Mobile</span><span>Password blank ho to default <strong>1234</strong></span><span>Role: <strong>EMPLOYEE</strong> or <strong>HR</strong></span><span>DOB / DOJ / Exit Date: <strong>DD/MM/YYYY</strong></span><span>Status: <strong>ACTIVE</strong> or <strong>INACTIVE</strong></span><span>Row 2 se employee data start karo; extra title row mat lagao</span></div>
+    </div>;
+  }
+
+  return <div className="import-format-guide">
+    <div className="import-format-head"><div><b>Leave Excel Format</b><span>Upload file type: .xlsx only (CSV is not supported)</span></div><span className="format-badge">Row 1 = Headers</span></div>
+    <div className="format-scroll"><table className="format-table leave-format-table"><thead><tr><th>Month/Year *</th><th>EmployeeID</th><th>Employee Name *</th><th>Mobile</th><th>Leave *</th></tr></thead><tbody><tr><td>08/2026</td><td></td><td>Rahul Sharma</td><td>9876543210</td><td>1.5</td></tr></tbody></table></div>
+    <div className="format-notes"><b>Exact rules:</b><span><strong>* Required headers:</strong> Month/Year, Employee Name, Leave</span><span>Month/Year: <strong>MM/YYYY</strong>, example <strong>08/2026</strong></span><span>EmployeeID and Mobile optional hain; matching me help karte hain</span><span>Leave number ho sakti hai, example <strong>1</strong>, <strong>0.5</strong>, <strong>1.5</strong></span><span>Row 2 se employee data start karo; extra title row mat lagao</span></div>
+  </div>;
+}
+
 function EmployeeForm({ onSaved }: { onSaved: () => void }) {
   const [form, setForm] = useState<any>({ role: "EMPLOYEE", status: "ACTIVE", password: "1234" });
   const [file, setFile] = useState<File | null>(null);
@@ -704,6 +720,7 @@ function EmployeeForm({ onSaved }: { onSaved: () => void }) {
   const field = (k: string, label: string) => <div><label>{label}</label><input value={form[k] || ""} onChange={e => setForm({ ...form, [k]: e.target.value })} /></div>;
 
   return <section className="panel"><h1>Add Employee</h1>
+    <ImportFormatGuide type="employees" />
     <div className="bulk import-box">
       <input type="file" accept=".xlsx" onChange={e => { setBulk(e.target.files?.[0] || null); setPreview(null); }} />
       <button className="light" onClick={previewBulk}>Preview Excel</button>
@@ -870,7 +887,7 @@ function LeavesUpload() {
 
   return <section className="panel leave-management">
     <h1>Leave Management</h1>
-    <p className="hint">Excel format: Month/Year, EmployeeID optional, Employee Name, Mobile optional, Leave. Month/Year example: 08/2026</p>
+    <ImportFormatGuide type="leaves" />
     <div className="bulk import-box">
       <input key={file ? file.name : "empty"} type="file" accept=".xlsx" onChange={e => { setFile(e.target.files?.[0] || null); setPreview(null); }} />
       <button className="light" onClick={previewExcel}>Preview Excel</button>
