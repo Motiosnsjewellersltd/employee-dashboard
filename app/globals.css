@@ -1332,3 +1332,47 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   text-decoration: none;
   cursor: pointer;
 }
+
+/* Mobile drawer scrolling fix (requested from phone recording 2026-08-12) */
+@media(max-width:900px){
+  .sidebar{
+    top:0!important;
+    bottom:0!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    padding-top:max(18px,env(safe-area-inset-top))!important;
+    padding-bottom:max(22px,env(safe-area-inset-bottom))!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-y:contain!important;
+    touch-action:pan-y!important;
+    scrollbar-gutter:stable;
+  }
+  .sidebar .brand{
+    position:sticky;
+    top:calc(-1 * max(18px,env(safe-area-inset-top)));
+    z-index:3;
+    margin-top:0;
+    padding-top:max(18px,env(safe-area-inset-top));
+    padding-bottom:10px;
+    background:linear-gradient(180deg,#075a98 0%,#075a98 78%,rgba(7,90,152,0));
+  }
+  .sidebar nav{
+    display:block;
+    min-height:max-content;
+    padding-bottom:calc(28px + env(safe-area-inset-bottom));
+  }
+  .sidebar .menu{
+    min-height:50px;
+    flex-shrink:0;
+  }
+  .backdrop{
+    touch-action:none!important;
+    overscroll-behavior:contain!important;
+  }
+  .mobile-menu{
+    top:max(12px,env(safe-area-inset-top));
+    right:max(12px,env(safe-area-inset-right));
+  }
+}
