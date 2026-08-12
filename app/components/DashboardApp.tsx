@@ -469,7 +469,6 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
   useEffect(() => {
     const visibleIds = new Set(employees.map(e => e.id));
     setSelected(current => current.filter(id => visibleIds.has(id)));
-    setPage(1);
   }, [employees]);
 
   useEffect(() => {
