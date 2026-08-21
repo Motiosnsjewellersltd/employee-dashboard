@@ -100,6 +100,7 @@ export default function DashboardApp() {
   const [session, setSession] = useState<User | null>(null);
   const [login, setLogin] = useState({ username: "", password: "" });
   const [loginErr, setLoginErr] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [section, setSection] = useState<Section>("dashboard");
   const [dashboardFilter, setDashboardFilter] = useState("All Employees");
   const [dashboardQuick, setDashboardQuick] = useState({ q: "", status: "All", designation: "All", department: "All" });
@@ -272,10 +273,41 @@ export default function DashboardApp() {
       <h1>Login</h1>
       <p>Enter username / mobile and password.</p>
       <label>Username / Mobile</label><input value={login.username} onChange={e => setLogin({ ...login, username: e.target.value })} autoFocus />
-      <label>Password</label><input type="password" value={login.password} onChange={e => setLogin({ ...login, password: e.target.value })} />
+      <label>Password</label>
+      <div style={{ position: "relative" }}>
+        <input
+          type={showLoginPassword ? "text" : "password"}
+          value={login.password}
+          onChange={e => setLogin({ ...login, password: e.target.value })}
+          style={{ paddingRight: 52 }}
+        />
+        <button
+          type="button"
+          onClick={() => setShowLoginPassword(v => !v)}
+          aria-label={showLoginPassword ? "Hide password" : "Show password"}
+          title={showLoginPassword ? "Hide password" : "Show password"}
+          style={{
+            position: "absolute",
+            right: 8,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 38,
+            height: 38,
+            border: 0,
+            background: "transparent",
+            color: "#0b5fa5",
+            fontSize: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          {showLoginPassword ? "🙈" : "👁️"}
+        </button>
+      </div>
       <button className="primary">Login</button>
       {loginErr && <div className={loginErr.includes("Logging in") ? "msg warn" : "msg error"}>{loginErr}</div>}
-      <div className="hint">Default: admin / admin123</div>
     </form></div>;
   }
 
