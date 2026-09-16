@@ -25,7 +25,7 @@ type LeaveInfo = {
   yearwise: Record<string, number>;
 };
 
-type Section = "dashboard" | "employees" | "add" | "leaves" | "reminder" | "notifications" | "chat" | "reset" | "audit" | "loginHistory" | "export" | "reports" | "permissions" | "recycle" | "systemHealth" | "profile";
+type Section = "dashboard" | "employees" | "add" | "leaves" | "leaveRequests" | "reminder" | "notifications" | "chat" | "reset" | "audit" | "loginHistory" | "export" | "reports" | "permissions" | "recycle" | "systemHealth" | "profile";
 
 async function api(url: string, options?: RequestInit) {
   const res = await fetch(url, options);
@@ -335,7 +335,8 @@ export default function DashboardApp() {
   const sectionTitles: Record<Section, string> = {
     dashboard: "Dashboard", employees: "Employees", add: "Add Employee", leaves: "Leave Management", reminder: "Reminders",
     notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login History",
-    export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile"
+    export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile",
+    leaveRequests: "Leave Requests"
   };
 
   function isSalespersonEmployee(e: User) {
@@ -398,6 +399,7 @@ export default function DashboardApp() {
         {isAdmin && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
         {isAdmin && <MenuItem label="Add Employee" icon="+" active={section === "add"} onClick={() => goto("add")} />}
         {isAdmin && canUploadLeaves && <MenuItem label="Upload Leaves" icon="⇧" active={section === "leaves"} onClick={() => goto("leaves")} />}
+        <MenuItem label="Leave Requests" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />
         {isAdmin && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
         <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />
         <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />
@@ -447,6 +449,7 @@ export default function DashboardApp() {
       </div><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} /></section>}
       {section === "add" && <EmployeeForm onSaved={() => { loadEmployees(); setSection("employees"); }} />}
       {section === "leaves" && isAdmin && canUploadLeaves && <LeavesUpload />}
+      {section === "leaveRequests" && <LeaveRequests session={session} />}
       {section === "reminder" && <Reminder employees={activeEmployeeRows} />}
       {section === "notifications" && <Notifications session={session} employees={activeEmployeeRows} />}
       {section === "chat" && <Chat session={session} />}
@@ -1403,6 +1406,119 @@ function PermissionsPanel({ session }: { session: User }) {
   ];
 
   return <section className="panel permission-panel"><h1>Role Permission Control</h1><p className="hint">These settings are saved for policy reference and future permission enforcement.</p>{rows.map(([key, label]) => <label className="permission-row" key={key}><span>{label}</span><select disabled={session.role !== "ADMIN"} value={permissions[key]} onChange={e => setPermissions({ ...permissions, [key]: e.target.value })}><option value="true">Yes</option><option value="false">No</option></select></label>)}{session.role === "ADMIN" && <button className="primary" onClick={save}>Save Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
+}
+
+function LeaveRequests({ session }: { session: User }) {
+  const canReview = session.role === "ADMIN" || session.role === "HR";
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [form, setForm] = useState({ fromDate: "", toDate: "", reason: "" });
+  const [rejecting, setRejecting] = useState<any | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [msg, setMsg] = useState("");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await api("/api/leave-requests");
+      setRows(data.requests || []);
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!form.fromDate || !form.toDate || !form.reason.trim()) {
+      setMsg("From date, To date and leave reason are required.");
+      return;
+    }
+    setSaving(true);
+    setMsg("");
+    try {
+      await api("/api/leave-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form)
+      });
+      setForm({ fromDate: "", toDate: "", reason: "" });
+      setMsg("Leave request submitted successfully.");
+      showToast("Leave request submitted successfully.", "success");
+      await load();
+    } catch (error: any) {
+      setMsg(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function decide(row: any, status: "APPROVED" | "REJECTED", reason = "") {
+    if (status === "APPROVED") {
+      const confirmed = await requestConfirm("Approve leave request", `Approve ${row.requester.name}'s leave request?`, "Approve");
+      if (!confirmed) return;
+    }
+    setSaving(true);
+    setMsg("");
+    try {
+      await api("/api/leave-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: row.id, status, rejectionReason: reason })
+      });
+      setRejecting(null);
+      setRejectionReason("");
+      const resultText = status === "APPROVED" ? "approved" : "rejected";
+      setMsg(`Leave request ${resultText}. Notification sent to ${row.requester.name}.`);
+      showToast(`Leave request ${resultText}.`, "success");
+      await load();
+    } catch (error: any) {
+      setMsg(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function displayDate(value: string) {
+    if (!value) return "-";
+    const date = new Date(value);
+    return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(date);
+  }
+
+  const visibleRows = statusFilter === "ALL" ? rows : rows.filter(row => row.status === statusFilter);
+
+  return <section className="panel leave-request-panel">
+    <div className="leave-request-title"><div><h1>Leave Requests</h1><p className="hint">{canReview ? "Review pending employee and manager leave requests." : "Submit a leave request and track its approval status."}</p></div>{canReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}</div>
+
+    {!canReview && <form className="leave-request-form" onSubmit={submit}>
+      <div><label>From Date</label><input type="date" value={form.fromDate} onChange={event => setForm({ ...form, fromDate: event.target.value, toDate: form.toDate && form.toDate < event.target.value ? event.target.value : form.toDate })} required /></div>
+      <div><label>To Date</label><input type="date" min={form.fromDate || undefined} value={form.toDate} onChange={event => setForm({ ...form, toDate: event.target.value })} required /></div>
+      <div className="leave-reason-field"><label>Leave Reason</label><textarea rows={3} placeholder="Enter reason for leave" value={form.reason} onChange={event => setForm({ ...form, reason: event.target.value })} required /></div>
+      <div className="leave-request-submit"><button className="primary" disabled={saving}>{saving ? "Submitting..." : "Submit Leave Request"}</button></div>
+    </form>}
+
+    {canReview && <div className="leave-request-filters"><button className={statusFilter === "ALL" ? "light active" : "light"} onClick={() => setStatusFilter("ALL")}>All</button><button className={statusFilter === "PENDING" ? "light active" : "light"} onClick={() => setStatusFilter("PENDING")}>Pending</button><button className={statusFilter === "APPROVED" ? "light active" : "light"} onClick={() => setStatusFilter("APPROVED")}>Approved</button><button className={statusFilter === "REJECTED" ? "light active" : "light"} onClick={() => setStatusFilter("REJECTED")}>Rejected</button></div>}
+    {msg && <div className="msg warn">{msg}</div>}
+
+    <div className="table-wrap leave-request-table"><table><thead><tr>{canReview && <th>Employee / Manager</th>}<th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Decision</th>{canReview && <th>Action</th>}</tr></thead><tbody>
+      {loading && <tr><td colSpan={canReview ? 7 : 6}>Loading leave requests...</td></tr>}
+      {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 7 : 6}>No leave requests found.</td></tr>}
+      {!loading && visibleRows.map(row => <tr key={row.id}>
+        {canReview && <td><b>{row.requester.name}</b><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
+        <td>{displayDate(row.fromDate)}</td><td>{displayDate(row.toDate)}</td><td className="leave-request-reason">{row.reason}</td>
+        <td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
+        <td>{row.status === "PENDING" ? "-" : <><b>{row.decidedBy?.name || "-"}</b>{row.status === "REJECTED" && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
+        {canReview && <td>{row.status === "PENDING" ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : "Completed"}</td>}
+      </tr>)}
+    </tbody></table></div>
+
+    {rejecting && <div className="modal"><div className="modal-box leave-reject-modal"><h2>Reject Leave Request</h2><p><b>{rejecting.requester.name}</b> · {displayDate(rejecting.fromDate)} to {displayDate(rejecting.toDate)}</p><label>Rejection Reason</label><textarea rows={4} autoFocus placeholder="Enter reason for rejection" value={rejectionReason} onChange={event => setRejectionReason(event.target.value)} /><div className="leave-reject-actions"><button className="light" disabled={saving} onClick={() => { setRejecting(null); setRejectionReason(""); }}>Cancel</button><button className="danger-btn" disabled={saving || !rejectionReason.trim()} onClick={() => decide(rejecting, "REJECTED", rejectionReason)}>{saving ? "Rejecting..." : "Reject & Notify"}</button></div></div></div>}
+  </section>;
 }
 
 function NotificationBell({ onOpen }: { onOpen: () => void }) {

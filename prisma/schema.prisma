@@ -26,6 +26,12 @@ enum MessageType {
   NOTICE
 }
 
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Employee {
   id          String         @id @default(cuid())
   name        String
@@ -53,6 +59,8 @@ model Employee {
   chatParticipants    ChatParticipant[]
   messageRecipients   MessageRecipient[]
   createdNotifications NotificationBlast[] @relation("CreatedNotificationBlasts")
+  leaveRequests        LeaveRequest[] @relation("LeaveRequestRequester")
+  decidedLeaveRequests LeaveRequest[] @relation("LeaveRequestDecider")
 
   @@index([name])
   @@index([role])
@@ -79,6 +87,26 @@ model LeaveRecord {
   @@unique([employeeId, monthYear])
   @@index([monthYear])
   @@index([deletedAt])
+}
+
+model LeaveRequest {
+  id              String             @id @default(cuid())
+  requesterId     String
+  fromDate        DateTime           @db.Date
+  toDate          DateTime           @db.Date
+  reason          String             @db.Text
+  status          LeaveRequestStatus @default(PENDING)
+  rejectionReason String?            @db.Text
+  decidedById     String?
+  decidedAt       DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  requester Employee  @relation("LeaveRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  decidedBy Employee? @relation("LeaveRequestDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([requesterId, createdAt])
+  @@index([status, createdAt])
 }
 
 model ManagementComment {

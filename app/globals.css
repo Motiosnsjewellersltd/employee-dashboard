@@ -1333,6 +1333,46 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   cursor: pointer;
 }
 
+/* Leave request approval workflow */
+.leave-request-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.leave-request-title h1{margin-bottom:5px}
+.leave-pending-count{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:#fff3cd;color:#8a5b00;border:1px solid #ffe08a;font-weight:800;white-space:nowrap}
+.leave-request-form{display:grid;grid-template-columns:minmax(160px,.7fr) minmax(160px,.7fr) minmax(260px,1.6fr) auto;gap:14px;align-items:end;margin-bottom:22px;padding:18px;border:1px solid #cde6f6;border-radius:16px;background:#f7fcff}
+.leave-request-form>div{display:flex;flex-direction:column;gap:7px}
+.leave-request-form label,.leave-reject-modal label{font-weight:800;color:#254d68;font-size:13px}
+.leave-request-form textarea,.leave-reject-modal textarea{resize:vertical;min-height:78px}
+.leave-request-submit{align-self:end}
+.leave-request-submit button{min-height:46px;white-space:nowrap}
+.leave-request-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.leave-request-filters .active{background:#dff2ff;border-color:#61b8ec;color:#075f9e}
+.leave-request-table td{vertical-align:top}
+.leave-request-reason{min-width:220px;white-space:normal}
+.leave-request-person-meta,.leave-rejection-text{display:block;margin-top:4px;color:#6b8193;line-height:1.35}
+.leave-rejection-text{max-width:220px;color:#a63b3b}
+.leave-status{display:inline-flex;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.35px}
+.leave-status.pending{background:#fff3cd;color:#815600}
+.leave-status.approved{background:#dff7e8;color:#16733c}
+.leave-status.rejected{background:#ffe4e4;color:#a52c2c}
+.leave-reject-modal{max-width:520px!important}
+.leave-reject-modal>p{margin:0 0 16px;color:#637e91}
+.leave-reject-modal textarea{width:100%;margin-top:8px}
+.leave-reject-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+
+@media(max-width:1100px){
+  .leave-request-form{grid-template-columns:1fr 1fr}
+  .leave-reason-field{grid-column:1/-1}
+  .leave-request-submit{grid-column:1/-1;align-items:flex-start}
+}
+
+@media(max-width:600px){
+  .leave-request-title{flex-direction:column}
+  .leave-request-form{grid-template-columns:1fr;padding:14px}
+  .leave-reason-field,.leave-request-submit{grid-column:auto}
+  .leave-request-submit button{width:100%}
+  .leave-reject-actions{flex-direction:column-reverse}
+  .leave-reject-actions button{width:100%}
+}
+
 /* Mobile drawer scrolling fix (requested from phone recording 2026-08-12) */
 @media(max-width:900px){
   .sidebar{
