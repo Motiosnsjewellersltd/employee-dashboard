@@ -24,6 +24,17 @@ function formatDateRange(fromDate: Date, toDate: Date) {
   return from === to ? from : `${from} to ${to}`;
 }
 
+function todayInIndia() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Kolkata"
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 const includePeople = {
   requester: { select: { id: true, name: true, mobile: true, designation: true, department: true } },
   decidedBy: { select: { id: true, name: true } }
@@ -53,8 +64,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const fromDate = parseDateOnly(body.fromDate);
     const toDate = parseDateOnly(body.toDate);
+    const fromDateText = String(body.fromDate || "").trim();
     const reason = String(body.reason || "").trim();
     if (!reason) throw new Error("Leave reason is required.");
+    if (fromDateText <= todayInIndia()) throw new Error("From date must be after today.");
     if (toDate < fromDate) throw new Error("To date cannot be before From date.");
 
     const leaveRequest = await prisma.leaveRequest.create({

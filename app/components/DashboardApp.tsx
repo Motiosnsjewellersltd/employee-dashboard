@@ -1413,6 +1413,7 @@ function LeaveRequests({ session }: { session: User }) {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [minimumLeaveDate, setMinimumLeaveDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [form, setForm] = useState({ fromDate: "", toDate: "", reason: "" });
   const [rejecting, setRejecting] = useState<any | null>(null);
@@ -1431,12 +1432,22 @@ function LeaveRequests({ session }: { session: User }) {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const tomorrow = new Date();
+    tomorrow.setHours(12, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setMinimumLeaveDate(`${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`);
+  }, []);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!form.fromDate || !form.toDate || !form.reason.trim()) {
       setMsg("From date, To date and leave reason are required.");
+      return;
+    }
+    if (minimumLeaveDate && form.fromDate < minimumLeaveDate) {
+      setMsg("From date must be after today.");
       return;
     }
     setSaving(true);
@@ -1496,8 +1507,8 @@ function LeaveRequests({ session }: { session: User }) {
     <div className="leave-request-title"><div><h1>Leave Requests</h1><p className="hint">{canReview ? "Review pending employee and manager leave requests." : "Submit a leave request and track its approval status."}</p></div>{canReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}</div>
 
     {!canReview && <form className="leave-request-form" onSubmit={submit}>
-      <div><label>From Date</label><input type="date" value={form.fromDate} onChange={event => setForm({ ...form, fromDate: event.target.value, toDate: form.toDate && form.toDate < event.target.value ? event.target.value : form.toDate })} required /></div>
-      <div><label>To Date</label><input type="date" min={form.fromDate || undefined} value={form.toDate} onChange={event => setForm({ ...form, toDate: event.target.value })} required /></div>
+      <div><label>From Date</label><input type="date" min={minimumLeaveDate || undefined} value={form.fromDate} onChange={event => setForm({ ...form, fromDate: event.target.value, toDate: form.toDate && form.toDate < event.target.value ? event.target.value : form.toDate })} required /></div>
+      <div><label>To Date</label><input type="date" min={form.fromDate || minimumLeaveDate || undefined} value={form.toDate} onChange={event => setForm({ ...form, toDate: event.target.value })} required /></div>
       <div className="leave-reason-field"><label>Leave Reason</label><textarea rows={3} placeholder="Enter reason for leave" value={form.reason} onChange={event => setForm({ ...form, reason: event.target.value })} required /></div>
       <div className="leave-request-submit"><button className="primary" disabled={saving}>{saving ? "Submitting..." : "Submit Leave Request"}</button></div>
     </form>}
