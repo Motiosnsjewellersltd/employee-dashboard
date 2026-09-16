@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { fail, ok, saveUpload } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
+import { sendPushToEmployees } from "@/lib/webPush";
 
 function dateFilter(from: string, to: string) {
   if (!from && !to) return undefined;
@@ -123,6 +124,12 @@ export async function POST(req: NextRequest) {
       }
     });
     await addAuditLog({ actorId: session.id, actorName: session.name, action: "CREATE_NOTIFICATION", target: type, details: { sent: ids.length, hasAttachment: Boolean(attachmentUrl) } });
+    await sendPushToEmployees(ids, {
+      title: `${type.charAt(0)}${type.slice(1).toLowerCase()} from ${session.name}`,
+      body: text,
+      url: "/?section=notifications",
+      tag: `notification-${blast.id}`,
+    });
     return ok({ id: blast.id, sent: ids.length });
   } catch (e) { return fail(e); }
 }

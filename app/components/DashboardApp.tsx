@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import PushNotificationSetup from "./PushNotificationSetup";
 
 type User = {
   id: string;
@@ -26,6 +27,15 @@ type LeaveInfo = {
 };
 
 type Section = "dashboard" | "employees" | "add" | "leaves" | "leaveRequests" | "reminder" | "notifications" | "chat" | "reset" | "audit" | "loginHistory" | "export" | "reports" | "permissions" | "recycle" | "systemHealth" | "profile";
+
+function initialSection(user: User): Section {
+  const fallback: Section = user.role === "EMPLOYEE" ? "profile" : "dashboard";
+  if (typeof window === "undefined") return fallback;
+  const requested = new URLSearchParams(window.location.search).get("section") as Section | null;
+  const common: Section[] = ["leaveRequests", "notifications", "chat"];
+  if (requested && common.includes(requested)) return requested;
+  return fallback;
+}
 
 async function api(url: string, options?: RequestInit) {
   const res = await fetch(url, options);
@@ -143,7 +153,7 @@ export default function DashboardApp() {
     const data = await api("/api/auth/me");
     if (data.user) {
       setSession(data.user);
-      setSection(data.user.role === "EMPLOYEE" ? "profile" : "dashboard");
+      setSection(initialSection(data.user));
     }
   }
 
@@ -240,7 +250,7 @@ export default function DashboardApp() {
       const data = json.data;
       setSession(data.user);
       setLoginErr("");
-      setSection(data.user.role === "EMPLOYEE" ? "profile" : "dashboard");
+      setSection(initialSection(data.user));
     } catch (err: any) {
       if (err?.name === "AbortError") setLoginErr("Login server is not responding. Please check MySQL/database connection and try again.");
       else setLoginErr(err?.message || "Login failed.");
@@ -490,6 +500,7 @@ export default function DashboardApp() {
     {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} />}
     <ToastHost />
     <ConfirmHost />
+    <PushNotificationSetup employeeId={session.id} />
   </div>;
 }
 
@@ -1704,9 +1715,21 @@ function ConfirmHost() {
 }
 
 function Chat({ session }: { session: User }) {
-  const [users, setUsers] = useState<User[]>([]); const [threads, setThreads] = useState<any[]>([]); const [active, setActive] = useState<any>(null); const [messages, setMessages] = useState<any[]>([]); const [q, setQ] = useState(""); const [text, setText] = useState(""); const [file, setFile] = useState<File | null>(null); const timer = useRef<any>(null);
+  const [users, setUsers] = useState<User[]>([]); const [threads, setThreads] = useState<any[]>([]); const [active, setActive] = useState<any>(null); const [messages, setMessages] = useState<any[]>([]); const [q, setQ] = useState(""); const [text, setText] = useState(""); const [file, setFile] = useState<File | null>(null); const timer = useRef<any>(null); const openedDeepLink = useRef("");
   async function bootstrap() { const d = await api("/api/chat/bootstrap"); setUsers(d.users.filter((u: User) => u.id !== session.id && String(u.status || "").toUpperCase() !== "INACTIVE")); setThreads(d.threads); }
   useEffect(() => { bootstrap(); timer.current = setInterval(() => { bootstrap(); if (active) loadMessages(active.id); }, 3000); return () => clearInterval(timer.current); }, [active?.id]);
+  useEffect(() => {
+    if (!users.length || active) return;
+    const params = new URLSearchParams(window.location.search);
+    const employeeId = params.get("employeeId") || "";
+    if (!employeeId || openedDeepLink.current === employeeId) return;
+    const employee = users.find(user => user.id === employeeId);
+    if (!employee) return;
+    openedDeepLink.current = employeeId;
+    ensureThread(employee).catch(() => null);
+    params.delete("employeeId");
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+  }, [users, active]);
   async function ensureThread(u: User) { const d = await api("/api/chat/threads", { method: "POST", body: JSON.stringify({ employeeId: u.id }) }); const t = { id: d.threadId, other: u }; setActive(t); loadMessages(d.threadId); }
   async function loadMessages(id: string) { const d = await api(`/api/chat/threads/${id}`); setMessages(d.messages); }
   async function send() { if (!active || (!text.trim() && !file)) return; const fd = new FormData(); fd.append("threadId", active.id); fd.append("text", text); if (file) fd.append("attachment", file); setText(""); setFile(null); await api("/api/chat/messages", { method: "POST", body: fd }); await loadMessages(active.id); await bootstrap(); }

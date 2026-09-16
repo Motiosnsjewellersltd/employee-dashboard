@@ -30,3 +30,39 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
   );
 });
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "You have a new update." };
+  }
+
+  const title = data.title || "Motisons Employee Dashboard";
+  const options = {
+    body: data.body || "You have a new notification.",
+    icon: data.icon || "/icons/icon-192.png",
+    badge: data.badge || "/icons/icon-192.png",
+    tag: data.tag || "employee-dashboard-update",
+    renotify: true,
+    requireInteraction: false,
+    data: { url: data.url || "/?section=notifications" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "/?section=notifications", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("navigate" in client) {
+          return client.navigate(target).then(() => client.focus());
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});

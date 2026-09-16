@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "vapid:generate": "node scripts/generate-vapid-keys.mjs",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate"
   },

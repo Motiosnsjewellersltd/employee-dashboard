@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { addAuditLog } from "@/lib/audit";
 import { fail, ok } from "@/lib/utils";
+import { addSystemNotification } from "@/lib/systemNotification";
+import { sendPushToEmployees } from "@/lib/webPush";
 
 function parseDateOnly(value: unknown) {
   const text = String(value || "").trim();
@@ -110,6 +112,14 @@ export async function POST(req: NextRequest) {
       target: leaveRequest.id,
       details: { fromDate: body.fromDate, toDate: body.toDate, fromDayType, toDayType, days: inclusiveDayCount(fromDate, toDate, fromDayType, toDayType) }
     });
+    await addSystemNotification({
+      actorId: session.id,
+      action: "NEW_LEAVE_REQUEST",
+      title: "New Leave Request",
+      text: `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. Reason: ${reason}`,
+      type: "NOTICE",
+      url: "/?section=leaveRequests",
+    });
     return ok({ request: leaveRequest });
   } catch (error) {
     return fail(error);
@@ -193,7 +203,7 @@ export async function PATCH(req: NextRequest) {
         }
       });
       const request = await tx.leaveRequest.findUnique({ where: { id }, include: includePeople });
-      return { request, monthlyBreakdown };
+      return { request, monthlyBreakdown, notificationText: text, requesterId: current.requesterId };
     });
 
     await addAuditLog({
@@ -202,6 +212,12 @@ export async function PATCH(req: NextRequest) {
       action: `${status}_LEAVE_REQUEST`,
       target: id,
       details: status === "REJECTED" ? { rejectionReason } : { monthlyLeaveAdded: result.monthlyBreakdown }
+    });
+    await sendPushToEmployees([result.requesterId], {
+      title: status === "APPROVED" ? "Leave Approved" : "Leave Rejected",
+      body: result.notificationText,
+      url: "/?section=leaveRequests",
+      tag: `leave-${id}`,
     });
     return ok({ request: result.request, monthlyLeaveAdded: result.monthlyBreakdown });
   } catch (error) {

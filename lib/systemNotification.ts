@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
+import { sendPushToEmployees } from "@/lib/webPush";
 
 export async function addSystemNotification(input: {
   actorId: string;
   action: string;
   text: string;
   type?: "INVITATION" | "INFORMATION" | "CELEBRATION" | "NOTICE";
+  title?: string;
+  url?: string;
 }) {
   try {
     const recipients = await prisma.employee.findMany({
@@ -29,6 +32,12 @@ export async function addSystemNotification(input: {
           create: recipients.map(recipient => ({ employeeId: recipient.id }))
         }
       }
+    });
+    await sendPushToEmployees(recipients.map(recipient => recipient.id), {
+      title: input.title || "Employee Dashboard Update",
+      body: input.text,
+      url: input.url || "/?section=notifications",
+      tag: `system-${input.action}`,
     });
   } catch {
     // System notifications must never stop the main action.

@@ -61,6 +61,7 @@ model Employee {
   createdNotifications NotificationBlast[] @relation("CreatedNotificationBlasts")
   leaveRequests        LeaveRequest[] @relation("LeaveRequestRequester")
   decidedLeaveRequests LeaveRequest[] @relation("LeaveRequestDecider")
+  pushSubscriptions    PushSubscription[]
 
   @@index([name])
   @@index([role])
@@ -68,6 +69,21 @@ model Employee {
   @@index([department])
   @@index([status])
   @@index([deletedAt])
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  employeeId String
+  endpoint   String   @unique @db.Text
+  p256dh     String   @db.Text
+  auth       String   @db.Text
+  userAgent  String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
 }
 
 model LeaveRecord {

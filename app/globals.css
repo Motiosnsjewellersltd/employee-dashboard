@@ -1805,3 +1805,56 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .profile-content .monthwise-leave-table th:nth-child(3),
   .profile-content .monthwise-leave-table td:nth-child(3){width:55%!important}
 }
+
+/* Browser push notification permission prompt */
+.push-permission-card{
+  position:fixed;
+  left:50%;
+  bottom:24px;
+  transform:translateX(-50%);
+  z-index:120;
+  width:min(680px,calc(100vw - 28px));
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) auto;
+  align-items:center;
+  gap:13px;
+  padding:14px;
+  border:1px solid #a8d7f3;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 18px 55px rgba(0,49,84,.24);
+}
+.push-permission-icon{
+  width:48px;
+  height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:#e3f4ff;
+  color:var(--blue);
+  font-size:23px;
+}
+.push-permission-copy{min-width:0;display:flex;flex-direction:column;gap:4px}
+.push-permission-copy b{color:#063b65;font-size:15px}
+.push-permission-copy span{color:#657d8f;font-size:12px;line-height:1.35;font-weight:700}
+.push-permission-copy small{color:#07814b;font-weight:900}
+.push-permission-actions{display:flex;gap:7px}
+.push-permission-actions button{white-space:nowrap}
+
+@media(max-width:900px){
+  .push-permission-card{
+    left:8px;
+    right:8px;
+    bottom:calc(82px + env(safe-area-inset-bottom));
+    width:auto;
+    transform:none;
+    grid-template-columns:42px minmax(0,1fr);
+    gap:9px;
+    padding:11px;
+    border-radius:16px;
+  }
+  .push-permission-icon{width:40px;height:40px;font-size:19px}
+  .push-permission-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}
+  .push-permission-actions button{width:100%;padding:9px 10px}
+}
