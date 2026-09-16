@@ -1415,7 +1415,7 @@ function LeaveRequests({ session }: { session: User }) {
   const [saving, setSaving] = useState(false);
   const [minimumLeaveDate, setMinimumLeaveDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [form, setForm] = useState({ fromDate: "", toDate: "", reason: "" });
+  const [form, setForm] = useState({ fromDate: "", toDate: "", fromDayType: "FULL", toDayType: "FULL", reason: "" });
   const [rejecting, setRejecting] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [msg, setMsg] = useState("");
@@ -1458,7 +1458,7 @@ function LeaveRequests({ session }: { session: User }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
-      setForm({ fromDate: "", toDate: "", reason: "" });
+      setForm({ fromDate: "", toDate: "", fromDayType: "FULL", toDayType: "FULL", reason: "" });
       setMsg("Leave request submitted successfully.");
       showToast("Leave request submitted successfully.", "success");
       await load();
@@ -1501,25 +1501,27 @@ function LeaveRequests({ session }: { session: User }) {
     return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(date);
   }
 
-  function leaveDayCount(fromValue: string, toValue: string) {
+  function leaveDayCount(fromValue: string, toValue: string, fromDayType = "FULL", toDayType = "FULL") {
     const from = String(fromValue || "").slice(0, 10);
     const to = String(toValue || "").slice(0, 10);
     if (!from || !to) return 0;
     const fromTime = Date.parse(`${from}T00:00:00.000Z`);
     const toTime = Date.parse(`${to}T00:00:00.000Z`);
     if (!Number.isFinite(fromTime) || !Number.isFinite(toTime) || toTime < fromTime) return 0;
-    return Math.floor((toTime - fromTime) / 86400000) + 1;
+    const calendarDays = Math.floor((toTime - fromTime) / 86400000) + 1;
+    if (calendarDays === 1) return fromDayType === "HALF" ? 0.5 : 1;
+    return calendarDays - (fromDayType === "HALF" ? 0.5 : 0) - (toDayType === "HALF" ? 0.5 : 0);
   }
 
   const visibleRows = statusFilter === "ALL" ? rows : rows.filter(row => row.status === statusFilter);
-  const formDays = leaveDayCount(form.fromDate, form.toDate);
+  const formDays = leaveDayCount(form.fromDate, form.toDate, form.fromDayType, form.toDayType);
 
   return <section className="panel leave-request-panel">
     <div className="leave-request-title"><div><h1>Leave Requests</h1><p className="hint">{canReview ? "Review pending employee and manager leave requests." : "Submit a leave request and track its approval status."}</p></div>{canReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}</div>
 
     {!canReview && <form className="leave-request-form" onSubmit={submit}>
-      <div><label>From Date</label><input type="date" min={minimumLeaveDate || undefined} value={form.fromDate} onChange={event => setForm({ ...form, fromDate: event.target.value, toDate: form.toDate && form.toDate < event.target.value ? event.target.value : form.toDate })} required /></div>
-      <div><label>To Date</label><input type="date" min={form.fromDate || minimumLeaveDate || undefined} value={form.toDate} onChange={event => setForm({ ...form, toDate: event.target.value })} required /></div>
+      <div className="leave-date-block"><label>From Date</label><input type="date" min={minimumLeaveDate || undefined} value={form.fromDate} onChange={event => { const fromDate = event.target.value; const toDate = form.toDate && form.toDate < fromDate ? fromDate : form.toDate; setForm({ ...form, fromDate, toDate, toDayType: toDate && toDate === fromDate ? form.fromDayType : form.toDayType }); }} required /><small>From Day Type</small><select value={form.fromDayType} onChange={event => { const fromDayType = event.target.value; setForm({ ...form, fromDayType, toDayType: form.toDate && form.toDate === form.fromDate ? fromDayType : form.toDayType }); }}><option value="FULL">Full Day</option><option value="HALF">Half Day</option></select></div>
+      <div className="leave-date-block"><label>To Date</label><input type="date" min={form.fromDate || minimumLeaveDate || undefined} value={form.toDate} onChange={event => { const toDate = event.target.value; setForm({ ...form, toDate, toDayType: toDate === form.fromDate ? form.fromDayType : form.toDayType }); }} required /><small>To Day Type</small><select value={form.toDate && form.toDate === form.fromDate ? form.fromDayType : form.toDayType} disabled={!form.toDate || form.toDate === form.fromDate} onChange={event => setForm({ ...form, toDayType: event.target.value })}><option value="FULL">Full Day</option><option value="HALF">Half Day</option></select></div>
       <div className="leave-days-preview"><span>Total Leave Days</span><b>{formDays || "-"}</b></div>
       <div className="leave-reason-field"><label>Leave Reason</label><textarea rows={3} placeholder="Enter reason for leave" value={form.reason} onChange={event => setForm({ ...form, reason: event.target.value })} required /></div>
       <div className="leave-request-submit"><button className="primary" disabled={saving}>{saving ? "Submitting..." : "Submit Leave Request"}</button></div>
@@ -1533,14 +1535,14 @@ function LeaveRequests({ session }: { session: User }) {
       {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 8 : 7}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
         {canReview && <td><b>{row.requester.name}</b><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
-        <td>{displayDate(row.fromDate)}</td><td>{displayDate(row.toDate)}</td><td><b>{leaveDayCount(row.fromDate, row.toDate)}</b></td><td className="leave-request-reason">{row.reason}</td>
+        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}</td>
         <td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
         <td>{row.status === "PENDING" ? "-" : <><b>{row.decidedBy?.name || "-"}</b>{row.status === "REJECTED" && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
         {canReview && <td>{row.status === "PENDING" ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : "Completed"}</td>}
       </tr>)}
     </tbody></table></div>
 
-    {rejecting && <div className="modal"><div className="modal-box leave-reject-modal"><h2>Reject Leave Request</h2><p><b>{rejecting.requester.name}</b> · {displayDate(rejecting.fromDate)} to {displayDate(rejecting.toDate)}</p><label>Rejection Reason</label><textarea rows={4} autoFocus placeholder="Enter reason for rejection" value={rejectionReason} onChange={event => setRejectionReason(event.target.value)} /><div className="leave-reject-actions"><button className="light" disabled={saving} onClick={() => { setRejecting(null); setRejectionReason(""); }}>Cancel</button><button className="danger-btn" disabled={saving || !rejectionReason.trim()} onClick={() => decide(rejecting, "REJECTED", rejectionReason)}>{saving ? "Rejecting..." : "Reject & Notify"}</button></div></div></div>}
+    {rejecting && <div className="modal"><div className="modal-box leave-reject-modal"><h2>Reject Leave Request</h2><p><b>{rejecting.requester.name}</b> · {displayDate(rejecting.fromDate)} to {displayDate(rejecting.toDate)} · {leaveDayCount(rejecting.fromDate, rejecting.toDate, rejecting.fromDayType, rejecting.toDayType)} day(s)</p><label>Rejection Reason</label><textarea rows={4} autoFocus placeholder="Enter reason for rejection" value={rejectionReason} onChange={event => setRejectionReason(event.target.value)} /><div className="leave-reject-actions"><button className="light" disabled={saving} onClick={() => { setRejecting(null); setRejectionReason(""); }}>Cancel</button><button className="danger-btn" disabled={saving || !rejectionReason.trim()} onClick={() => decide(rejecting, "REJECTED", rejectionReason)}>{saving ? "Rejecting..." : "Reject & Notify"}</button></div></div></div>}
   </section>;
 }
 

@@ -24,8 +24,10 @@ function formatDateRange(fromDate: Date, toDate: Date) {
   return from === to ? from : `${from} to ${to}`;
 }
 
-function inclusiveDayCount(fromDate: Date, toDate: Date) {
-  return Math.floor((toDate.getTime() - fromDate.getTime()) / 86400000) + 1;
+function inclusiveDayCount(fromDate: Date, toDate: Date, fromDayType = "FULL", toDayType = "FULL") {
+  const calendarDays = Math.floor((toDate.getTime() - fromDate.getTime()) / 86400000) + 1;
+  if (calendarDays <= 1) return fromDayType === "HALF" ? 0.5 : 1;
+  return calendarDays - (fromDayType === "HALF" ? 0.5 : 0) - (toDayType === "HALF" ? 0.5 : 0);
 }
 
 function todayInIndia() {
@@ -69,13 +71,17 @@ export async function POST(req: NextRequest) {
     const fromDate = parseDateOnly(body.fromDate);
     const toDate = parseDateOnly(body.toDate);
     const fromDateText = String(body.fromDate || "").trim();
+    const fromDayType = String(body.fromDayType || "FULL").trim().toUpperCase();
+    const requestedToDayType = String(body.toDayType || "FULL").trim().toUpperCase();
+    if (!["FULL", "HALF"].includes(fromDayType) || !["FULL", "HALF"].includes(requestedToDayType)) throw new Error("Select a valid Full Day or Half Day option.");
+    const toDayType = fromDate.getTime() === toDate.getTime() ? fromDayType : requestedToDayType;
     const reason = String(body.reason || "").trim();
     if (!reason) throw new Error("Leave reason is required.");
     if (fromDateText <= todayInIndia()) throw new Error("From date must be after today.");
     if (toDate < fromDate) throw new Error("To date cannot be before From date.");
 
     const leaveRequest = await prisma.leaveRequest.create({
-      data: { requesterId: session.id, fromDate, toDate, reason },
+      data: { requesterId: session.id, fromDate, toDate, fromDayType, toDayType, reason },
       include: includePeople
     });
     await addAuditLog({
@@ -83,7 +89,7 @@ export async function POST(req: NextRequest) {
       actorName: session.name,
       action: "CREATE_LEAVE_REQUEST",
       target: leaveRequest.id,
-      details: { fromDate: body.fromDate, toDate: body.toDate }
+      details: { fromDate: body.fromDate, toDate: body.toDate, fromDayType, toDayType, days: inclusiveDayCount(fromDate, toDate, fromDayType, toDayType) }
     });
     return ok({ request: leaveRequest });
   } catch (error) {
@@ -121,7 +127,7 @@ export async function PATCH(req: NextRequest) {
       if (claimed.count !== 1) throw new Error("This leave request has already been decided.");
 
       const dateRange = formatDateRange(current.fromDate, current.toDate);
-      const days = inclusiveDayCount(current.fromDate, current.toDate);
+      const days = inclusiveDayCount(current.fromDate, current.toDate, current.fromDayType, current.toDayType);
       const daysText = `${days} ${days === 1 ? "day" : "days"}`;
       const text = status === "APPROVED"
         ? `Your leave request for ${dateRange} (${daysText}) has been approved.`

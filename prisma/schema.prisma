@@ -94,6 +94,8 @@ model LeaveRequest {
   requesterId     String
   fromDate        DateTime           @db.Date
   toDate          DateTime           @db.Date
+  fromDayType     String             @default("FULL")
+  toDayType       String             @default("FULL")
   reason          String             @db.Text
   status          LeaveRequestStatus @default(PENDING)
   rejectionReason String?            @db.Text
