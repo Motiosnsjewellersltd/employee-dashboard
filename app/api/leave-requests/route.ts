@@ -24,6 +24,10 @@ function formatDateRange(fromDate: Date, toDate: Date) {
   return from === to ? from : `${from} to ${to}`;
 }
 
+function inclusiveDayCount(fromDate: Date, toDate: Date) {
+  return Math.floor((toDate.getTime() - fromDate.getTime()) / 86400000) + 1;
+}
+
 function todayInIndia() {
   const parts = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
@@ -117,9 +121,11 @@ export async function PATCH(req: NextRequest) {
       if (claimed.count !== 1) throw new Error("This leave request has already been decided.");
 
       const dateRange = formatDateRange(current.fromDate, current.toDate);
+      const days = inclusiveDayCount(current.fromDate, current.toDate);
+      const daysText = `${days} ${days === 1 ? "day" : "days"}`;
       const text = status === "APPROVED"
-        ? `Your leave request for ${dateRange} has been approved.`
-        : `Your leave request for ${dateRange} has been rejected. Reason: ${rejectionReason}`;
+        ? `Your leave request for ${dateRange} (${daysText}) has been approved.`
+        : `Your leave request for ${dateRange} (${daysText}) has been rejected. Reason: ${rejectionReason}`;
       await tx.notificationBlast.create({
         data: {
           type: "INFORMATION",

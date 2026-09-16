@@ -1337,10 +1337,13 @@ html,body{width:100%;min-height:100%;max-width:100%;}
 .leave-request-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
 .leave-request-title h1{margin-bottom:5px}
 .leave-pending-count{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:#fff3cd;color:#8a5b00;border:1px solid #ffe08a;font-weight:800;white-space:nowrap}
-.leave-request-form{display:grid;grid-template-columns:minmax(160px,.7fr) minmax(160px,.7fr) minmax(260px,1.6fr) auto;gap:14px;align-items:end;margin-bottom:22px;padding:18px;border:1px solid #cde6f6;border-radius:16px;background:#f7fcff}
+.leave-request-form{display:grid;grid-template-columns:minmax(150px,.7fr) minmax(150px,.7fr) minmax(130px,.45fr) minmax(240px,1.5fr) auto;gap:14px;align-items:end;margin-bottom:22px;padding:18px;border:1px solid #cde6f6;border-radius:16px;background:#f7fcff}
 .leave-request-form>div{display:flex;flex-direction:column;gap:7px}
 .leave-request-form label,.leave-reject-modal label{font-weight:800;color:#254d68;font-size:13px}
 .leave-request-form textarea,.leave-reject-modal textarea{resize:vertical;min-height:78px}
+.leave-days-preview{display:flex!important;align-items:center;justify-content:space-between;min-height:46px;padding:9px 13px;border:1px solid #b9def7;border-radius:11px;background:#eaf7ff;color:#075f9e}
+.leave-days-preview span{font-size:12px;font-weight:800}
+.leave-days-preview b{font-size:22px}
 .leave-request-submit{align-self:end}
 .leave-request-submit button{min-height:46px;white-space:nowrap}
 .leave-request-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
@@ -1360,6 +1363,7 @@ html,body{width:100%;min-height:100%;max-width:100%;}
 
 @media(max-width:1100px){
   .leave-request-form{grid-template-columns:1fr 1fr}
+  .leave-days-preview{align-self:end}
   .leave-reason-field{grid-column:1/-1}
   .leave-request-submit{grid-column:1/-1;align-items:flex-start}
 }
@@ -1368,6 +1372,7 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .leave-request-title{flex-direction:column}
   .leave-request-form{grid-template-columns:1fr;padding:14px}
   .leave-reason-field,.leave-request-submit{grid-column:auto}
+  .leave-days-preview{align-self:stretch}
   .leave-request-submit button{width:100%}
   .leave-reject-actions{flex-direction:column-reverse}
   .leave-reject-actions button{width:100%}

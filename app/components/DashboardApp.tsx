@@ -1501,7 +1501,18 @@ function LeaveRequests({ session }: { session: User }) {
     return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(date);
   }
 
+  function leaveDayCount(fromValue: string, toValue: string) {
+    const from = String(fromValue || "").slice(0, 10);
+    const to = String(toValue || "").slice(0, 10);
+    if (!from || !to) return 0;
+    const fromTime = Date.parse(`${from}T00:00:00.000Z`);
+    const toTime = Date.parse(`${to}T00:00:00.000Z`);
+    if (!Number.isFinite(fromTime) || !Number.isFinite(toTime) || toTime < fromTime) return 0;
+    return Math.floor((toTime - fromTime) / 86400000) + 1;
+  }
+
   const visibleRows = statusFilter === "ALL" ? rows : rows.filter(row => row.status === statusFilter);
+  const formDays = leaveDayCount(form.fromDate, form.toDate);
 
   return <section className="panel leave-request-panel">
     <div className="leave-request-title"><div><h1>Leave Requests</h1><p className="hint">{canReview ? "Review pending employee and manager leave requests." : "Submit a leave request and track its approval status."}</p></div>{canReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}</div>
@@ -1509,6 +1520,7 @@ function LeaveRequests({ session }: { session: User }) {
     {!canReview && <form className="leave-request-form" onSubmit={submit}>
       <div><label>From Date</label><input type="date" min={minimumLeaveDate || undefined} value={form.fromDate} onChange={event => setForm({ ...form, fromDate: event.target.value, toDate: form.toDate && form.toDate < event.target.value ? event.target.value : form.toDate })} required /></div>
       <div><label>To Date</label><input type="date" min={form.fromDate || minimumLeaveDate || undefined} value={form.toDate} onChange={event => setForm({ ...form, toDate: event.target.value })} required /></div>
+      <div className="leave-days-preview"><span>Total Leave Days</span><b>{formDays || "-"}</b></div>
       <div className="leave-reason-field"><label>Leave Reason</label><textarea rows={3} placeholder="Enter reason for leave" value={form.reason} onChange={event => setForm({ ...form, reason: event.target.value })} required /></div>
       <div className="leave-request-submit"><button className="primary" disabled={saving}>{saving ? "Submitting..." : "Submit Leave Request"}</button></div>
     </form>}
@@ -1516,12 +1528,12 @@ function LeaveRequests({ session }: { session: User }) {
     {canReview && <div className="leave-request-filters"><button className={statusFilter === "ALL" ? "light active" : "light"} onClick={() => setStatusFilter("ALL")}>All</button><button className={statusFilter === "PENDING" ? "light active" : "light"} onClick={() => setStatusFilter("PENDING")}>Pending</button><button className={statusFilter === "APPROVED" ? "light active" : "light"} onClick={() => setStatusFilter("APPROVED")}>Approved</button><button className={statusFilter === "REJECTED" ? "light active" : "light"} onClick={() => setStatusFilter("REJECTED")}>Rejected</button></div>}
     {msg && <div className="msg warn">{msg}</div>}
 
-    <div className="table-wrap leave-request-table"><table><thead><tr>{canReview && <th>Employee / Manager</th>}<th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Decision</th>{canReview && <th>Action</th>}</tr></thead><tbody>
-      {loading && <tr><td colSpan={canReview ? 7 : 6}>Loading leave requests...</td></tr>}
-      {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 7 : 6}>No leave requests found.</td></tr>}
+    <div className="table-wrap leave-request-table"><table><thead><tr>{canReview && <th>Employee / Manager</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Decision</th>{canReview && <th>Action</th>}</tr></thead><tbody>
+      {loading && <tr><td colSpan={canReview ? 8 : 7}>Loading leave requests...</td></tr>}
+      {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 8 : 7}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
         {canReview && <td><b>{row.requester.name}</b><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
-        <td>{displayDate(row.fromDate)}</td><td>{displayDate(row.toDate)}</td><td className="leave-request-reason">{row.reason}</td>
+        <td>{displayDate(row.fromDate)}</td><td>{displayDate(row.toDate)}</td><td><b>{leaveDayCount(row.fromDate, row.toDate)}</b></td><td className="leave-request-reason">{row.reason}</td>
         <td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
         <td>{row.status === "PENDING" ? "-" : <><b>{row.decidedBy?.name || "-"}</b>{row.status === "REJECTED" && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
         {canReview && <td>{row.status === "PENDING" ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : "Completed"}</td>}
