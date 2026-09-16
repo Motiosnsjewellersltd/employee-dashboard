@@ -1759,3 +1759,49 @@ html,body{width:100%;min-height:100%;max-width:100%;}
     font-size:13px;
   }
 }
+
+/* Fit both profile leave tables on mobile without horizontal scrolling */
+@media(max-width:600px){
+  .profile-content .mobile-cards-table{
+    width:100%!important;
+    max-width:100%!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+  }
+  .profile-content .mobile-cards-table table{
+    display:table!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    table-layout:fixed!important;
+    font-size:10px!important;
+  }
+  .profile-content .mobile-cards-table th,
+  .profile-content .mobile-cards-table td{
+    width:auto!important;
+    min-width:0!important;
+    padding:7px 5px!important;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+    white-space:normal!important;
+    vertical-align:middle;
+  }
+  .profile-content .mobile-cards-table th{
+    font-size:9.5px;
+    line-height:1.15;
+  }
+  .profile-content .leave-balance-table th:nth-child(1),
+  .profile-content .leave-balance-table td:nth-child(1){width:31%!important}
+  .profile-content .leave-balance-table th:nth-child(2),
+  .profile-content .leave-balance-table td:nth-child(2){width:21%!important;text-align:center}
+  .profile-content .leave-balance-table th:nth-child(3),
+  .profile-content .leave-balance-table td:nth-child(3){width:20%!important;text-align:center}
+  .profile-content .leave-balance-table th:nth-child(4),
+  .profile-content .leave-balance-table td:nth-child(4){width:28%!important;text-align:center}
+  .profile-content .monthwise-leave-table th:nth-child(1),
+  .profile-content .monthwise-leave-table td:nth-child(1){width:27%!important}
+  .profile-content .monthwise-leave-table th:nth-child(2),
+  .profile-content .monthwise-leave-table td:nth-child(2){width:18%!important;text-align:center}
+  .profile-content .monthwise-leave-table th:nth-child(3),
+  .profile-content .monthwise-leave-table td:nth-child(3){width:55%!important}
+}
