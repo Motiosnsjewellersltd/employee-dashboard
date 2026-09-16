@@ -463,6 +463,16 @@ export default function DashboardApp() {
       {section === "systemHealth" && isAdmin && <SystemHealth />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || profileUser || session} leaves={profileLeaves} loading={profileLoading} openProfile={openProfile} />}
     </main>
+    <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
+      {isAdmin ? <>
+        <MobileNavItem label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />
+        <MobileNavItem label="Team" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />
+      </> : <MobileNavItem label="Profile" icon="◎" active={section === "profile"} onClick={() => { setProfileUser(session); goto("profile"); }} />}
+      <MobileNavItem label="Leave" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />
+      <MobileNavItem label="Alerts" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />
+      {!isAdmin && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
+      <MobileNavItem label="More" icon="•••" active={menuOpen} onClick={() => setMenuOpen(true)} />
+    </nav>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
     {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} />}
     <ToastHost />
@@ -472,6 +482,10 @@ export default function DashboardApp() {
 
 function MenuItem(p: { label: string; icon: string; active: boolean; onClick: () => void }) {
   return <button className={p.active ? "menu active" : "menu"} title={p.label} onClick={p.onClick}><span className="menu-icon">{p.icon}</span><b className="menu-label">{p.label}</b><i className="menu-active-dot" /></button>;
+}
+
+function MobileNavItem(p: { label: string; icon: string; active: boolean; onClick: () => void }) {
+  return <button type="button" className={p.active ? "mobile-nav-item active" : "mobile-nav-item"} onClick={p.onClick}><span>{p.icon}</span><b>{p.label}</b></button>;
 }
 
 function Highlight({ text, term }: { text?: any; term?: string }) {
@@ -1477,7 +1491,7 @@ function LeaveRequests({ session }: { session: User }) {
     setSaving(true);
     setMsg("");
     try {
-      await api("/api/leave-requests", {
+      const data = await api("/api/leave-requests", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: row.id, status, rejectionReason: reason })
@@ -1485,7 +1499,10 @@ function LeaveRequests({ session }: { session: User }) {
       setRejecting(null);
       setRejectionReason("");
       const resultText = status === "APPROVED" ? "approved" : "rejected";
-      setMsg(`Leave request ${resultText}. Notification sent to ${row.requester.name}.`);
+      const addedText = status === "APPROVED" && data.monthlyLeaveAdded?.length
+        ? ` ${data.monthlyLeaveAdded.map((item: any) => `${item.leave} day(s) added in ${item.monthYear}`).join(", ")}.`
+        : "";
+      setMsg(`Leave request ${resultText}.${addedText} Notification sent to ${row.requester.name}.`);
       showToast(`Leave request ${resultText}.`, "success");
       await load();
     } catch (error: any) {

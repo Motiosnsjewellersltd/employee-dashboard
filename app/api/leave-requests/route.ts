@@ -30,6 +30,25 @@ function inclusiveDayCount(fromDate: Date, toDate: Date, fromDayType = "FULL", t
   return calendarDays - (fromDayType === "HALF" ? 0.5 : 0) - (toDayType === "HALF" ? 0.5 : 0);
 }
 
+function monthlyLeaveBreakdown(fromDate: Date, toDate: Date, fromDayType = "FULL", toDayType = "FULL") {
+  const start = Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), fromDate.getUTCDate());
+  const end = Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth(), toDate.getUTCDate());
+  const result = new Map<string, number>();
+
+  for (let time = start; time <= end; time += 86400000) {
+    const date = new Date(time);
+    const isStart = time === start;
+    const isEnd = time === end;
+    let value = 1;
+    if (start === end) value = fromDayType === "HALF" ? 0.5 : 1;
+    else if ((isStart && fromDayType === "HALF") || (isEnd && toDayType === "HALF")) value = 0.5;
+    const monthYear = `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`;
+    result.set(monthYear, Number(((result.get(monthYear) || 0) + value).toFixed(2)));
+  }
+
+  return Array.from(result, ([monthYear, leave]) => ({ monthYear, leave }));
+}
+
 function todayInIndia() {
   const parts = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
@@ -128,9 +147,40 @@ export async function PATCH(req: NextRequest) {
 
       const dateRange = formatDateRange(current.fromDate, current.toDate);
       const days = inclusiveDayCount(current.fromDate, current.toDate, current.fromDayType, current.toDayType);
+      const monthlyBreakdown = status === "APPROVED"
+        ? monthlyLeaveBreakdown(current.fromDate, current.toDate, current.fromDayType, current.toDayType)
+        : [];
+
+      for (const item of monthlyBreakdown) {
+        const existing = await tx.leaveRecord.findUnique({
+          where: { employeeId_monthYear: { employeeId: current.requesterId, monthYear: item.monthYear } }
+        });
+        const activeExisting = existing && !existing.deletedAt ? existing : null;
+        const newLeave = Number(((activeExisting ? Number(activeExisting.leave) : 0) + item.leave).toFixed(2));
+        const approvalReason = `Approved leave request: ${current.reason}`;
+
+        if (existing) {
+          await tx.leaveRecord.update({
+            where: { id: existing.id },
+            data: {
+              leave: newLeave,
+              reason: activeExisting?.reason || approvalReason,
+              deletedAt: null,
+              deletedById: null,
+              deletedByName: null
+            }
+          });
+        } else {
+          await tx.leaveRecord.create({
+            data: { employeeId: current.requesterId, monthYear: item.monthYear, leave: item.leave, reason: approvalReason }
+          });
+        }
+      }
+
       const daysText = `${days} ${days === 1 ? "day" : "days"}`;
+      const monthlyText = monthlyBreakdown.map(item => `${item.leave} day(s) in ${item.monthYear}`).join(", ");
       const text = status === "APPROVED"
-        ? `Your leave request for ${dateRange} (${daysText}) has been approved.`
+        ? `Your leave request for ${dateRange} (${daysText}) has been approved. Leave added: ${monthlyText}.`
         : `Your leave request for ${dateRange} (${daysText}) has been rejected. Reason: ${rejectionReason}`;
       await tx.notificationBlast.create({
         data: {
@@ -142,7 +192,8 @@ export async function PATCH(req: NextRequest) {
           recipients: { create: [{ employeeId: current.requesterId }] }
         }
       });
-      return tx.leaveRequest.findUnique({ where: { id }, include: includePeople });
+      const request = await tx.leaveRequest.findUnique({ where: { id }, include: includePeople });
+      return { request, monthlyBreakdown };
     });
 
     await addAuditLog({
@@ -150,9 +201,9 @@ export async function PATCH(req: NextRequest) {
       actorName: session.name,
       action: `${status}_LEAVE_REQUEST`,
       target: id,
-      details: status === "REJECTED" ? { rejectionReason } : undefined
+      details: status === "REJECTED" ? { rejectionReason } : { monthlyLeaveAdded: result.monthlyBreakdown }
     });
-    return ok({ request: result });
+    return ok({ request: result.request, monthlyLeaveAdded: result.monthlyBreakdown });
   } catch (error) {
     return fail(error);
   }
