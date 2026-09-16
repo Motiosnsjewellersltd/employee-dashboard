@@ -141,7 +141,10 @@ export default function DashboardApp() {
 
   async function loadMe() {
     const data = await api("/api/auth/me");
-    if (data.user) setSession(data.user);
+    if (data.user) {
+      setSession(data.user);
+      setSection(data.user.role === "EMPLOYEE" ? "profile" : "dashboard");
+    }
   }
 
   async function loadEmployees(q = filters.q, designation = filters.designation) {
@@ -252,8 +255,7 @@ export default function DashboardApp() {
     setEmployees([]);
   }
 
-  async function openProfile(u: User) {
-    setProfileUser(u);
+  async function loadProfileLeaves(u: User) {
     setProfileLeaves(null);
     setProfileLoading(true);
     try {
@@ -261,6 +263,11 @@ export default function DashboardApp() {
       setProfileLeaves(data);
     } catch (e: any) { setNotice(e.message); }
     setProfileLoading(false);
+  }
+
+  async function openProfile(u: User) {
+    setProfileUser(u);
+    await loadProfileLeaves(u);
   }
 
   useEffect(() => {
@@ -388,7 +395,13 @@ export default function DashboardApp() {
     return true;
   });
 
-  function goto(s: Section) { setSection(s); setMenuOpen(false); if (s === "employees" || s === "dashboard") loadEmployees().catch(() => null); }
+  function goto(s: Section) {
+    setSection(s);
+    setMenuOpen(false);
+    if (session?.role === "EMPLOYEE") setProfileUser(null);
+    if (s === "employees" || s === "dashboard") loadEmployees().catch(() => null);
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
 
   return <div className="app-shell">
     <button className="mobile-menu" onClick={() => setMenuOpen(true)}>☰</button>
@@ -411,7 +424,7 @@ export default function DashboardApp() {
         {isSuperAdmin && <MenuItem label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
         {isAdmin && <MenuItem label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
         {isAdmin && <MenuItem label="System Health" icon="♡" active={section === "systemHealth"} onClick={() => goto("systemHealth")} />}
-        {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => { setProfileUser(session); goto("profile"); }} />}
+        {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
         <MenuItem label="Logout" icon="ↄ" active={false} onClick={logout} />
       </nav>
     </aside>
@@ -461,17 +474,17 @@ export default function DashboardApp() {
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "recycle" && isAdmin && <RecycleBin />}
       {section === "systemHealth" && isAdmin && <SystemHealth />}
-      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || profileUser || session} leaves={profileLeaves} loading={profileLoading} openProfile={openProfile} />}
+      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} />}
     </main>
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
       {isAdmin ? <>
         <MobileNavItem label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />
         <MobileNavItem label="Team" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />
-      </> : <MobileNavItem label="Profile" icon="◎" active={section === "profile"} onClick={() => { setProfileUser(session); goto("profile"); }} />}
+      </> : <MobileNavItem label="Profile" icon="◎" active={section === "profile"} onClick={() => goto("profile")} />}
       <MobileNavItem label="Leave" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />
       <MobileNavItem label="Alerts" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />
       {!isAdmin && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
-      <MobileNavItem label="More" icon="•••" active={menuOpen} onClick={() => setMenuOpen(true)} />
+      {isAdmin ? <MobileNavItem label="Admin" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
     {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} />}
@@ -1044,8 +1057,8 @@ function ImportPreview({ title, data }: { title: string; data: any }) {
   return <div className="preview-box"><h3>{title}</h3><div className="preview-cards">{Object.entries(data).filter(([k]) => k !== "errors").map(([k, v]) => <div key={k}><span>{k}</span><b>{String(v)}</b></div>)}</div>{data.errors?.length ? <div className="preview-errors"><b>Error / Skipped Rows</b>{data.errors.slice(0, 20).map((e: any, i: number) => <p key={i}>Row {e.row}: {e.reason} {e.name || e.mobile || ""}</p>)}</div> : <div className="empty-state">No validation errors found.</div>}</div>;
 }
 
-function MyProfile({ user, leaves, loading, openProfile }: { user: User; leaves: LeaveInfo | null; loading: boolean; openProfile: (u: User) => void }) {
-  useEffect(() => { openProfile(user); }, [user.id]);
+function MyProfile({ user, leaves, loading, loadLeaves }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void> }) {
+  useEffect(() => { loadLeaves(user); }, [user.id]);
   return <section className="panel"><ProfileContent user={user} leaves={leaves} loading={loading} /></section>;
 }
 
@@ -1638,10 +1651,10 @@ function Notifications({ session, employees }: { session: User; employees: User[
     }
   }
 
-  return <section className="panel"><div className="notification-title-row"><h1>{mode === "center" ? "Notification Center" : "Notification History"}</h1><div className="notification-mode-buttons"><button className={mode === "center" ? "primary" : "light"} onClick={() => setMode("center")}>My Notifications</button>{canViewHistory && <button className={mode === "history" ? "primary" : "light"} onClick={() => setMode("history")}>Sent History</button>}</div></div>
+  return <section className="panel notification-panel"><div className="notification-title-row"><div><h1>{mode === "center" ? "Alerts" : "Notification History"}</h1><p className="hint">{mode === "center" ? "Your latest updates and leave decisions." : "Messages sent to employees."}</p></div>{canViewHistory && <div className="notification-mode-buttons"><button className={mode === "center" ? "primary" : "light"} onClick={() => setMode("center")}>My Alerts</button><button className={mode === "history" ? "primary" : "light"} onClick={() => setMode("history")}>Sent History</button></div>}</div>
     {mode === "center" && <div className="notification-center-actions"><button className="light" onClick={() => markRead()}>Mark All Read</button><button className="light danger-action" onClick={clearAll}>Clear All</button></div>}
     {msg && <div className="msg warn">{msg}</div>}
-    <div className={mode === "history" ? "notification-filters" : "notification-center-filters"}><select value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })}><option>All</option><option>INVITATION</option><option>INFORMATION</option><option>CELEBRATION</option><option>NOTICE</option></select>{mode === "history" && <><select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select><select value={filters.department} onChange={e => setFilters({ ...filters, department: e.target.value })}><option>All</option>{departments.map(d => <option key={d}>{d}</option>)}</select></>}<input type="date" value={filters.from} onChange={e => setFilters({ ...filters, from: e.target.value })} /><input type="date" value={filters.to} onChange={e => setFilters({ ...filters, to: e.target.value })} /><input placeholder="Search text" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /></div>
+    {mode === "center" ? <div className="notification-center-filters"><select aria-label="Alert type" value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })}><option>All</option><option>INVITATION</option><option>INFORMATION</option><option>CELEBRATION</option><option>NOTICE</option></select><input placeholder="Search alerts" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /></div> : <div className="notification-filters"><select value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })}><option>All</option><option>INVITATION</option><option>INFORMATION</option><option>CELEBRATION</option><option>NOTICE</option></select><select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select><select value={filters.department} onChange={e => setFilters({ ...filters, department: e.target.value })}><option>All</option>{departments.map(d => <option key={d}>{d}</option>)}</select><input type="date" value={filters.from} onChange={e => setFilters({ ...filters, from: e.target.value })} /><input type="date" value={filters.to} onChange={e => setFilters({ ...filters, to: e.target.value })} /><input placeholder="Search text" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /></div>}
     {loading ? <div className="notification-loading"><SkeletonCards count={3} /></div> : rows.length ? rows.map(r => {
       if (mode === "center") {
         const unread = !r.readAt;
@@ -1705,7 +1718,7 @@ function Chat({ session }: { session: User }) {
     const tb = threadFor(b)?.updatedAt ? new Date(threadFor(b).updatedAt).getTime() : 0;
     return tb - ta;
   });
-  return <section className="panel chat-page"><h1>Chat</h1><div className="chat-grid"><aside><label>Search Employee</label><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search by name or number" /><div className="chat-list">{sortedList.map(u => { const t = threadFor(u); return <button key={u.id} className="chat-user" onClick={() => ensureThread(u)}>{avatar(u)}<span>{u.name}<small>{t?.lastMessage?.text || ""}</small></span>{Boolean(t?.unread) && <strong className="unread-badge">{t.unread}</strong>}{isOnline(u) && <em>Online</em>}</button>; })}</div></aside><div className="chat-box"><div className="chat-head">{active?.other ? <>{avatar(active.other)}<div><b>{active.other.name}</b><span>{isOnline(active.other) ? "Online" : "Chat"}</span></div></> : <b>Select employee</b>}</div><div className="chat-messages">{messages.map(m => <div key={m.id} className={m.senderId === session.id ? "bubble me" : "bubble"}><p>{m.text}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleTimeString()} {m.isEdited ? "edited" : ""} {m.senderId === session.id ? "✓✓" : ""} {m.senderId === session.id && Date.now() - new Date(m.createdAt).getTime() < 300000 && <button onClick={() => edit(m)}>Edit</button>}</small></div>)}</div><div className="chat-input">
+  return <section className="panel chat-page"><div className="chat-grid-title"><h1>Chats</h1><span>{sortedList.length} contacts</span></div><div className={active ? "chat-grid chat-active" : "chat-grid"}><aside className="chat-contacts"><div className="chat-search"><span>⌕</span><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or mobile" /></div><div className="chat-list">{sortedList.length ? sortedList.map(u => { const t = threadFor(u); return <button key={u.id} className="chat-user" onClick={() => ensureThread(u)}>{avatar(u)}<span><b>{u.name}</b><small>{t?.lastMessage?.text || "Tap to start chatting"}</small></span><div className="chat-user-meta">{Boolean(t?.unread) && <strong className="unread-badge">{t.unread}</strong>}{isOnline(u) && <em>online</em>}</div></button>; }) : <div className="chat-empty">No employee found</div>}</div></aside><div className="chat-box"><div className="chat-head">{active?.other ? <><button className="mobile-chat-back" type="button" aria-label="Back to chats" onClick={() => { setActive(null); setMessages([]); }}>←</button>{avatar(active.other)}<div><b>{active.other.name}</b><span>{isOnline(active.other) ? "online" : "offline"}</span></div></> : <b>Select an employee to start chat</b>}</div><div className="chat-messages">{messages.length ? messages.map(m => <div key={m.id} className={m.senderId === session.id ? "bubble me" : "bubble"}><p>{m.text}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} {m.isEdited ? "edited" : ""} {m.senderId === session.id ? "✓✓" : ""} {m.senderId === session.id && Date.now() - new Date(m.createdAt).getTime() < 300000 && <button onClick={() => edit(m)}>Edit</button>}</small></div>) : active && <div className="chat-conversation-empty"><span>✉</span><b>Start your conversation</b><small>Messages are visible only to chat participants.</small></div>}</div><div className="chat-input">
   <label className={file ? "attach-btn has-file" : "attach-btn"} title={file ? file.name : "Attach file"}>
     📎
     <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />

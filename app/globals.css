@@ -1544,3 +1544,79 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .health-cards,.health-detail{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
   .health-card{min-height:82px;padding:10px}
 }
+
+/* WhatsApp-style chat and final employee mobile flow */
+.chat-grid-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.chat-grid-title h1{margin:0}.chat-grid-title>span{color:#678095;font-size:12px}
+.chat-contacts{min-width:0;display:flex;flex-direction:column}
+.chat-search{position:relative;margin-bottom:8px}
+.chat-search>span{position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:1;color:#607d8e;font-size:20px}
+.chat-search input{padding-left:42px;background:#f3f6f8;border-color:#dce8ed}
+.chat-user{grid-template-columns:54px minmax(0,1fr) auto;background:#fff;border-bottom:1px solid #e3ecef;color:#173c49}
+.chat-user:hover{background:#f3faf8}
+.chat-user>span{min-width:0;text-align:left}.chat-user>span b{display:block;color:#173c49}.chat-user>span small{display:block;margin-top:4px;color:#71848d;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-user-meta{display:flex;flex-direction:column;align-items:flex-end;gap:5px}.chat-user-meta em{color:#128c7e;font-size:10px}
+.chat-empty{padding:28px 12px;text-align:center;color:#73868f}
+.chat-head{background:#075e54;color:#fff}.chat-head span{color:#c9f5df}
+.chat-messages{background:#efeae2}
+.bubble{border-radius:9px;background:#fff}.bubble.me{background:#d9fdd3}
+.mobile-chat-back{display:none;border:0;background:transparent;color:#fff;font-size:26px;padding:4px 5px}
+.chat-conversation-empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:#687c84;text-align:center}
+.chat-conversation-empty>span{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#fff;color:#128c7e;font-size:24px}
+.chat-conversation-empty small{max-width:260px;font-weight:600}
+.chat-input{background:#f0f2f5}
+
+@media(max-width:900px){
+  .chat-page{height:calc(100dvh - 160px)!important;min-height:470px;padding:0!important;overflow:hidden!important}
+  .chat-grid-title{height:52px;margin:0;padding:0 14px;border-bottom:1px solid #dbe9ed}
+  .chat-grid-title h1{font-size:22px}
+  .chat-grid{display:block!important;height:calc(100% - 52px)!important;min-height:0!important}
+  .chat-contacts{height:100%}
+  .chat-search{margin:8px}
+  .chat-list{height:auto!important;flex:1;border:0!important;border-radius:0!important;background:#fff}
+  .chat-user{min-height:68px;padding:8px 10px}
+  .chat-user .avatar{width:48px;height:48px;min-width:48px}
+  .chat-grid:not(.chat-active) .chat-box{display:none!important}
+  .chat-grid.chat-active .chat-contacts{display:none!important}
+  .chat-grid.chat-active .chat-box{display:grid!important;height:100%!important;min-height:0!important;border:0!important;border-radius:0!important}
+  .chat-page:has(.chat-grid.chat-active) .chat-grid-title{display:none}
+  .chat-page:has(.chat-grid.chat-active) .chat-grid{height:100%!important}
+  .mobile-chat-back{display:flex}
+  .chat-head{min-height:58px!important;padding:7px 9px!important;gap:8px}
+  .chat-head .avatar{width:40px;height:40px;min-width:40px}
+  .chat-messages{min-height:0;padding:10px!important}
+  .chat-input{grid-template-columns:46px minmax(0,1fr) 60px!important;padding:7px!important;gap:6px!important}
+  .chat-input .attach-btn{width:44px!important;height:44px!important;min-width:44px!important;font-size:19px}
+  .chat-input input{height:44px;padding:9px 11px}
+  .chat-input .primary{height:44px;padding:8px 10px;border-radius:12px;box-shadow:none}
+  .bubble{max-width:86%!important;padding:8px 10px!important;font-weight:600}
+
+  .profile-content .print-btn{display:none!important}
+  .profile-content .profile-head{position:static!important;align-items:center!important}
+  .profile-content .profile-head h1{font-size:21px!important}
+  .profile-content .profile-head p{font-size:11px;margin-top:3px}
+  .profile-content .avatar-big{width:58px;height:58px;min-width:58px;font-size:26px}
+  .profile-content .profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .profile-content .info{min-height:64px;padding:8px!important}
+  .profile-content h2{margin-top:12px!important;font-size:17px!important}
+  .profile-content .cards.small{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;overflow:visible!important}
+  .profile-content .cards.small .stat{min-height:68px!important}
+  .profile-content .mobile-cards-table{display:block!important;max-height:245px!important;overflow:auto!important;border-radius:11px!important;margin:7px 0 10px!important}
+  .profile-content .mobile-cards-table table{display:table!important;min-width:510px!important;width:100%!important;font-size:11px!important}
+  .profile-content .mobile-cards-table thead{display:table-header-group!important}
+  .profile-content .mobile-cards-table tbody{display:table-row-group!important}
+  .profile-content .mobile-cards-table tr{display:table-row!important;margin:0!important;padding:0!important;border:0!important}
+  .profile-content .mobile-cards-table th,.profile-content .mobile-cards-table td{display:table-cell!important;width:auto!important;padding:7px 8px!important;border-bottom:1px solid #d9effd!important;white-space:nowrap!important}
+  .profile-content .mobile-cards-table td:before{display:none!important;content:none!important}
+
+  .notification-panel .notification-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .notification-panel .notification-title-row h1{margin-bottom:2px}
+  .notification-panel .notification-title-row .hint{margin:0}
+  .notification-center-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0!important}
+  .notification-center-actions button{width:100%}
+  .notification-center-filters{display:grid!important;grid-template-columns:120px minmax(0,1fr)!important;gap:7px!important;margin-bottom:9px!important}
+  .notification-panel .notification-item{padding:11px!important;margin:7px 0!important;border-radius:13px!important;text-align:left}
+  .notification-panel .notification-item p{margin:7px 0;font-size:13px;line-height:1.4}
+  .notification-panel .notification-item small{font-size:10px}
+  .notification-mode-buttons{display:flex;gap:5px}.notification-mode-buttons button{padding:7px 8px;font-size:11px}
+}
