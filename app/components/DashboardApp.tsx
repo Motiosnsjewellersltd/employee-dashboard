@@ -114,6 +114,15 @@ function workingPeriod(doj?: string, exitDate?: string) {
   return `${years} Years ${months} Month ${days} Day`;
 }
 
+function toDateInputValue(value?: string) {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const match = value.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (!match) return "";
+  const [, day, month, year] = match;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
+
 function isOnline(u?: User | null) {
   if (!u?.lastSeenAt) return false;
   return Date.now() - new Date(u.lastSeenAt).getTime() < 2 * 60 * 1000;
@@ -804,12 +813,12 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
     name: user.name || "",
     mobile: user.mobile || "",
     password: "",
-    dob: user.dob || "",
+    dob: toDateInputValue(user.dob),
     role: user.role || "EMPLOYEE",
     designation: user.designation || "",
     department: user.department || "",
-    doj: user.doj || "",
-    exitDate: user.exitDate || "",
+    doj: toDateInputValue(user.doj),
+    exitDate: toDateInputValue(user.exitDate),
     status: user.status || "ACTIVE"
   });
   const [file, setFile] = useState<File | null>(null);
@@ -850,12 +859,12 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
         {field("name", "Name")}
         {field("mobile", "Username / Mobile")}
         {field("password", "New Password (blank = no change)", "text")}
-        {field("dob", "Date of Birth DD/MM/YYYY")}
+        {field("dob", "Date of Birth", "date")}
         <div><label>Role</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option>EMPLOYEE</option><option>HR</option><option>ADMIN</option></select></div>
         {field("designation", "Designation")}
         {field("department", "Department")}
-        {field("doj", "Date of Joining DD/MM/YYYY")}
-        {field("exitDate", "Exit / Leave Date DD/MM/YYYY")}
+        {field("doj", "Date of Joining", "date")}
+        {field("exitDate", "Exit / Leave Date", "date")}
         <div><label>Status</label><select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select></div>
         <div><label>Update Photo</label><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
         <button className="primary">Update Employee</button>
@@ -924,7 +933,7 @@ function EmployeeForm({ onSaved }: { onSaved: () => void }) {
     } catch (e: any) { setMsg(e.message); }
   }
 
-  const field = (k: string, label: string) => <div><label>{label}</label><input value={form[k] || ""} onChange={e => setForm({ ...form, [k]: e.target.value })} /></div>;
+  const field = (k: string, label: string, type = "text") => <div><label>{label}</label><input type={type} value={form[k] || ""} onChange={e => setForm({ ...form, [k]: e.target.value })} /></div>;
 
   return <section className="panel"><h1>Add Employee</h1>
     <UploadFormatDownload type="employees" />
@@ -935,9 +944,9 @@ function EmployeeForm({ onSaved }: { onSaved: () => void }) {
     </div>
     {preview && <ImportPreview title="Employee Import Preview" data={preview} />}
     <form className="employee-form" onSubmit={save}>
-      {field("name", "Name")}{field("mobile", "Username / Mobile")}{field("password", "Password")}{field("dob", "Date of Birth DD/MM/YYYY")}
+      {field("name", "Name")}{field("mobile", "Username / Mobile")}{field("password", "Password")}{field("dob", "Date of Birth", "date")}
       <div><label>Role</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option>EMPLOYEE</option><option>HR</option><option>ADMIN</option></select></div>
-      {field("designation", "Designation")}{field("department", "Department")}{field("doj", "Date of Joining DD/MM/YYYY")}{field("exitDate", "Exit / Leave Date DD/MM/YYYY")}
+      {field("designation", "Designation")}{field("department", "Department")}{field("doj", "Date of Joining", "date")}{field("exitDate", "Exit / Leave Date", "date")}
       <div><label>Status</label><select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select></div>
       <div><label>Photo</label><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
       <button className="primary">Save Employee</button>{msg && <div className="msg warn">{msg}</div>}
