@@ -2252,3 +2252,88 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .hr-shell .sidebar.admin-mobile-tools .menu{height:42px!important;min-height:42px!important;padding:6px 8px!important}
   .hr-shell .mobile-bottom-nav{min-height:62px;border-radius:19px}
 }
+
+/* HR mobile alignment refinements from device review */
+@media(min-width:901px){
+  .hr-shell .app-topbar.hr-no-global-search{grid-template-columns:minmax(180px,1fr) auto auto auto!important}
+}
+
+@media(max-width:900px){
+  .hr-shell .app-topbar.hr-no-global-search{justify-content:flex-end!important}
+
+  .hr-shell .employee-data-table{padding:8px!important}
+  .hr-shell .employee-data-table .employee-table-tools{grid-template-columns:minmax(0,1fr) auto!important;padding:6px!important;border-radius:12px}
+  .hr-shell .employee-data-table .employee-table-tools>.light{min-height:39px}
+  .hr-shell .bulk-employee-bar{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px!important;
+    margin:0 0 8px!important;
+    padding:8px!important;
+    border-radius:13px!important;
+  }
+  .hr-shell .bulk-employee-bar>b{grid-column:1/-1;margin:0 0 1px!important;font-size:12px}
+  .hr-shell .bulk-employee-bar .light{width:100%;min-width:0!important;min-height:38px;padding:7px 6px!important;font-size:10px;line-height:1.15}
+
+  .hr-shell .employee-mobile-card.has-select{
+    grid-template-columns:20px 40px minmax(0,1fr) auto!important;
+    column-gap:7px!important;
+  }
+  .hr-shell .employee-mobile-card.has-select .employee-mobile-select{
+    position:static!important;
+    grid-column:1;
+    grid-row:1;
+    align-self:start;
+    width:18px!important;
+    height:18px!important;
+    margin:2px 0 0!important;
+  }
+  .hr-shell .employee-mobile-card.has-select>.avatar{grid-column:2;grid-row:1}
+  .hr-shell .employee-mobile-card.has-select>.employee-mobile-main{grid-column:3;grid-row:1}
+  .hr-shell .employee-mobile-card.has-select>.pill{grid-column:4;grid-row:1}
+  .hr-shell .employee-mobile-card.has-select>.employee-mobile-actions{grid-column:3/5!important;grid-row:2;margin-top:2px}
+
+  .hr-shell .notification-panel{overflow:hidden;padding:11px!important}
+  .hr-shell .notification-panel .notification-title-row{display:grid!important;grid-template-columns:1fr;gap:7px!important}
+  .hr-shell .notification-panel .notification-title-row h1{font-size:22px!important;margin:0!important}
+  .hr-shell .notification-mode-buttons{display:grid!important;grid-template-columns:1fr 1fr;width:100%;gap:6px!important}
+  .hr-shell .notification-mode-buttons button{width:100%;min-height:38px;padding:7px 8px!important}
+  .hr-shell .notification-filters{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:6px!important;
+    margin:0 0 9px!important;
+  }
+  .hr-shell .notification-filters select,.hr-shell .notification-filters input{min-width:0;height:40px;padding:8px 9px;font-size:11px;border-radius:11px}
+  .hr-shell .notification-center-filters{grid-template-columns:110px minmax(0,1fr)!important;gap:6px!important}
+  .hr-shell .notification-center-filters select,.hr-shell .notification-center-filters input{height:40px;padding:8px 9px;font-size:11px}
+  .hr-shell .notification-panel .history{margin:7px 0!important;padding:10px!important;border-radius:13px!important;overflow:hidden}
+  .hr-shell .notification-panel .history>b{display:block;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+  .hr-shell .notification-panel .history>p{margin:7px 0!important;font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+  .hr-shell .notification-panel .history>a{display:inline-block;margin:0 8px 5px 0}
+  .hr-shell .notification-panel .history>small{display:block!important;margin-top:3px;font-size:10px;line-height:1.35;color:#627c8f}
+
+  .hr-shell .leave-request-title{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:7px!important}
+  .hr-shell .leave-request-title h1{font-size:22px!important;margin:0!important}
+  .hr-shell .leave-pending-count{white-space:nowrap;padding:6px 9px;font-size:10px}
+  .hr-shell .leave-request-filters{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px!important;margin-bottom:8px!important}
+  .hr-shell .leave-request-filters button{min-width:0;padding:8px 3px!important;font-size:10px}
+  .hr-shell .leave-request-table{overflow:visible!important;max-height:none!important;border:0!important}
+  .hr-shell .leave-request-table table,.hr-shell .leave-request-table tbody{display:block!important;width:100%!important;min-width:0!important}
+  .hr-shell .leave-request-table thead{display:none!important}
+  .hr-shell .leave-request-table tr{display:block!important;width:100%;margin:0 0 8px;padding:7px 9px;border:1px solid #c8e5f7;border-radius:13px;background:#fff}
+  .hr-shell .leave-request-table td{display:grid!important;grid-template-columns:38% minmax(0,62%);width:100%!important;min-width:0!important;height:auto!important;padding:6px 0!important;border:0!important;background:transparent!important;font-size:11px;overflow-wrap:anywhere}
+  .hr-shell .leave-request-table td:before{color:#678196;font-weight:900}
+  .hr-shell .leave-request-table td:nth-child(1):before{content:"Employee"}
+  .hr-shell .leave-request-table td:nth-child(2):before{content:"From"}
+  .hr-shell .leave-request-table td:nth-child(3):before{content:"To"}
+  .hr-shell .leave-request-table td:nth-child(4):before{content:"Days"}
+  .hr-shell .leave-request-table td:nth-child(5):before{content:"Reason"}
+  .hr-shell .leave-request-table td:nth-child(6):before{content:"Status"}
+  .hr-shell .leave-request-table td:nth-child(7):before{content:"Decision"}
+  .hr-shell .leave-request-table td:nth-child(8):before{content:"Action"}
+  .hr-shell .leave-request-table td[colspan]{display:block!important;text-align:center;padding:12px!important}
+  .hr-shell .leave-request-table td[colspan]:before{display:none!important;content:none!important}
+  .hr-shell .leave-request-table .action-buttons{display:flex;flex-wrap:wrap;gap:5px;white-space:normal}
+  .hr-shell .leave-request-table .action-buttons button{min-width:0;padding:7px 9px!important;font-size:10px}
+}

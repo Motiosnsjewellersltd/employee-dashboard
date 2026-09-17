@@ -512,9 +512,9 @@ export default function DashboardApp() {
     {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
 
     <main className="main">
-      <div className="app-topbar print-exclude">
+      <div className={`app-topbar print-exclude${isHr && section !== "dashboard" ? " hr-no-global-search" : ""}`}>
         <div className="topbar-title"><span>Motisons Employee System</span><b>{sectionTitles[section]}</b></div>
-        {session.role !== "EMPLOYEE" && <div className="global-search-wrap">
+        {session.role !== "EMPLOYEE" && (!isHr || section === "dashboard") && <div className="global-search-wrap">
           <span className="global-search-icon">⌕</span>
           <input aria-label="Global employee search" placeholder="Search employee, mobile, designation..." value={globalSearch} onFocus={() => setGlobalSearchOpen(true)} onChange={e => { setGlobalSearch(e.target.value); setGlobalSearchOpen(true); }} />
           {globalSearch && <button className="global-search-clear" type="button" onClick={() => { setGlobalSearch(""); setGlobalSearchOpen(false); }}>×</button>}
@@ -781,7 +781,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     </tr>) : <tr><td className="table-empty-cell" colSpan={12}><div className="empty-table-state"><span>⌕</span><b>No employee records found</b></div></td></tr>}
   </tbody></table></div>
   <div className="employee-mobile-list">
-    {loading ? Array.from({ length: 4 }).map((_, index) => <div className="employee-mobile-card" key={`mobile-skeleton-${index}`}><span className="skeleton-line" /></div>) : pageRows.length ? pageRows.map(e => <div className={selected.includes(e.id) ? "employee-mobile-card selected" : "employee-mobile-card"} key={`mobile-${e.id}`}>
+    {loading ? Array.from({ length: 4 }).map((_, index) => <div className="employee-mobile-card" key={`mobile-skeleton-${index}`}><span className="skeleton-line" /></div>) : pageRows.length ? pageRows.map(e => <div className={`${selected.includes(e.id) ? "employee-mobile-card selected" : "employee-mobile-card"}${bulkActions && admin ? " has-select" : ""}`} key={`mobile-${e.id}`}>
       {bulkActions && admin && <input className="employee-mobile-select" type="checkbox" aria-label={`Select ${e.name}`} checked={selected.includes(e.id)} onChange={event => setSelected(event.target.checked ? Array.from(new Set([...selected, e.id])) : selected.filter(id => id !== e.id))} />}
       {avatar(e)}
       <div className="employee-mobile-main"><b>{e.name}</b><span>{e.designation || "-"}{e.department ? ` · ${e.department}` : ""}</span><small>{e.mobile || "-"}</small></div>
