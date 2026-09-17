@@ -152,6 +152,7 @@ export default function DashboardApp() {
   async function loadMe() {
     const data = await api("/api/auth/me");
     if (data.user) {
+      setMenuOpen(false);
       setSession(data.user);
       setSection(initialSection(data.user));
     }
@@ -203,6 +204,7 @@ export default function DashboardApp() {
 
     async function handleInactive() {
       await api("/api/auth/logout", { method: "POST" }).catch(() => null);
+      setMenuOpen(false);
       setSession(null);
       setEmployees([]);
       setLoginErr("Session expired after 30 minutes of inactivity. Please login again.");
@@ -248,6 +250,7 @@ export default function DashboardApp() {
       if (!res.ok || !json.ok) throw new Error(json.error || `Login failed (HTTP ${res.status}).`);
 
       const data = json.data;
+      setMenuOpen(false);
       setSession(data.user);
       setLoginErr("");
       setSection(initialSection(data.user));
@@ -261,6 +264,7 @@ export default function DashboardApp() {
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST" });
+    setMenuOpen(false);
     setSession(null);
     setEmployees([]);
   }
