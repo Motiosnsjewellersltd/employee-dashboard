@@ -38,7 +38,15 @@ function initialSection(user: User): Section {
 }
 
 async function api(url: string, options?: RequestInit) {
-  const res = await fetch(url, options);
+  let res: Response;
+  try {
+    res = await fetch(url, options);
+  } catch (error) {
+    if (typeof window !== "undefined" && isNetworkFailure(error)) {
+      window.dispatchEvent(new Event("motisons-network-unavailable"));
+    }
+    throw error;
+  }
   const json = await res.json();
   if (!json.ok) {
     const message = json.error || "Error";
@@ -46,6 +54,11 @@ async function api(url: string, options?: RequestInit) {
     throw new Error(message);
   }
   return json.data;
+}
+
+function isNetworkFailure(error: unknown) {
+  const message = String((error as any)?.message || error || "").toLowerCase();
+  return error instanceof TypeError || /failed to fetch|unable to fetch|network|load failed/.test(message);
 }
 
 type ToastKind = "success" | "error" | "info";
@@ -111,6 +124,7 @@ export default function DashboardApp() {
   const [login, setLogin] = useState({ username: "", password: "" });
   const [loginErr, setLoginErr] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const [section, setSection] = useState<Section>("dashboard");
   const [dashboardFilter, setDashboardFilter] = useState("All Employees");
   const [dashboardQuick, setDashboardQuick] = useState({ q: "", status: "All", designation: "All", department: "All" });
@@ -171,7 +185,38 @@ export default function DashboardApp() {
     }
   }
 
-  useEffect(() => { loadMe().catch(() => null); }, []);
+  async function hasInternetAccess() {
+    if (!window.navigator.onLine) return false;
+    try {
+      await fetch(`/api/auth/me?connectionCheck=${Date.now()}`, { cache: "no-store" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  useEffect(() => {
+    const markOffline = () => setIsOffline(true);
+    const verifyOnline = async () => {
+      const connected = await hasInternetAccess();
+      setIsOffline(!connected);
+      if (connected) setLoginErr(current => /internet connection/i.test(current) ? "" : current);
+    };
+
+    if (!window.navigator.onLine) markOffline();
+    window.addEventListener("online", verifyOnline);
+    window.addEventListener("offline", markOffline);
+    window.addEventListener("motisons-network-unavailable", markOffline);
+    loadMe().catch(error => {
+      if (isNetworkFailure(error)) setIsOffline(true);
+    });
+
+    return () => {
+      window.removeEventListener("online", verifyOnline);
+      window.removeEventListener("offline", markOffline);
+      window.removeEventListener("motisons-network-unavailable", markOffline);
+    };
+  }, []);
   useEffect(() => {
     if (!menuOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -220,6 +265,11 @@ export default function DashboardApp() {
 
   async function submitLogin(e?: React.FormEvent) {
     e?.preventDefault();
+    if (!window.navigator.onLine) {
+      setIsOffline(true);
+      setLoginErr("No internet connection. Please connect mobile data or Wi-Fi and try again.");
+      return;
+    }
     setLoginErr("Logging in...");
 
     const controller = new AbortController();
@@ -255,7 +305,11 @@ export default function DashboardApp() {
       setLoginErr("");
       setSection(initialSection(data.user));
     } catch (err: any) {
-      if (err?.name === "AbortError") setLoginErr("Login server is not responding. Please check MySQL/database connection and try again.");
+      if (isNetworkFailure(err)) {
+        setIsOffline(true);
+        setLoginErr("Unable to connect. Please check your internet connection and try again.");
+      }
+      else if (err?.name === "AbortError") setLoginErr("Login server is not responding. Please check your internet connection and try again.");
       else setLoginErr(err?.message || "Login failed.");
     } finally {
       window.clearTimeout(timeout);
@@ -267,6 +321,18 @@ export default function DashboardApp() {
     setMenuOpen(false);
     setSession(null);
     setEmployees([]);
+  }
+
+  async function retryConnection() {
+    const connected = await hasInternetAccess();
+    if (!connected) {
+      setIsOffline(true);
+      setLoginErr("No internet connection. Please connect mobile data or Wi-Fi and try again.");
+      return;
+    }
+    setIsOffline(false);
+    setLoginErr("");
+    window.location.reload();
   }
 
   async function loadProfileLeaves(u: User) {
@@ -328,7 +394,7 @@ export default function DashboardApp() {
       </div>
       <button className="primary">Login</button>
       {loginErr && <div className={loginErr.includes("Logging in") ? "msg warn" : "msg error"}>{loginErr}</div>}
-    </form></div>;
+    </form>{isOffline && <OfflineNotice onRetry={retryConnection} />}</div>;
   }
 
   const isAdmin = session.role === "ADMIN" || session.role === "HR";
@@ -505,6 +571,18 @@ export default function DashboardApp() {
     <ToastHost />
     <ConfirmHost />
     <PushNotificationSetup employeeId={session.id} />
+    {isOffline && <OfflineNotice onRetry={retryConnection} />}
+  </div>;
+}
+
+function OfflineNotice({ onRetry }: { onRetry: () => void | Promise<void> }) {
+  return <div className="offline-overlay" role="alertdialog" aria-modal="true" aria-label="No internet connection">
+    <div className="offline-card">
+      <div className="offline-icon">!</div>
+      <h2>No Internet Connection</h2>
+      <p>Please connect mobile data or Wi-Fi to continue using the Employee System.</p>
+      <button className="primary" type="button" onClick={onRetry}>Retry Connection</button>
+    </div>
   </div>;
 }
 
