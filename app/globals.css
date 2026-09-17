@@ -2143,6 +2143,12 @@ html,body{width:100%;min-height:100%;max-width:100%;}
     margin:0 0 9px!important;
     padding:0 3px 9px!important;
   }
+  .admin-shell .sidebar.admin-mobile-tools .brand>div:last-child,
+  .admin-shell .sidebar.admin-mobile-tools .menu .menu-label{
+    opacity:1!important;
+    visibility:visible!important;
+    transition:none!important;
+  }
   .admin-shell .sidebar.admin-mobile-tools .mobile-tools-close{
     display:flex;
     margin-left:auto;
@@ -2178,7 +2184,7 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   }
   .admin-shell .sidebar.admin-mobile-tools .menu:hover{transform:none;background:rgba(255,255,255,.15)}
   .admin-shell .sidebar.admin-mobile-tools .menu.active{background:rgba(255,255,255,.22)}
-  .admin-shell .sidebar.admin-mobile-tools .menu-label{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .admin-shell .sidebar.admin-mobile-tools .menu-label{display:block!important;min-width:0;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .admin-shell .backdrop{display:block;position:fixed;inset:0;background:rgba(0,30,52,.48);z-index:80}
 }
 
