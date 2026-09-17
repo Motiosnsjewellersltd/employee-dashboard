@@ -451,6 +451,7 @@ export default function DashboardApp() {
           </div>}
         </div>}
         {isAdmin && <button className={dataQuality.affected ? "quality-badge attention" : "quality-badge"} type="button" onClick={() => goto("employees")} title={`Missing DOB: ${dataQuality.missingDob}, Mobile: ${dataQuality.missingMobile}, DOJ: ${dataQuality.missingDoj}`}><span>Data Quality</span><b>{dataQuality.affected}</b></button>}
+        {isAdmin && <button className="desktop-admin-tools" type="button" onClick={() => setMenuOpen(value => !value)}><span>☰</span><b>Tools</b></button>}
         <NotificationBell onOpen={() => goto("notifications")} />
       </div>
       {notice && <div className="msg warn" onClick={() => setNotice("")}>{notice}</div>}

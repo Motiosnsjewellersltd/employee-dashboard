@@ -2008,3 +2008,103 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .employee-data-table .pagination-bar button{padding:7px 3px;font-size:9px}
   .employee-data-table .pagination-bar b{display:flex;align-items:center;justify-content:center;font-size:9px}
 }
+
+/* Admin desktop: remove permanent sidebar and open tools only on demand */
+.desktop-admin-tools{display:none}
+
+@media(min-width:901px){
+  .admin-shell .main{margin-left:0!important}
+  .admin-shell .app-topbar{grid-template-columns:minmax(150px,210px) minmax(280px,1fr) auto auto auto!important}
+  .desktop-admin-tools{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    height:46px;
+    padding:0 14px;
+    border:1px solid #c8e5f7;
+    border-radius:14px;
+    background:#fff;
+    color:#075f9e;
+    box-shadow:0 5px 16px rgba(8,86,142,.06);
+  }
+  .desktop-admin-tools span{font-size:18px;line-height:1}
+  .desktop-admin-tools b{font-size:12px}
+  .admin-shell .sidebar.admin-mobile-tools{
+    position:fixed!important;
+    left:auto!important;
+    right:18px!important;
+    top:76px!important;
+    bottom:auto!important;
+    width:min(720px,calc(100vw - 36px))!important;
+    height:auto!important;
+    max-height:calc(100dvh - 96px)!important;
+    padding:12px!important;
+    border-radius:20px!important;
+    overflow:hidden!important;
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transform:translateY(-10px) scale(.985);
+    transform-origin:top right;
+    transition:opacity .16s ease,transform .16s ease,visibility .16s;
+    z-index:100;
+  }
+  .admin-shell .sidebar.admin-mobile-tools.open{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+    transform:none;
+  }
+  .admin-shell .sidebar.admin-mobile-tools .brand{
+    height:48px;
+    margin:0 0 9px!important;
+    padding:0 3px 9px!important;
+  }
+  .admin-shell .sidebar.admin-mobile-tools .mobile-tools-close{
+    display:flex;
+    margin-left:auto;
+    width:36px;
+    height:36px;
+    align-items:center;
+    justify-content:center;
+    border:1px solid rgba(255,255,255,.24);
+    border-radius:11px;
+    background:rgba(255,255,255,.10);
+    color:#fff;
+    font-size:24px;
+  }
+  .admin-shell .sidebar.admin-mobile-tools nav{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    align-content:start;
+    gap:7px;
+    width:100%;
+    height:auto!important;
+    max-height:calc(100dvh - 177px);
+    padding:0 2px 4px!important;
+    overflow-y:auto;
+  }
+  .admin-shell .sidebar.admin-mobile-tools .menu{
+    min-height:44px;
+    height:44px;
+    margin:0!important;
+    padding:7px 10px!important;
+    gap:8px;
+    border:1px solid rgba(255,255,255,.10);
+    background:rgba(255,255,255,.07);
+  }
+  .admin-shell .sidebar.admin-mobile-tools .menu:hover{transform:none;background:rgba(255,255,255,.15)}
+  .admin-shell .sidebar.admin-mobile-tools .menu.active{background:rgba(255,255,255,.22)}
+  .admin-shell .sidebar.admin-mobile-tools .menu-label{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .admin-shell .backdrop{display:block;position:fixed;inset:0;background:rgba(0,30,52,.48);z-index:80}
+}
+
+@media(max-width:1100px) and (min-width:901px){
+  .admin-shell .app-topbar{grid-template-columns:minmax(260px,1fr) auto auto auto!important}
+  .admin-shell .topbar-title{display:none}
+}
+
+@media(max-width:900px){
+  .desktop-admin-tools{display:none!important}
+}
