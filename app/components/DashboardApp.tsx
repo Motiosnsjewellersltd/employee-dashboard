@@ -672,6 +672,8 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
   const [bulkAction, setBulkAction] = useState("");
   const [bulkUploadBusy, setBulkUploadBusy] = useState(false);
   const bulkUpdateFileRef = useRef<HTMLInputElement>(null);
+  const [keyboardRowId, setKeyboardRowId] = useState("");
+  const employeeRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const [localPage, setLocalPage] = useState(1);
   const page = controlledPage ?? localPage;
   const setPage = (next: number | ((current: number) => number)) => {
@@ -725,6 +727,10 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  useEffect(() => {
+    if (keyboardRowId && !pageRows.some(employee => employee.id === keyboardRowId)) setKeyboardRowId("");
+  }, [keyboardRowId, pageRows]);
+
   async function del(id: string) {
     if (!(await requestConfirm("Move employee to Recycle Bin", "This employee will be moved to Recycle Bin and can be restored within 30 days.", "Move to Recycle Bin"))) return;
     await api(`/api/employees/${id}`, { method: "DELETE" });
@@ -736,6 +742,30 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     const ids = pageRows.map(e => e.id);
     const allSelected = ids.length > 0 && ids.every(id => selected.includes(id));
     setSelected(allSelected ? selected.filter(id => !ids.includes(id)) : Array.from(new Set([...selected, ...ids])));
+  }
+
+  function focusEmployeeRow(employeeId: string) {
+    setKeyboardRowId(employeeId);
+    requestAnimationFrame(() => {
+      const row = employeeRowRefs.current[employeeId];
+      row?.focus({ preventScroll: true });
+      row?.scrollIntoView({ block: "nearest", behavior: "auto" });
+    });
+  }
+
+  function handleEmployeeRowKeyDown(event: React.KeyboardEvent<HTMLTableRowElement>, employeeId: string) {
+    if (!bulkActions || !admin || (event.target as HTMLElement).closest("input,button,a,select,textarea,label")) return;
+    const index = pageRows.findIndex(employee => employee.id === employeeId);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const nextIndex = event.key === "ArrowDown" ? Math.min(pageRows.length - 1, index + 1) : Math.max(0, index - 1);
+      if (nextIndex !== index) focusEmployeeRow(pageRows[nextIndex].id);
+      return;
+    }
+    if (event.key === " " || event.code === "Space") {
+      event.preventDefault();
+      setSelected(current => current.includes(employeeId) ? current.filter(id => id !== employeeId) : [...current, employeeId]);
+    }
   }
 
   type BulkAction = "ACTIVATE" | "DEACTIVATE" | "CHANGE_DEPARTMENT" | "CHANGE_DESIGNATION" | "CHANGE_DOJ" | "CHANGE_BRANCH" | "CHANGE_EXIT_DATE" | "DELETE";
@@ -926,7 +956,20 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     </div>}
     {bulkMsg && bulkActions && <div className="msg warn">{bulkMsg}</div>}
     <div className="table-wrap"><table><thead><tr>{bulkActions && admin && <th><input type="checkbox" aria-label="Select all employees on this page" checked={allSelected} onChange={toggleAll} /></th>}<th>S.No</th>{visibleColumns.photo && <th>Photo</th>}{visibleColumns.name && <th>Name</th>}{visibleColumns.mobile && <th>Mobile</th>}{visibleColumns.dob && <th>DOB</th>}{visibleColumns.designation && <th>Designation</th>}{visibleColumns.department && <th>Department</th>}{visibleColumns.branch && <th>Branch</th>}{visibleColumns.doj && <th>DOJ</th>}{visibleColumns.role && <th>Role</th>}{visibleColumns.status && <th>Status</th>}{showActions && <th>Action</th>}</tr></thead><tbody>
-    {loading ? Array.from({ length: 6 }).map((_, index) => <tr className="skeleton-row" key={`skeleton-${index}`}><td colSpan={13}><span className="skeleton-line" /></td></tr>) : pageRows.length ? pageRows.map((e, index) => <tr className={selected.includes(e.id) ? "employee-row selected" : "employee-row"} key={e.id}>
+    {loading ? Array.from({ length: 6 }).map((_, index) => <tr className="skeleton-row" key={`skeleton-${index}`}><td colSpan={13}><span className="skeleton-line" /></td></tr>) : pageRows.length ? pageRows.map((e, index) => <tr
+      ref={row => { employeeRowRefs.current[e.id] = row; }}
+      className={`employee-row${selected.includes(e.id) ? " selected" : ""}${keyboardRowId === e.id ? " keyboard-focused" : ""}`}
+      key={e.id}
+      tabIndex={bulkActions && admin ? 0 : undefined}
+      aria-selected={selected.includes(e.id)}
+      title={bulkActions && admin ? "Click row to focus. Use Up/Down arrows to move and Spacebar to select." : undefined}
+      onFocus={() => { if (bulkActions && admin) setKeyboardRowId(e.id); }}
+      onClick={event => {
+        if (!bulkActions || !admin || (event.target as HTMLElement).closest("input,button,a,select,textarea,label")) return;
+        focusEmployeeRow(e.id);
+      }}
+      onKeyDown={event => handleEmployeeRowKeyDown(event, e.id)}
+    >
       {bulkActions && admin && <td><input type="checkbox" aria-label={`Select ${e.name}`} checked={selected.includes(e.id)} onChange={event => setSelected(event.target.checked ? Array.from(new Set([...selected, e.id])) : selected.filter(id => id !== e.id))} /></td>}
       <td>{startIndex + index + 1}</td>
       {visibleColumns.photo && <td>{avatar(e)}</td>}
