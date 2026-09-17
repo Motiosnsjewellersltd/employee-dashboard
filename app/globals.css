@@ -8,6 +8,48 @@
   overflow: auto;
 }
 
+/* Compact employee-list controls and bulk actions. */
+.employee-list-header{
+  display:grid;
+  grid-template-columns:minmax(440px,1fr) auto;
+  align-items:center;
+  gap:10px;
+  margin:0 0 8px;
+}
+.employee-list-header.tools-only{display:flex;justify-content:flex-end}
+.employee-list-filters{
+  display:grid;
+  grid-template-columns:minmax(240px,420px) minmax(170px,230px);
+  gap:8px;
+  min-width:0;
+}
+.employee-list-filters input,.employee-list-filters select{height:42px;min-width:0;padding:8px 12px}
+.employee-list-header .employee-table-tools{margin:0;flex-wrap:nowrap;white-space:nowrap;padding:6px 8px}
+.employee-list-header .employee-table-tools .light{padding:8px 11px}
+.employee-list-header .page-size-control select{width:78px;padding:8px 28px 8px 9px}
+.employees-section .employee-data-table{padding-top:8px}
+.employees-section .bulk-employee-bar{gap:6px;margin-bottom:8px;padding:6px 8px;min-height:44px}
+.employees-section .bulk-employee-bar b{font-size:12px}
+.employees-section .bulk-employee-bar .light{min-height:34px;padding:6px 9px;font-size:11px}
+
+@media(min-width:901px){
+  .admin-shell .employees-section .employee-data-table .table-wrap{max-height:calc(100dvh - 235px)!important}
+}
+
+@media(min-width:901px) and (max-width:1250px){
+  .employee-list-header{grid-template-columns:minmax(350px,1fr) auto}
+  .employee-list-filters{grid-template-columns:minmax(200px,1fr) minmax(145px,190px)}
+  .employee-list-header .employee-table-tools{gap:6px;padding:6px}
+  .employee-list-header .employee-table-tools .light{padding:8px 9px;font-size:11px}
+}
+
+@media(max-width:900px){
+  .employee-list-header,.employee-list-header.tools-only{display:block;margin-bottom:7px}
+  .employee-list-filters{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:6px;margin-bottom:7px}
+  .employee-list-filters input,.employee-list-filters select{height:40px;padding:8px 9px;font-size:11px}
+  .employee-list-header .employee-table-tools{white-space:normal}
+}
+
 .profile-content {
   width: 100%;
   overflow-x: hidden;

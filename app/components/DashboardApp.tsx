@@ -604,10 +604,10 @@ export default function DashboardApp() {
         </div></div>
         <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={openEmployeeEdit} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} canExport={canExportData} />
       </section>}
-      {section === "employees" && showEmployees && <section className="panel employees-section"><h1>Employees Details</h1><div className="filters">
+      {section === "employees" && showEmployees && <section className="panel employees-section"><h1>Employees Details</h1><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} canExport={canExportData} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} topControls={<div className="employee-list-filters">
         <input placeholder="Type or select name" value={filters.q} onChange={e => setFilters({ ...filters, q: e.target.value })} />
         <select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
-      </div><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} canExport={canExportData} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} /></section>}
+      </div>} /></section>}
       {section === "add" && isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <AddUploadCenter canAddEmployee={canAddEmployee} canUploadLeaves={canUploadLeaves} onEmployeeSaved={() => { loadEmployees(); setSection("employees"); }} />}
       {section === "leaveRequests" && showLeaveRequests && <LeaveRequests session={session} canReview={canReviewLeaveRequests} />}
       {section === "reminder" && isAdmin && showReminder && <Reminder employees={activeEmployeeRows} canCreateMessage={canCreateNotifications} />}
@@ -666,7 +666,7 @@ function Highlight({ text, term }: { text?: any; term?: string }) {
   return <>{parts.map((part, index) => part.toLowerCase() === q.toLowerCase() ? <mark className="search-highlight" key={index}>{part}</mark> : <React.Fragment key={index}>{part}</React.Fragment>)}</>;
 }
 
-function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, canExport = true, loading = false, page: controlledPage, onPageChange }: { title: string; employees: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; canExport?: boolean; loading?: boolean; page?: number; onPageChange?: (page: number) => void }) {
+function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, canExport = true, loading = false, page: controlledPage, onPageChange, topControls }: { title: string; employees: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; canExport?: boolean; loading?: boolean; page?: number; onPageChange?: (page: number) => void; topControls?: React.ReactNode }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkMsg, setBulkMsg] = useState("");
   const [localPage, setLocalPage] = useState(1);
@@ -735,20 +735,27 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     setSelected(allSelected ? selected.filter(id => !ids.includes(id)) : Array.from(new Set([...selected, ...ids])));
   }
 
-  async function runBulk(action: "ACTIVATE" | "DEACTIVATE" | "CHANGE_DEPARTMENT" | "DELETE") {
+  async function runBulk(action: "ACTIVATE" | "DEACTIVATE" | "CHANGE_DEPARTMENT" | "CHANGE_DESIGNATION" | "DELETE") {
     if (!selected.length) return setBulkMsg("Select at least one employee.");
     let department = "";
+    let designation = "";
     if (action === "CHANGE_DEPARTMENT") {
       const value = prompt("Enter new department name:");
       if (value === null) return;
       department = value.trim();
       if (!department) return setBulkMsg("Department is required.");
     }
+    if (action === "CHANGE_DESIGNATION") {
+      const value = prompt("Enter new designation:");
+      if (value === null) return;
+      designation = value.trim();
+      if (!designation) return setBulkMsg("Designation is required.");
+    }
     if (action === "DELETE" && !(await requestConfirm("Move selected employees to Recycle Bin", `Move ${selected.length} selected employee(s) to Recycle Bin? They can be restored within 30 days.`, "Move Selected"))) return;
     try {
       const data = await api("/api/employees/bulk", {
         method: "POST",
-        body: JSON.stringify({ action, ids: selected, department })
+        body: JSON.stringify({ action, ids: selected, department, designation })
       });
       const successMessage = `${data.affected} employee(s) updated.${data.skipped ? ` ${data.skipped} skipped.` : ""}`;
       setBulkMsg(successMessage);
@@ -809,19 +816,23 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
   const allSelected = pageRows.length > 0 && pageRows.every(e => selected.includes(e.id));
 
   return <div className="panel table-panel compact-table employee-data-table">{title && <h2>{title}</h2>}
-    <div className="employee-table-tools">
+    <div className={topControls ? "employee-list-header" : "employee-list-header tools-only"}>
+      {topControls}
+      <div className="employee-table-tools">
       <div className="column-picker">
         <button className="light" type="button" onClick={() => setShowColumnMenu(value => !value)}>Columns</button>
         {showColumnMenu && <div className="column-menu">{Object.entries(columnLabels).map(([key, label]) => <label key={key}><input type="checkbox" checked={visibleColumns[key]} onChange={event => setVisibleColumns({ ...visibleColumns, [key]: event.target.checked })} /> {label}</label>)}</div>}
       </div>
       {canExport && <button className="light" type="button" onClick={exportCurrentView}>Export Current View</button>}
       <label className="page-size-control">Rows <select value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
+      </div>
     </div>
     {bulkActions && admin && <div className="bulk-employee-bar">
       <b>{selected.length} selected</b>
       {canEdit && <button className="light" onClick={() => runBulk("ACTIVATE")}>Activate</button>}
       {canEdit && <button className="light" onClick={() => runBulk("DEACTIVATE")}>Deactivate</button>}
       {canEdit && <button className="light" onClick={() => runBulk("CHANGE_DEPARTMENT")}>Change Department</button>}
+      {canEdit && <button className="light" onClick={() => runBulk("CHANGE_DESIGNATION")}>Change Designation</button>}
       {canExport && <button className="light" onClick={exportSelected}>Export Selected</button>}
       {canDelete && <button className="light danger-action" onClick={() => runBulk("DELETE")}>Delete Selected</button>}
     </div>}

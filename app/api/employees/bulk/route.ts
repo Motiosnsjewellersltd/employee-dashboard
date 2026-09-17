@@ -60,6 +60,13 @@ export async function POST(req: NextRequest) {
       affected = result.count;
       auditAction = "BULK_CHANGE_DEPARTMENT";
       notificationText = `${affected} employee${affected === 1 ? "" : "s"} moved to ${department} by ${session.name}.`;
+    } else if (action === "CHANGE_DESIGNATION") {
+      const designation = String(body.designation || "").trim();
+      if (!designation) throw new Error("Designation is required.");
+      const result = await prisma.employee.updateMany({ where: { id: { in: eligibleIds } }, data: { designation } });
+      affected = result.count;
+      auditAction = "BULK_CHANGE_DESIGNATION";
+      notificationText = `${affected} employee${affected === 1 ? "" : "s"} designation changed to ${designation} by ${session.name}.`;
     } else if (action === "DELETE") {
       const result = await prisma.employee.updateMany({ where: { id: { in: eligibleIds }, deletedAt: null }, data: { deletedAt: new Date(), deletedById: session.id, deletedByName: session.name } });
       affected = result.count;
