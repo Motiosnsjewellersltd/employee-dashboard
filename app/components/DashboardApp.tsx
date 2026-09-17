@@ -670,7 +670,8 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkMsg, setBulkMsg] = useState("");
   const [bulkAction, setBulkAction] = useState("");
-  const [bulkValue, setBulkValue] = useState("");
+  const [bulkUploadBusy, setBulkUploadBusy] = useState(false);
+  const bulkUpdateFileRef = useRef<HTMLInputElement>(null);
   const [localPage, setLocalPage] = useState(1);
   const page = controlledPage ?? localPage;
   const setPage = (next: number | ((current: number) => number)) => {
@@ -777,7 +778,6 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
 
   async function handleBulkActionChange(action: string) {
     setBulkMsg("");
-    setBulkValue("");
     if (!action) return setBulkAction("");
     if (action === "EXPORT_SELECTED") {
       setBulkAction("");
@@ -792,11 +792,54 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     setBulkAction(action);
   }
 
-  async function applyBulkValue() {
-    const saved = await runBulk(bulkAction as BulkAction, bulkValue);
-    if (saved) {
+  async function exportBulkUpdateTemplate() {
+    if (!selected.length) return setBulkMsg("Select at least one employee.");
+    try {
+      const params = new URLSearchParams({ action: bulkAction, ids: selected.join(",") });
+      const res = await fetch(`/api/employees/bulk-update?${params}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error || "Excel template export failed.");
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const fileName = disposition.match(/filename="?([^";]+)"?/i)?.[1] || "bulk-employee-update.xlsx";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setBulkMsg("Excel template exported. Fill required values and upload the same file.");
+      showToast("Bulk update Excel template exported.", "success");
+    } catch (e: any) {
+      setBulkMsg(e.message);
+    }
+  }
+
+  async function uploadBulkUpdateTemplate(file?: File) {
+    if (!file) return;
+    if (!selected.length) return setBulkMsg("Select the employees included in this Excel first.");
+    setBulkUploadBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("action", bulkAction);
+      form.append("ids", JSON.stringify(selected));
+      const data = await api("/api/employees/bulk-update", { method: "POST", body: form });
+      const message = `${data.updated} employee(s) updated.${data.blank ? ` ${data.blank} blank row(s) ignored.` : ""}${data.skipped ? ` ${data.skipped} row(s) skipped.` : ""}${data.errors?.length ? ` First issue: ${data.errors[0]}` : ""}`;
+      setBulkMsg(message);
+      showToast(message, "success");
+      setSelected([]);
       setBulkAction("");
-      setBulkValue("");
+      await onReload();
+    } catch (e: any) {
+      setBulkMsg(e.message);
+    } finally {
+      setBulkUploadBusy(false);
+      if (bulkUpdateFileRef.current) bulkUpdateFileRef.current.value = "";
     }
   }
 
@@ -875,11 +918,10 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
         {canDelete && <option value="DELETE">Delete Selected</option>}
       </select>
       {bulkAction && !["ACTIVATE", "DEACTIVATE", "DELETE", "EXPORT_SELECTED"].includes(bulkAction) && <div className="bulk-value-editor">
-        {bulkAction === "CHANGE_BRANCH" ? <select aria-label="Choose new branch" value={bulkValue} onChange={event => setBulkValue(event.target.value)}><option value="">Choose Branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select> :
-          bulkAction === "CHANGE_DOJ" || bulkAction === "CHANGE_EXIT_DATE" ? <input aria-label={bulkAction === "CHANGE_DOJ" ? "Joining date" : "Exit or leave date"} type="date" value={bulkValue} onChange={event => setBulkValue(event.target.value)} /> :
-          <input aria-label={bulkAction === "CHANGE_DEPARTMENT" ? "New department" : "New designation"} placeholder={bulkAction === "CHANGE_DEPARTMENT" ? "Enter department" : "Enter designation"} value={bulkValue} onChange={event => setBulkValue(event.target.value)} />}
-        <button className="primary" type="button" onClick={applyBulkValue}>Apply</button>
-        <button className="light" type="button" onClick={() => { setBulkAction(""); setBulkValue(""); }}>Cancel</button>
+        <button className="light" type="button" onClick={exportBulkUpdateTemplate}>Export Excel</button>
+        <button className="primary" type="button" disabled={bulkUploadBusy} onClick={() => bulkUpdateFileRef.current?.click()}>{bulkUploadBusy ? "Uploading..." : "Upload Excel"}</button>
+        <input ref={bulkUpdateFileRef} className="bulk-update-file-input" type="file" accept=".xlsx" onChange={event => uploadBulkUpdateTemplate(event.target.files?.[0])} />
+        <button className="light" type="button" onClick={() => setBulkAction("")}>Cancel</button>
       </div>}
     </div>}
     {bulkMsg && bulkActions && <div className="msg warn">{bulkMsg}</div>}
