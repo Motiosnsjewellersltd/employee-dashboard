@@ -128,6 +128,7 @@ export default function DashboardApp() {
   const [section, setSection] = useState<Section>("dashboard");
   const [dashboardFilter, setDashboardFilter] = useState("All Employees");
   const [dashboardQuick, setDashboardQuick] = useState({ q: "", status: "All", designation: "All", department: "All" });
+  const [hrMobileFiltersOpen, setHrMobileFiltersOpen] = useState(false);
   const [employees, setEmployees] = useState<User[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
@@ -399,6 +400,7 @@ export default function DashboardApp() {
 
   const isAdmin = session.role === "ADMIN" || session.role === "HR";
   const isSuperAdmin = session.role === "ADMIN";
+  const isHr = session.role === "HR";
   const canEditEmployee = isSuperAdmin || rolePermissions.hrCanEditEmployee === "true";
   const canDeleteEmployee = isSuperAdmin || rolePermissions.hrCanDeleteEmployee === "true";
   const canResetPassword = isSuperAdmin || rolePermissions.hrCanResetPassword === "true";
@@ -482,7 +484,7 @@ export default function DashboardApp() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
 
-  return <div className={isAdmin ? "app-shell admin-shell" : "app-shell employee-shell"}>
+  return <div className={isHr ? "app-shell admin-shell hr-shell" : isAdmin ? "app-shell admin-shell" : "app-shell employee-shell"}>
     <button className="mobile-menu" onClick={() => setMenuOpen(true)}>☰</button>
     <aside className={`${menuOpen ? "sidebar open" : "sidebar"}${isAdmin ? " admin-mobile-tools" : ""}`}>
       <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div><button className="mobile-tools-close" type="button" aria-label="Close tools" onClick={() => setMenuOpen(false)}>×</button></div>
@@ -526,9 +528,10 @@ export default function DashboardApp() {
       </div>
       {notice && <div className="msg warn" onClick={() => setNotice("")}>{notice}</div>}
       {section === "dashboard" && <section>
-        <div className="dashboard-hero"><div><h1>Admin Dashboard</h1></div><div className="dashboard-quality"><span>Data Quality</span><b>{dataQuality.affected ? `${dataQuality.affected} need attention` : "All key fields complete"}</b><small>DOB {dataQuality.missingDob} · Mobile {dataQuality.missingMobile} · DOJ {dataQuality.missingDoj}</small></div></div>
+        <div className="dashboard-hero"><div><h1>{isHr ? "HR Dashboard" : "Admin Dashboard"}</h1></div><div className="dashboard-quality"><span>Data Quality</span><b>{dataQuality.affected ? `${dataQuality.affected} need attention` : "All key fields complete"}</b><small>DOB {dataQuality.missingDob} · Mobile {dataQuality.missingMobile} · DOJ {dataQuality.missingDoj}</small></div></div>
         <div className="cards dashboard-cards">{cards.map(c => <button className={dashboardFilter === c[0] || (dashboardFilter === "All Employees" && c[0] === "Total Employees") ? "stat stat-button active" : "stat stat-button"} key={c[0]} onClick={() => setDashboardFilter(c[0] === "Total Employees" ? "All Employees" : String(c[0]))}><span>{c[0]}</span><b>{c[1]}</b></button>)}</div>
-        <div className="panel dashboard-filter-panel"><div className="filters dashboard-quick">
+        {isHr && <button className="hr-mobile-filter-toggle light" type="button" onClick={() => setHrMobileFiltersOpen(open => !open)}><span>⌕</span>{hrMobileFiltersOpen ? "Hide Filters" : "Search & Filters"}<b>{dashboardRows.length}</b></button>}
+        <div className={`panel dashboard-filter-panel${isHr && hrMobileFiltersOpen ? " mobile-open" : ""}`}><div className="filters dashboard-quick">
           <input placeholder="Search dashboard" value={dashboardQuick.q} onChange={e => setDashboardQuick({ ...dashboardQuick, q: e.target.value })} />
           <select value={dashboardQuick.status} onChange={e => setDashboardQuick({ ...dashboardQuick, status: e.target.value })}><option>All</option><option>ACTIVE</option><option>INACTIVE</option></select>
           <select value={dashboardQuick.designation} onChange={e => setDashboardQuick({ ...dashboardQuick, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
