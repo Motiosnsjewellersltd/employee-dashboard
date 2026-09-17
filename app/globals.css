@@ -2240,6 +2240,8 @@ html,body{width:100%;min-height:100%;max-width:100%;}
 }
 
 @media(max-width:900px){
+  .admin-shell .sidebar.admin-mobile-tools .menu.mobile-bottom-duplicate{display:none!important}
+
   .hr-shell .main{padding:58px 7px calc(82px + env(safe-area-inset-bottom))!important}
   .hr-shell .dashboard-hero{
     min-height:67px;

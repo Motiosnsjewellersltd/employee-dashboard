@@ -560,12 +560,12 @@ export default function DashboardApp() {
     <aside className={`${menuOpen ? "sidebar open" : "sidebar"}${isAdmin ? " admin-mobile-tools" : ""}`}>
       <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div><button className="mobile-tools-close" type="button" aria-label="Close tools" onClick={() => setMenuOpen(false)}>×</button></div>
       <nav>
-        {isAdmin && showDashboard && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
-        {isAdmin && showEmployees && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
+        {isAdmin && showDashboard && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} mobileBottomDuplicate />}
+        {isAdmin && showEmployees && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} mobileBottomDuplicate />}
         {isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <MenuItem label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
-        {showLeaveRequests && <MenuItem label="Leave Requests" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />}
+        {showLeaveRequests && <MenuItem label="Leave Requests" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} mobileBottomDuplicate={isAdmin} />}
         {isAdmin && showReminder && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
-        {showNotifications && <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />}
+        {showNotifications && <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} mobileBottomDuplicate={isAdmin} />}
         {showChat && <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
         {isAdmin && showResetPassword && canResetPassword && <MenuItem label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
         {isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <MenuItem label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
@@ -649,8 +649,8 @@ function OfflineNotice({ onRetry }: { onRetry: () => void | Promise<void> }) {
   </div>;
 }
 
-function MenuItem(p: { label: string; icon: string; active: boolean; onClick: () => void }) {
-  return <button className={p.active ? "menu active" : "menu"} title={p.label} onClick={p.onClick}><span className="menu-icon">{p.icon}</span><b className="menu-label">{p.label}</b><i className="menu-active-dot" /></button>;
+function MenuItem(p: { label: string; icon: string; active: boolean; onClick: () => void; mobileBottomDuplicate?: boolean }) {
+  return <button className={`${p.active ? "menu active" : "menu"}${p.mobileBottomDuplicate ? " mobile-bottom-duplicate" : ""}`} title={p.label} onClick={p.onClick}><span className="menu-icon">{p.icon}</span><b className="menu-label">{p.label}</b><i className="menu-active-dot" /></button>;
 }
 
 function MobileNavItem(p: { label: string; icon: string; active: boolean; onClick: () => void }) {
