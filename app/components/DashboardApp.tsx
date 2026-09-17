@@ -196,21 +196,32 @@ export default function DashboardApp() {
     hrCanManageRecycleBin: "true"
   });
   const [employeeListPage, setEmployeeListPage] = useState(1);
-  const employeeEditScrollRef = useRef(0);
+  const employeeEditScrollRef = useRef({ windowTop: 0, tableTop: 0, tableLeft: 0 });
 
   function openEmployeeEdit(user: User) {
-    employeeEditScrollRef.current = window.scrollY || document.documentElement.scrollTop || 0;
+    const tableScroll = document.querySelector<HTMLElement>(".employees-section .employee-data-table .table-wrap");
+    employeeEditScrollRef.current = {
+      windowTop: window.scrollY || document.documentElement.scrollTop || 0,
+      tableTop: tableScroll?.scrollTop || 0,
+      tableLeft: tableScroll?.scrollLeft || 0
+    };
     setEditUser(user);
   }
 
   async function finishEmployeeEdit() {
     setEditUser(null);
     await loadEmployees();
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        window.scrollTo({ top: employeeEditScrollRef.current, left: 0, behavior: "auto" });
-      });
-    });
+    const restoreEmployeeListPosition = () => {
+      const saved = employeeEditScrollRef.current;
+      const tableScroll = document.querySelector<HTMLElement>(".employees-section .employee-data-table .table-wrap");
+      if (tableScroll) {
+        tableScroll.scrollTop = saved.tableTop;
+        tableScroll.scrollLeft = saved.tableLeft;
+      }
+      window.scrollTo({ top: saved.windowTop, left: 0, behavior: "auto" });
+    };
+    window.requestAnimationFrame(() => window.requestAnimationFrame(restoreEmployeeListPosition));
+    window.setTimeout(restoreEmployeeListPosition, 120);
   }
 
   async function loadMe() {
