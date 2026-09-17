@@ -21,6 +21,7 @@ export type SessionUser = {
   role: "ADMIN" | "HR" | "EMPLOYEE";
   designation?: string | null;
   department?: string | null;
+  branch?: string | null;
   photoUrl?: string | null;
 };
 
@@ -47,7 +48,7 @@ export async function getSession(): Promise<SessionUser | null> {
 export async function requireSession() {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
-  const active = await prisma.employee.findFirst({ where: { id: session.id, deletedAt: null }, select: { id: true } });
+  const active = await prisma.employee.findFirst({ where: { id: session.id, deletedAt: null, status: "ACTIVE", exitDate: null }, select: { id: true } });
   if (!active) throw new Error("Unauthorized");
   await prisma.employee.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } }).catch(() => null);
   await maybeCleanupRecycleBin().catch(() => null);
@@ -78,6 +79,7 @@ export function publicUser(user: any): SessionUser {
     role: user.role,
     designation: user.designation,
     department: user.department,
+    branch: user.branch,
     photoUrl: user.photoUrl
   };
 }
