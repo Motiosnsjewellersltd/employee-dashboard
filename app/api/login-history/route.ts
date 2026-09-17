@@ -2,11 +2,13 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { fail, ok } from "@/lib/utils";
+import { requireHrPermission } from "@/lib/permissions";
 
 export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
     if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
+    await requireHrPermission(session.role, "hrCanViewLoginHistory", "HR is not allowed to view login history.");
 
     const url = new URL(req.url);
     const status = String(url.searchParams.get("status") || "All");

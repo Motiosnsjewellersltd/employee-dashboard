@@ -5,12 +5,14 @@ import { fail, ok } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { addSystemNotification } from "@/lib/systemNotification";
 import { compactName, normalizeName, onlyDigits, rowsFromLeaveExcel } from "@/lib/leaveImport";
+import { requireHrPermission } from "@/lib/permissions";
 
 export async function POST(req: NextRequest) {
   let session: Awaited<ReturnType<typeof requireSession>> | null = null;
   try {
     session = await requireSession();
     if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
+    await requireHrPermission(session.role, "hrCanUploadLeaves", "HR is not allowed to upload leaves.");
 
     const form = await req.formData();
     const file = form.get("file") as File | null;

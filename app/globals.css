@@ -564,8 +564,14 @@
 }
 
 .permission-panel {
-  max-width: 820px;
+  max-width: 1180px;
 }
+
+.permission-help{margin:-4px 0 16px;color:#607b90;font-weight:700}
+.permission-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.permission-groups>div{padding:14px;border:1px solid var(--line);border-radius:16px;background:#f8fcff}
+.permission-groups h2{margin:0 0 12px;color:var(--blue)}
+.permission-save{margin-top:16px}
 
 .permission-row {
   display: grid;
@@ -652,8 +658,17 @@
   }
 
   .permission-row {
-    grid-template-columns: 1fr;
+    grid-template-columns:minmax(0,1fr) 124px;
+    gap:7px;
+    padding:9px;
+    margin-bottom:7px;
   }
+
+  .permission-row span{font-size:11px;line-height:1.25}
+  .permission-row select{min-width:0;height:38px;padding:7px;font-size:10px}
+  .permission-groups{grid-template-columns:1fr;gap:10px}
+  .permission-groups>div{padding:9px;border-radius:13px}
+  .permission-groups h2{font-size:18px;margin-bottom:8px}
 
   .profile-grid,
   .employee-form {

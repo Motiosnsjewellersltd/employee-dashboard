@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { fail, ok } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { cleanupRecycleBin, RECYCLE_RETENTION_DAYS } from "@/lib/recycleBin";
+import { requireHrPermission } from "@/lib/permissions";
 
 function requireAdminOrHr(role: string) {
   if (!["ADMIN", "HR"].includes(role)) throw new Error("Only Admin/HR allowed.");
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
     requireAdminOrHr(session.role);
+    await requireHrPermission(session.role, "hrCanManageRecycleBin", "HR is not allowed to access Recycle Bin.");
     const cleanup = await cleanupRecycleBin();
     const type = String(new URL(req.url).searchParams.get("type") || "all").toLowerCase();
 
@@ -42,6 +44,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await requireSession();
     requireAdminOrHr(session.role);
+    await requireHrPermission(session.role, "hrCanManageRecycleBin", "HR is not allowed to manage Recycle Bin.");
     await cleanupRecycleBin();
     const body = await req.json();
     const type = String(body.type || "").toLowerCase();

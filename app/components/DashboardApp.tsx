@@ -39,6 +39,28 @@ function initialSection(user: User): Section {
   return fallback;
 }
 
+function hrSectionAllowed(section: Section, permissions: Record<string, string>) {
+  const enabled = (key: string) => permissions[key] === "true";
+  const rules: Partial<Record<Section, boolean>> = {
+    dashboard: enabled("hrMenuDashboard"),
+    employees: enabled("hrMenuEmployees"),
+    add: enabled("hrMenuAddUpload") && (enabled("hrCanAddEmployee") || enabled("hrCanUploadLeaves")),
+    leaveRequests: enabled("hrMenuLeaveRequests"),
+    reminder: enabled("hrMenuReminder"),
+    notifications: enabled("hrMenuNotifications"),
+    chat: enabled("hrMenuChat"),
+    reset: enabled("hrMenuResetPassword") && enabled("hrCanResetPassword"),
+    loginHistory: enabled("hrMenuLoginExport") && (enabled("hrCanViewLoginHistory") || enabled("hrCanExportData")),
+    recycle: enabled("hrMenuRecycleBin") && enabled("hrCanManageRecycleBin")
+  };
+  return Boolean(rules[section]);
+}
+
+function firstHrSection(permissions: Record<string, string>): Section {
+  const order: Section[] = ["dashboard", "employees", "add", "leaveRequests", "reminder", "notifications", "chat", "reset", "loginHistory", "recycle"];
+  return order.find(item => hrSectionAllowed(item, permissions)) || "dashboard";
+}
+
 async function api(url: string, options?: RequestInit) {
   let res: Response;
   try {
@@ -152,10 +174,26 @@ export default function DashboardApp() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [rolePermissions, setRolePermissions] = useState<any>({
+    hrMenuDashboard: "true",
+    hrMenuEmployees: "true",
+    hrMenuAddUpload: "true",
+    hrMenuLeaveRequests: "true",
+    hrMenuReminder: "true",
+    hrMenuNotifications: "true",
+    hrMenuChat: "true",
+    hrMenuResetPassword: "true",
+    hrMenuLoginExport: "true",
+    hrMenuRecycleBin: "true",
+    hrCanAddEmployee: "true",
     hrCanEditEmployee: "true",
     hrCanDeleteEmployee: "false",
     hrCanResetPassword: "false",
-    hrCanUploadLeaves: "true"
+    hrCanUploadLeaves: "true",
+    hrCanReviewLeaveRequests: "true",
+    hrCanCreateNotifications: "true",
+    hrCanViewLoginHistory: "true",
+    hrCanExportData: "true",
+    hrCanManageRecycleBin: "true"
   });
   const [employeeListPage, setEmployeeListPage] = useState(1);
   const employeeEditScrollRef = useRef(0);
@@ -242,7 +280,10 @@ export default function DashboardApp() {
     if (!session) return;
     loadEmployees().catch(e => setNotice(e.message));
     if (session.role === "ADMIN" || session.role === "HR") {
-      api("/api/permissions").then(d => setRolePermissions(d.permissions)).catch(() => null);
+      api("/api/permissions").then(d => {
+        setRolePermissions(d.permissions);
+        if (session.role === "HR") setSection(current => hrSectionAllowed(current, d.permissions) ? current : firstHrSection(d.permissions));
+      }).catch(() => null);
     }
   }, [session]);
 
@@ -409,10 +450,27 @@ export default function DashboardApp() {
   const isAdmin = session.role === "ADMIN" || session.role === "HR";
   const isSuperAdmin = session.role === "ADMIN";
   const isHr = session.role === "HR";
+  const hrAllowed = (key: string) => isSuperAdmin || rolePermissions[key] === "true";
+  const showDashboard = hrAllowed("hrMenuDashboard");
+  const showEmployees = hrAllowed("hrMenuEmployees");
+  const showAddUpload = hrAllowed("hrMenuAddUpload");
+  const showLeaveRequests = session.role === "EMPLOYEE" || hrAllowed("hrMenuLeaveRequests");
+  const showReminder = hrAllowed("hrMenuReminder");
+  const showNotifications = session.role === "EMPLOYEE" || hrAllowed("hrMenuNotifications");
+  const showChat = session.role === "EMPLOYEE" || hrAllowed("hrMenuChat");
+  const showResetPassword = hrAllowed("hrMenuResetPassword");
+  const showLoginExport = hrAllowed("hrMenuLoginExport");
+  const showRecycleBin = hrAllowed("hrMenuRecycleBin");
+  const canAddEmployee = isSuperAdmin || rolePermissions.hrCanAddEmployee === "true";
   const canEditEmployee = isSuperAdmin || rolePermissions.hrCanEditEmployee === "true";
   const canDeleteEmployee = isSuperAdmin || rolePermissions.hrCanDeleteEmployee === "true";
   const canResetPassword = isSuperAdmin || rolePermissions.hrCanResetPassword === "true";
   const canUploadLeaves = isSuperAdmin || rolePermissions.hrCanUploadLeaves === "true";
+  const canReviewLeaveRequests = isSuperAdmin || rolePermissions.hrCanReviewLeaveRequests === "true";
+  const canCreateNotifications = isSuperAdmin || rolePermissions.hrCanCreateNotifications === "true";
+  const canViewLoginHistory = isSuperAdmin || rolePermissions.hrCanViewLoginHistory === "true";
+  const canExportData = isSuperAdmin || rolePermissions.hrCanExportData === "true";
+  const canManageRecycleBin = isSuperAdmin || rolePermissions.hrCanManageRecycleBin === "true";
 
   // Admin user is only for system login/control. It should not be counted or shown as an employee.
   const employeeRows = employees.filter(e => e.role !== "ADMIN");
@@ -487,6 +545,11 @@ export default function DashboardApp() {
   function goto(s: Section) {
     setSection(s);
     setMenuOpen(false);
+    setGlobalSearch("");
+    setGlobalSearchOpen(false);
+    setFilters(current => ({ ...current, q: "" }));
+    setDashboardQuick(current => ({ ...current, q: "" }));
+    setEmployeeListPage(1);
     if (session?.role === "EMPLOYEE") setProfileUser(null);
     if (s === "employees" || s === "dashboard") loadEmployees().catch(() => null);
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -497,17 +560,17 @@ export default function DashboardApp() {
     <aside className={`${menuOpen ? "sidebar open" : "sidebar"}${isAdmin ? " admin-mobile-tools" : ""}`}>
       <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div><button className="mobile-tools-close" type="button" aria-label="Close tools" onClick={() => setMenuOpen(false)}>×</button></div>
       <nav>
-        {isAdmin && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
-        {isAdmin && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
-        {isAdmin && <MenuItem label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
-        <MenuItem label="Leave Requests" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />
-        {isAdmin && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
-        <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />
-        <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />
-        {isAdmin && canResetPassword && <MenuItem label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
-        {isAdmin && <MenuItem label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
+        {isAdmin && showDashboard && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
+        {isAdmin && showEmployees && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
+        {isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <MenuItem label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
+        {showLeaveRequests && <MenuItem label="Leave Requests" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />}
+        {isAdmin && showReminder && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
+        {showNotifications && <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />}
+        {showChat && <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
+        {isAdmin && showResetPassword && canResetPassword && <MenuItem label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
+        {isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <MenuItem label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
         {isSuperAdmin && <MenuItem label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
-        {isAdmin && <MenuItem label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
+        {isAdmin && showRecycleBin && canManageRecycleBin && <MenuItem label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
         {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
         <MenuItem label="Logout" icon="ↄ" active={false} onClick={logout} />
       </nav>
@@ -522,14 +585,14 @@ export default function DashboardApp() {
           <input aria-label="Global employee search" placeholder="Search employee, mobile, designation..." value={globalSearch} onFocus={() => setGlobalSearchOpen(true)} onChange={e => { setGlobalSearch(e.target.value); setGlobalSearchOpen(true); }} />
           {globalSearch && <button className="global-search-clear" type="button" onClick={() => { setGlobalSearch(""); setGlobalSearchOpen(false); }}>×</button>}
           {globalSearchOpen && globalSearch.trim() && <div className="global-search-results">
-            {globalMatches.length ? globalMatches.map(u => <button key={u.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => { openProfile(u); setGlobalSearchOpen(false); }}>{avatar(u)}<span><b><Highlight text={u.name} term={globalSearch} /></b><small>{u.designation || "-"} · {u.department || "-"} · <Highlight text={u.mobile} term={globalSearch} /></small></span></button>) : <div className="global-search-empty">No employee found</div>}
+            {globalMatches.length ? globalMatches.map(u => <button key={u.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => { openProfile(u); setGlobalSearch(""); setGlobalSearchOpen(false); }}>{avatar(u)}<span><b><Highlight text={u.name} term={globalSearch} /></b><small>{u.designation || "-"} · {u.department || "-"} · <Highlight text={u.mobile} term={globalSearch} /></small></span></button>) : <div className="global-search-empty">No employee found</div>}
           </div>}
         </div>}
         {isAdmin && <button className="desktop-admin-tools" type="button" onClick={() => setMenuOpen(value => !value)}><span>☰</span><b>Tools</b></button>}
-        <NotificationBell onOpen={() => goto("notifications")} />
+        {showNotifications && <NotificationBell onOpen={() => goto("notifications")} />}
       </div>
       {notice && <div className="msg warn" onClick={() => setNotice("")}>{notice}</div>}
-      {section === "dashboard" && <section>
+      {section === "dashboard" && showDashboard && <section>
         <div className="dashboard-hero"><div><h1>{isHr ? "HR Dashboard" : "Admin Dashboard"}</h1></div></div>
         <div className="cards dashboard-cards">{cards.map(c => <button className={dashboardFilter === c[0] || (dashboardFilter === "All Employees" && c[0] === "Total Employees") ? "stat stat-button active" : "stat stat-button"} key={c[0]} onClick={() => setDashboardFilter(c[0] === "Total Employees" ? "All Employees" : String(c[0]))}><span>{c[0]}</span><b>{c[1]}</b></button>)}</div>
         {isHr && <button className="hr-mobile-filter-toggle light" type="button" onClick={() => setHrMobileFiltersOpen(open => !open)}><span>⌕</span>{hrMobileFiltersOpen ? "Hide Filters" : "Search & Filters"}<b>{dashboardRows.length}</b></button>}
@@ -539,30 +602,30 @@ export default function DashboardApp() {
           <select value={dashboardQuick.designation} onChange={e => setDashboardQuick({ ...dashboardQuick, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
           <select value={dashboardQuick.department} onChange={e => setDashboardQuick({ ...dashboardQuick, department: e.target.value })}><option>All</option>{departments.map(d => <option key={d}>{d}</option>)}</select>
         </div></div>
-        <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={openEmployeeEdit} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} />
+        <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={openEmployeeEdit} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} canExport={canExportData} />
       </section>}
-      {section === "employees" && <section className="panel employees-section"><h1>Employees Details</h1><div className="filters">
+      {section === "employees" && showEmployees && <section className="panel employees-section"><h1>Employees Details</h1><div className="filters">
         <input placeholder="Type or select name" value={filters.q} onChange={e => setFilters({ ...filters, q: e.target.value })} />
         <select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
-      </div><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} /></section>}
-      {section === "add" && isAdmin && <AddUploadCenter canUploadLeaves={canUploadLeaves} onEmployeeSaved={() => { loadEmployees(); setSection("employees"); }} />}
-      {section === "leaveRequests" && <LeaveRequests session={session} />}
-      {section === "reminder" && <Reminder employees={activeEmployeeRows} />}
-      {section === "notifications" && <Notifications session={session} employees={activeEmployeeRows} />}
-      {section === "chat" && <Chat session={session} />}
-      {section === "reset" && isAdmin && canResetPassword && <ResetPassword employees={activeEmployeeRows} />}
-      {section === "loginHistory" && isAdmin && <LoginExportCenter />}
+      </div><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} canExport={canExportData} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} /></section>}
+      {section === "add" && isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <AddUploadCenter canAddEmployee={canAddEmployee} canUploadLeaves={canUploadLeaves} onEmployeeSaved={() => { loadEmployees(); setSection("employees"); }} />}
+      {section === "leaveRequests" && showLeaveRequests && <LeaveRequests session={session} canReview={canReviewLeaveRequests} />}
+      {section === "reminder" && isAdmin && showReminder && <Reminder employees={activeEmployeeRows} canCreateMessage={canCreateNotifications} />}
+      {section === "notifications" && showNotifications && <Notifications session={session} employees={activeEmployeeRows} />}
+      {section === "chat" && showChat && <Chat session={session} />}
+      {section === "reset" && isAdmin && showResetPassword && canResetPassword && <ResetPassword employees={activeEmployeeRows} />}
+      {section === "loginHistory" && isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <LoginExportCenter canViewLoginHistory={canViewLoginHistory} canExportData={canExportData} />}
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
-      {section === "recycle" && isAdmin && <RecycleBin />}
+      {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} />}
     </main>
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
       {isAdmin ? <>
-        <MobileNavItem label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />
-        <MobileNavItem label="Team" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />
+        {showDashboard && <MobileNavItem label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
+        {showEmployees && <MobileNavItem label="Team" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
       </> : <MobileNavItem label="Profile" icon="◎" active={section === "profile"} onClick={() => goto("profile")} />}
-      <MobileNavItem label="Leave" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />
-      <MobileNavItem label="Alerts" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />
+      {showLeaveRequests && <MobileNavItem label="Leave" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />}
+      {showNotifications && <MobileNavItem label="Alerts" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />}
       {!isAdmin && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
       {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
@@ -603,7 +666,7 @@ function Highlight({ text, term }: { text?: any; term?: string }) {
   return <>{parts.map((part, index) => part.toLowerCase() === q.toLowerCase() ? <mark className="search-highlight" key={index}>{part}</mark> : <React.Fragment key={index}>{part}</React.Fragment>)}</>;
 }
 
-function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, loading = false, page: controlledPage, onPageChange }: { title: string; employees: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; loading?: boolean; page?: number; onPageChange?: (page: number) => void }) {
+function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, canExport = true, loading = false, page: controlledPage, onPageChange }: { title: string; employees: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; canExport?: boolean; loading?: boolean; page?: number; onPageChange?: (page: number) => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkMsg, setBulkMsg] = useState("");
   const [localPage, setLocalPage] = useState(1);
@@ -751,7 +814,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
         <button className="light" type="button" onClick={() => setShowColumnMenu(value => !value)}>Columns</button>
         {showColumnMenu && <div className="column-menu">{Object.entries(columnLabels).map(([key, label]) => <label key={key}><input type="checkbox" checked={visibleColumns[key]} onChange={event => setVisibleColumns({ ...visibleColumns, [key]: event.target.checked })} /> {label}</label>)}</div>}
       </div>
-      <button className="light" type="button" onClick={exportCurrentView}>Export Current View</button>
+      {canExport && <button className="light" type="button" onClick={exportCurrentView}>Export Current View</button>}
       <label className="page-size-control">Rows <select value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
     </div>
     {bulkActions && admin && <div className="bulk-employee-bar">
@@ -759,7 +822,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
       {canEdit && <button className="light" onClick={() => runBulk("ACTIVATE")}>Activate</button>}
       {canEdit && <button className="light" onClick={() => runBulk("DEACTIVATE")}>Deactivate</button>}
       {canEdit && <button className="light" onClick={() => runBulk("CHANGE_DEPARTMENT")}>Change Department</button>}
-      <button className="light" onClick={exportSelected}>Export Selected</button>
+      {canExport && <button className="light" onClick={exportSelected}>Export Selected</button>}
       {canDelete && <button className="light danger-action" onClick={() => runBulk("DELETE")}>Delete Selected</button>}
     </div>}
     {bulkMsg && bulkActions && <div className="msg warn">{bulkMsg}</div>}
@@ -877,14 +940,14 @@ function UploadFormatDownload({ type }: { type: "employees" | "leaves" }) {
   </div>;
 }
 
-function AddUploadCenter({ canUploadLeaves, onEmployeeSaved }: { canUploadLeaves: boolean; onEmployeeSaved: () => void }) {
-  const [tab, setTab] = useState<"employee" | "leaves">("employee");
+function AddUploadCenter({ canAddEmployee, canUploadLeaves, onEmployeeSaved }: { canAddEmployee: boolean; canUploadLeaves: boolean; onEmployeeSaved: () => void }) {
+  const [tab, setTab] = useState<"employee" | "leaves">(canAddEmployee ? "employee" : "leaves");
   return <>
     <div className="panel combined-tool-tabs">
-      <button className={tab === "employee" ? "primary active" : "light"} type="button" onClick={() => setTab("employee")}>Add Employee</button>
+      {canAddEmployee && <button className={tab === "employee" ? "primary active" : "light"} type="button" onClick={() => setTab("employee")}>Add Employee</button>}
       {canUploadLeaves && <button className={tab === "leaves" ? "primary active" : "light"} type="button" onClick={() => setTab("leaves")}>Upload Leaves</button>}
     </div>
-    {tab === "employee" ? <EmployeeForm onSaved={onEmployeeSaved} /> : <LeavesUpload />}
+    {tab === "employee" && canAddEmployee ? <EmployeeForm onSaved={onEmployeeSaved} /> : canUploadLeaves ? <LeavesUpload /> : null}
   </>;
 }
 
@@ -1243,6 +1306,7 @@ function ResetPassword({ employees }: { employees: User[] }) {
           name: employee.name,
           mobile: employee.mobile,
           password,
+          passwordOnly: true,
           role: employee.role,
           designation: employee.designation || "",
           department: employee.department || "",
@@ -1333,7 +1397,7 @@ function ProfileContent({ user, leaves, loading, canDeleteBranchHistory = false,
 
 function Info({ label, value, color }: { label: string; value?: any; color?: string }) { return <div className="info"><span>{label}</span><b className={color || ""}>{value || "-"}</b></div>; }
 
-function Reminder({ employees }: { employees: User[] }) {
+function Reminder({ employees, canCreateMessage }: { employees: User[]; canCreateMessage: boolean }) {
   const [data, setData] = useState<any>({ today: [], upcomingBirthdays: [], todayAnniversaries: [], upcomingAnniversaries: [] });
   const [loading, setLoading] = useState(true);
   const [upcomingView, setUpcomingView] = useState<"birthdays" | "anniversaries" | null>(null);
@@ -1350,7 +1414,7 @@ function Reminder({ employees }: { employees: User[] }) {
         <button className={upcomingView === "birthdays" ? "primary active" : "light"} type="button" onClick={() => setUpcomingView(value => value === "birthdays" ? null : "birthdays")}>Upcoming Birthdays ({data.upcomingBirthdays?.length || 0})</button>
         <button className={upcomingView === "anniversaries" ? "primary active" : "light"} type="button" onClick={() => setUpcomingView(value => value === "anniversaries" ? null : "anniversaries")}>Upcoming Anniversaries ({data.upcomingAnniversaries?.length || 0})</button>
       </div>
-      <MessageDraft employees={employees} />
+      {canCreateMessage && <MessageDraft employees={employees} />}
     </div>
     <h1 className="reminder-today-title">Today</h1>
     <div className="reminders reminder-today-grid">
@@ -1550,14 +1614,14 @@ function ExportData() {
   return <section className="panel"><h1>Backup / Export Data</h1><div className="export-grid">{exports.map(([label, type]) => <a key={type} className="export-card" href={`/api/export?type=${type}`} target="_blank"><b>{label}</b><span>Download CSV</span></a>)}</div></section>;
 }
 
-function LoginExportCenter() {
-  const [tab, setTab] = useState<"login" | "export">("login");
+function LoginExportCenter({ canViewLoginHistory, canExportData }: { canViewLoginHistory: boolean; canExportData: boolean }) {
+  const [tab, setTab] = useState<"login" | "export">(canViewLoginHistory ? "login" : "export");
   return <>
     <div className="panel combined-tool-tabs">
-      <button className={tab === "login" ? "primary active" : "light"} type="button" onClick={() => setTab("login")}>Login History</button>
-      <button className={tab === "export" ? "primary active" : "light"} type="button" onClick={() => setTab("export")}>Export Data</button>
+      {canViewLoginHistory && <button className={tab === "login" ? "primary active" : "light"} type="button" onClick={() => setTab("login")}>Login History</button>}
+      {canExportData && <button className={tab === "export" ? "primary active" : "light"} type="button" onClick={() => setTab("export")}>Export Data</button>}
     </div>
-    {tab === "login" ? <LoginHistory /> : <ExportData />}
+    {tab === "login" && canViewLoginHistory ? <LoginHistory /> : canExportData ? <ExportData /> : null}
   </>;
 }
 
@@ -1592,18 +1656,37 @@ function PermissionsPanel({ session }: { session: User }) {
 
   if (!permissions) return <section className="panel"><h1>Role Permission Control</h1>{msg ? <div className="msg error">{msg}</div> : <div className="permission-skeleton"><SkeletonCards count={4} /><span className="skeleton-button" /></div>}</section>;
 
-  const rows = [
-    ["hrCanEditEmployee", "HR can edit employee"],
-    ["hrCanDeleteEmployee", "HR can delete employee"],
-    ["hrCanResetPassword", "HR can reset password"],
-    ["hrCanUploadLeaves", "HR can upload leaves"]
+  const menuRows = [
+    ["hrMenuDashboard", "Dashboard"],
+    ["hrMenuEmployees", "Employees Details"],
+    ["hrMenuAddUpload", "Add / Upload"],
+    ["hrMenuLeaveRequests", "Leave Requests"],
+    ["hrMenuReminder", "Reminder"],
+    ["hrMenuNotifications", "Notification Center"],
+    ["hrMenuChat", "Chat"],
+    ["hrMenuResetPassword", "Reset Password"],
+    ["hrMenuLoginExport", "Login / Export"],
+    ["hrMenuRecycleBin", "Recycle Bin"]
   ];
+  const actionRows = [
+    ["hrCanAddEmployee", "Add or import employees"],
+    ["hrCanEditEmployee", "Edit employees and bulk status/department"],
+    ["hrCanDeleteEmployee", "Delete employees"],
+    ["hrCanResetPassword", "Reset employee passwords"],
+    ["hrCanUploadLeaves", "Upload, add, edit or delete leave records"],
+    ["hrCanReviewLeaveRequests", "Approve or reject leave requests"],
+    ["hrCanCreateNotifications", "Create messages / notifications"],
+    ["hrCanViewLoginHistory", "View login history"],
+    ["hrCanExportData", "Export system and employee data"],
+    ["hrCanManageRecycleBin", "View, restore or permanently delete Recycle Bin records"]
+  ];
+  const permissionRow = ([key, label]: string[]) => <label className="permission-row" key={key}><span>{label}</span><select disabled={session.role !== "ADMIN"} value={permissions[key] ?? "false"} onChange={e => setPermissions({ ...permissions, [key]: e.target.value })}><option value="true">Show / Allow</option><option value="false">Hide / Block</option></select></label>;
 
-  return <section className="panel permission-panel"><h1>Role Permission Control</h1>{rows.map(([key, label]) => <label className="permission-row" key={key}><span>{label}</span><select disabled={session.role !== "ADMIN"} value={permissions[key]} onChange={e => setPermissions({ ...permissions, [key]: e.target.value })}><option value="true">Yes</option><option value="false">No</option></select></label>)}{session.role === "ADMIN" && <button className="primary" onClick={save}>Save Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
+  return <section className="panel permission-panel"><h1>HR Permission Control</h1><p className="permission-help">Choose which menu options HR can see and which actions HR can perform.</p><div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save HR Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
 }
 
-function LeaveRequests({ session }: { session: User }) {
-  const canReview = session.role === "ADMIN" || session.role === "HR";
+function LeaveRequests({ session, canReview: allowedToReview = false }: { session: User; canReview?: boolean }) {
+  const canReview = session.role === "ADMIN" || (session.role === "HR" && allowedToReview);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
+import { requireHrPermission } from "@/lib/permissions";
 import { formatDate } from "@/lib/utils";
 
 function csvCell(v: unknown) {
@@ -15,6 +16,7 @@ function csv(rows: any[], headers: string[], mapper: (row: any) => unknown[]) {
 export async function GET(req: NextRequest) {
   const session = await requireSession();
   if (!["ADMIN", "HR"].includes(session.role)) return NextResponse.json({ ok: false, error: "Only Admin/HR allowed." }, { status: 401 });
+  await requireHrPermission(session.role, "hrCanExportData", "HR is not allowed to export data.");
 
   const type = new URL(req.url).searchParams.get("type") || "employees";
   let body = "";

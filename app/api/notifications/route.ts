@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { fail, ok, saveUpload } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { sendPushToEmployees } from "@/lib/webPush";
+import { requireHrPermission } from "@/lib/permissions";
 
 function dateFilter(from: string, to: string) {
   if (!from && !to) return undefined;
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await requireSession();
     if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
+    await requireHrPermission(session.role, "hrCanCreateNotifications", "HR is not allowed to create messages or notifications.");
     const form = await req.formData();
     const type = String(form.get("type") || "INFORMATION").toUpperCase() as any;
     const text = String(form.get("text") || "").trim();

@@ -3,11 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { fail, ok } from "@/lib/utils";
 import { compactName, normalizeName, onlyDigits, rowsFromLeaveExcel } from "@/lib/leaveImport";
+import { requireHrPermission } from "@/lib/permissions";
 
 export async function POST(req: NextRequest) {
   try {
     const session = await requireSession();
     if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
+    await requireHrPermission(session.role, "hrCanUploadLeaves", "HR is not allowed to upload leaves.");
 
     const form = await req.formData();
     const file = form.get("file") as File | null;

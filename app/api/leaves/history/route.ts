@@ -4,10 +4,12 @@ import { requireSession } from "@/lib/auth";
 import { employeeEarnsLeaveInMonth, fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { normalizeMonthYear } from "@/lib/leaveImport";
+import { requireHrPermission } from "@/lib/permissions";
 
 async function requireHrOrAdmin() {
   const session = await requireSession();
   if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
+  await requireHrPermission(session.role, "hrCanUploadLeaves", "HR is not allowed to manage leave records.");
   return session;
 }
 

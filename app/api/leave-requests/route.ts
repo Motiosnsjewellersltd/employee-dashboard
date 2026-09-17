@@ -5,6 +5,7 @@ import { addAuditLog } from "@/lib/audit";
 import { fail, ok } from "@/lib/utils";
 import { addSystemNotification } from "@/lib/systemNotification";
 import { sendPushToEmployees } from "@/lib/webPush";
+import { requireHrPermission } from "@/lib/permissions";
 
 function parseDateOnly(value: unknown) {
   const text = String(value || "").trim();
@@ -130,6 +131,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const session = await requireSession();
     if (session.role !== "ADMIN" && session.role !== "HR") throw new Error("Only Admin/HR can approve or reject leave requests.");
+    await requireHrPermission(session.role, "hrCanReviewLeaveRequests", "HR is not allowed to approve or reject leave requests.");
 
     const body = await req.json();
     const id = String(body.id || "").trim();

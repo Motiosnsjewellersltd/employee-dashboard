@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth";
 import { employeeSelect, fail, ok, parseDate } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { addSystemNotification } from "@/lib/systemNotification";
+import { requireHrPermission } from "@/lib/permissions";
 
 function cleanBranch(value: unknown) {
   const branch = String(value || "").trim().toUpperCase();
@@ -30,6 +31,15 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
     const { id } = await ctx.params;
     const data = await req.json();
+    if (data.passwordOnly) {
+      await requireHrPermission(session.role, "hrCanResetPassword", "HR is not allowed to reset passwords.");
+      if (!String(data.password || "").trim()) throw new Error("New password is required.");
+      const employee = await prisma.employee.update({ where: { id }, data: { password: await bcrypt.hash(String(data.password), 10) } });
+      await addAuditLog({ actorId: session.id, actorName: session.name, action: "RESET_PASSWORD", target: employee.name, details: { id } });
+      return ok({ employee: employeeSelect(employee) });
+    }
+    await requireHrPermission(session.role, "hrCanEditEmployee", "HR is not allowed to edit employees.");
+    if (data.password) await requireHrPermission(session.role, "hrCanResetPassword", "HR is not allowed to reset passwords.");
     const before = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { status: true, branch: true } });
     if (!before) throw new Error("Employee not found.");
     const exitDate = parseDate(data.exitDate);
@@ -73,6 +83,7 @@ export async function DELETE(_: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const session = await requireSession();
     if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
+    await requireHrPermission(session.role, "hrCanDeleteEmployee", "HR is not allowed to delete employees.");
     const { id } = await ctx.params;
     if (session.id === id) throw new Error("Self delete not allowed.");
     const employee = await prisma.employee.findFirst({ where: { id, deletedAt: null } });

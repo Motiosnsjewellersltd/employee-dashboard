@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { fail, ok } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { addSystemNotification } from "@/lib/systemNotification";
+import { requireHrPermission } from "@/lib/permissions";
 
 function roleGuard(role: string) {
   if (!["ADMIN", "HR"].includes(role)) throw new Error("Only Admin/HR allowed.");
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const ids = cleanIds(body.ids);
     const action = String(body.action || "").trim();
+    await requireHrPermission(session.role, action === "DELETE" ? "hrCanDeleteEmployee" : "hrCanEditEmployee", action === "DELETE" ? "HR is not allowed to delete employees." : "HR is not allowed to edit employees.");
     if (!ids.length) throw new Error("Select at least one employee.");
 
     const eligible = await prisma.employee.findMany({
@@ -91,6 +93,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
     roleGuard(session.role);
+    await requireHrPermission(session.role, "hrCanExportData", "HR is not allowed to export data.");
     const url = new URL(req.url);
     const ids = Array.from(new Set(String(url.searchParams.get("ids") || "").split(",").map(v => v.trim()).filter(Boolean)));
     if (!ids.length) throw new Error("Select at least one employee.");

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { employeeSelect, fail, ok, saveUpload } from "@/lib/utils";
+import { requireHrPermission } from "@/lib/permissions";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -11,6 +12,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (!["ADMIN", "HR"].includes(session.role) && session.id !== id) {
       throw new Error("Unauthorized");
     }
+    if (session.role === "HR") await requireHrPermission(session.role, "hrCanEditEmployee", "HR is not allowed to edit employee photos.");
 
     const form = await req.formData();
     const file = form.get("photo") as File | null;

@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/auth";
 import { cleanMonthYear, excelCell, fail, ok, parseDate } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { addSystemNotification } from "@/lib/systemNotification";
+import { requireHrPermission } from "@/lib/permissions";
 
 async function rowsFromExcel(file: File) {
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await requireSession();
     if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
+    await requireHrPermission(session.role, "hrCanAddEmployee", "HR is not allowed to import employees.");
     const form = await req.formData();
     const file = form.get("file") as File | null;
     if (!file) throw new Error("Excel file required.");

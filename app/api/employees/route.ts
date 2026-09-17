@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth";
 import { employeeSelect, fail, ok, parseDate } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { addSystemNotification } from "@/lib/systemNotification";
+import { requireHrPermission } from "@/lib/permissions";
 
 function roleGuard(role: string) {
   if (!["ADMIN", "HR"].includes(role)) throw new Error("Only Admin/HR allowed.");
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await requireSession();
     roleGuard(session.role);
+    await requireHrPermission(session.role, "hrCanAddEmployee", "HR is not allowed to add employees.");
     const data = await req.json();
     if (!data.name || !data.mobile) throw new Error("Name and mobile required.");
     const password = data.password ? await bcrypt.hash(String(data.password), 10) : await bcrypt.hash("1234", 10);
