@@ -137,7 +137,7 @@ export async function rowsFromLeaveExcel(file: File): Promise<ParsedLeaveRow[]> 
 
   const candidates = wb.worksheets.map(ws => ({ ws, rows: sheetRows(ws) })).filter(x => x.rows.length);
   if (!candidates.length) {
-    throw new Error("Leave Excel me required headers nahi mile. Headers rakho: Month/Year, Employee Name, Leave");
+    throw new Error("Required headers were not found. Use: Month/Year, Employee Name, Leave.");
   }
   candidates.sort((a, b) => b.rows.length - a.rows.length);
 

@@ -288,7 +288,6 @@ export default function DashboardApp() {
     return <div className="login-page"><form className="login-card" onSubmit={submitLogin}>
       <div className="logo-box">MS</div>
       <h1>Login</h1>
-      <p>Enter username / mobile and password.</p>
       <label>Username / Mobile</label><input value={login.username} onChange={e => setLogin({ ...login, username: e.target.value })} autoFocus />
       <label>Password</label>
       <div style={{ position: "relative" }}>
@@ -413,10 +412,10 @@ export default function DashboardApp() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
 
-  return <div className="app-shell">
+  return <div className={isAdmin ? "app-shell admin-shell" : "app-shell employee-shell"}>
     <button className="mobile-menu" onClick={() => setMenuOpen(true)}>☰</button>
-    <aside className={menuOpen ? "sidebar open" : "sidebar"}>
-      <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div></div>
+    <aside className={`${menuOpen ? "sidebar open" : "sidebar"}${isAdmin ? " admin-mobile-tools" : ""}`}>
+      <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div><button className="mobile-tools-close" type="button" aria-label="Close tools" onClick={() => setMenuOpen(false)}>×</button></div>
       <nav>
         {isAdmin && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
         {isAdmin && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
@@ -456,7 +455,7 @@ export default function DashboardApp() {
       </div>
       {notice && <div className="msg warn" onClick={() => setNotice("")}>{notice}</div>}
       {section === "dashboard" && <section>
-        <div className="dashboard-hero"><div><span className="eyebrow">WORKFORCE OVERVIEW</span><h1>Employee Dashboard</h1><p>Quick view of active workforce and employee records.</p></div><div className="dashboard-quality"><span>Data Quality</span><b>{dataQuality.affected ? `${dataQuality.affected} need attention` : "All key fields complete"}</b><small>DOB {dataQuality.missingDob} · Mobile {dataQuality.missingMobile} · DOJ {dataQuality.missingDoj}</small></div></div>
+        <div className="dashboard-hero"><div><h1>Admin Dashboard</h1></div><div className="dashboard-quality"><span>Data Quality</span><b>{dataQuality.affected ? `${dataQuality.affected} need attention` : "All key fields complete"}</b><small>DOB {dataQuality.missingDob} · Mobile {dataQuality.missingMobile} · DOJ {dataQuality.missingDoj}</small></div></div>
         <div className="cards dashboard-cards">{cards.map(c => <button className={dashboardFilter === c[0] || (dashboardFilter === "All Employees" && c[0] === "Total Employees") ? "stat stat-button active" : "stat stat-button"} key={c[0]} onClick={() => setDashboardFilter(c[0] === "Total Employees" ? "All Employees" : String(c[0]))}><span>{c[0]}</span><b>{c[1]}</b></button>)}</div>
         <div className="panel dashboard-filter-panel"><div className="filters dashboard-quick">
           <input placeholder="Search dashboard" value={dashboardQuick.q} onChange={e => setDashboardQuick({ ...dashboardQuick, q: e.target.value })} />
@@ -494,7 +493,7 @@ export default function DashboardApp() {
       <MobileNavItem label="Leave" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />
       <MobileNavItem label="Alerts" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />
       {!isAdmin && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
-      {isAdmin ? <MobileNavItem label="Admin" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
+      {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
     {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} />}
@@ -556,6 +555,10 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     role: "Role",
     status: "Status"
   };
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 900px)").matches) setPageSize(10);
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(employees.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -664,7 +667,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
         {showColumnMenu && <div className="column-menu">{Object.entries(columnLabels).map(([key, label]) => <label key={key}><input type="checkbox" checked={visibleColumns[key]} onChange={event => setVisibleColumns({ ...visibleColumns, [key]: event.target.checked })} /> {label}</label>)}</div>}
       </div>
       <button className="light" type="button" onClick={exportCurrentView}>Export Current View</button>
-      <label className="page-size-control">Rows <select value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
+      <label className="page-size-control">Rows <select value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
     </div>
     {bulkActions && admin && <div className="bulk-employee-bar">
       <b>{selected.length} selected</b>
@@ -689,8 +692,21 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
       {visibleColumns.role && <td><span className="pill">{e.role}</span></td>}
       {visibleColumns.status && <td><span className={e.status === "ACTIVE" ? "pill ok" : "pill danger"}>{e.status}</span></td>}
       {showActions && <td>{admin && e.role !== "ADMIN" && <div className="action-buttons">{canEdit && <button className="light" onClick={() => onEdit?.(e)}>Edit</button>}{canDelete && <button className="light" onClick={() => del(e.id)}>Delete</button>}</div>}</td>}
-    </tr>) : <tr><td className="table-empty-cell" colSpan={12}><div className="empty-table-state"><span>⌕</span><b>No employee records found</b><small>Try changing the search or filters.</small></div></td></tr>}
+    </tr>) : <tr><td className="table-empty-cell" colSpan={12}><div className="empty-table-state"><span>⌕</span><b>No employee records found</b></div></td></tr>}
   </tbody></table></div>
+  <div className="employee-mobile-list">
+    {loading ? Array.from({ length: 4 }).map((_, index) => <div className="employee-mobile-card" key={`mobile-skeleton-${index}`}><span className="skeleton-line" /></div>) : pageRows.length ? pageRows.map(e => <div className={selected.includes(e.id) ? "employee-mobile-card selected" : "employee-mobile-card"} key={`mobile-${e.id}`}>
+      {bulkActions && admin && <input className="employee-mobile-select" type="checkbox" aria-label={`Select ${e.name}`} checked={selected.includes(e.id)} onChange={event => setSelected(event.target.checked ? Array.from(new Set([...selected, e.id])) : selected.filter(id => id !== e.id))} />}
+      {avatar(e)}
+      <div className="employee-mobile-main"><b>{e.name}</b><span>{e.designation || "-"}{e.department ? ` · ${e.department}` : ""}</span><small>{e.mobile || "-"}</small></div>
+      <span className={e.status === "ACTIVE" ? "pill ok" : "pill danger"}>{e.status}</span>
+      {(clickable || (showActions && admin && e.role !== "ADMIN")) && <div className="employee-mobile-actions">
+        {clickable && <button className="light" onClick={() => onProfile(e)}>View</button>}
+        {showActions && admin && e.role !== "ADMIN" && canEdit && <button className="light" onClick={() => onEdit?.(e)}>Edit</button>}
+        {showActions && admin && e.role !== "ADMIN" && canDelete && <button className="light danger-action" onClick={() => del(e.id)}>Delete</button>}
+      </div>}
+    </div>) : <div className="empty-state">No employee records found</div>}
+  </div>
   <div className="pagination-bar"><span>Showing {employees.length ? startIndex + 1 : 0}-{Math.min(startIndex + pageRows.length, employees.length)} of {employees.length}</span><div><button className="light" disabled={safePage <= 1} onClick={() => setPage(1)}>First</button><button className="light" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</button><b>Page {safePage} / {totalPages}</b><button className="light" disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</button><button className="light" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>Last</button></div></div>
   </div>;
 }
@@ -768,7 +784,6 @@ function UploadFormatDownload({ type }: { type: "employees" | "leaves" }) {
   return <div className="bulk import-box">
     <div>
       <b>Upload File Format</b>
-      <div className="hint">Excel template me exact headers aur 1 demo row already di hui hai.</div>
     </div>
     <a className="light button-link" href={href} download={fileName}>Download Excel Format</a>
   </div>;
@@ -1002,7 +1017,6 @@ function LeavesUpload() {
     <div className="leave-history-head">
       <div>
         <h2>Manual Single Employee Leave</h2>
-        <p className="hint">Select one employee, month, leave value and optional reason / remark.</p>
       </div>
     </div>
     <div className="leave-filters">
@@ -1018,7 +1032,6 @@ function LeavesUpload() {
     <div className="leave-history-head">
       <div>
         <h2>Uploaded Leave History</h2>
-        <p className="hint">Search employee, filter month, edit a leave value, or delete individual/month/all records.</p>
       </div>
       <div className="leave-danger-actions">
         <button className="danger-btn" onClick={deleteMonth} disabled={!monthFilter}>Delete Selected Month</button>
@@ -1333,7 +1346,7 @@ function SystemHealth() {
   useEffect(() => { load(); }, []);
 
   return <section className="panel system-health-page">
-    <div className="system-health-head"><div><h1>System Health</h1><p className="hint">Current app, database and Recycle Bin status.</p></div><button className="light" onClick={load}>Refresh</button></div>
+    <div className="system-health-head"><div><h1>System Health</h1></div><button className="light" onClick={load}>Refresh</button></div>
     {loading ? <SkeletonCards count={4} /> : data ? <>
       <div className="health-cards">
         <div className="health-card"><span>App Server</span><b className="health-ok">{data.server}</b></div>
@@ -1402,7 +1415,7 @@ function ExportData() {
     ["Chats", "chats"]
   ];
 
-  return <section className="panel"><h1>Backup / Export Data</h1><p className="hint">Download backup CSV files for safety and review.</p><div className="export-grid">{exports.map(([label, type]) => <a key={type} className="export-card" href={`/api/export?type=${type}`} target="_blank"><b>{label}</b><span>Download CSV</span></a>)}</div></section>;
+  return <section className="panel"><h1>Backup / Export Data</h1><div className="export-grid">{exports.map(([label, type]) => <a key={type} className="export-card" href={`/api/export?type=${type}`} target="_blank"><b>{label}</b><span>Download CSV</span></a>)}</div></section>;
 }
 
 function LeaveReports() {
@@ -1443,7 +1456,7 @@ function PermissionsPanel({ session }: { session: User }) {
     ["hrCanUploadLeaves", "HR can upload leaves"]
   ];
 
-  return <section className="panel permission-panel"><h1>Role Permission Control</h1><p className="hint">These settings are saved for policy reference and future permission enforcement.</p>{rows.map(([key, label]) => <label className="permission-row" key={key}><span>{label}</span><select disabled={session.role !== "ADMIN"} value={permissions[key]} onChange={e => setPermissions({ ...permissions, [key]: e.target.value })}><option value="true">Yes</option><option value="false">No</option></select></label>)}{session.role === "ADMIN" && <button className="primary" onClick={save}>Save Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
+  return <section className="panel permission-panel"><h1>Role Permission Control</h1>{rows.map(([key, label]) => <label className="permission-row" key={key}><span>{label}</span><select disabled={session.role !== "ADMIN"} value={permissions[key]} onChange={e => setPermissions({ ...permissions, [key]: e.target.value })}><option value="true">Yes</option><option value="false">No</option></select></label>)}{session.role === "ADMIN" && <button className="primary" onClick={save}>Save Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
 }
 
 function LeaveRequests({ session }: { session: User }) {
@@ -1558,7 +1571,7 @@ function LeaveRequests({ session }: { session: User }) {
   const formDays = leaveDayCount(form.fromDate, form.toDate, form.fromDayType, form.toDayType);
 
   return <section className="panel leave-request-panel">
-    <div className="leave-request-title"><div><h1>Leave Requests</h1><p className="hint">{canReview ? "Review pending employee and manager leave requests." : "Submit a leave request and track its approval status."}</p></div>{canReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}</div>
+    <div className="leave-request-title"><div><h1>Leave Requests</h1></div>{canReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}</div>
 
     {!canReview && <form className="leave-request-form" onSubmit={submit}>
       <div className="leave-date-block"><label>From Date</label><input type="date" min={minimumLeaveDate || undefined} value={form.fromDate} onChange={event => { const fromDate = event.target.value; const toDate = form.toDate && form.toDate < fromDate ? fromDate : form.toDate; setForm({ ...form, fromDate, toDate, toDayType: toDate && toDate === fromDate ? form.fromDayType : form.toDayType }); }} required /><small>From Day Type</small><select value={form.fromDayType} onChange={event => { const fromDayType = event.target.value; setForm({ ...form, fromDayType, toDayType: form.toDate && form.toDate === form.fromDate ? fromDayType : form.toDayType }); }}><option value="FULL">Full Day</option><option value="HALF">Half Day</option></select></div>
@@ -1662,7 +1675,7 @@ function Notifications({ session, employees }: { session: User; employees: User[
     }
   }
 
-  return <section className="panel notification-panel"><div className="notification-title-row"><div><h1>{mode === "center" ? "Alerts" : "Notification History"}</h1><p className="hint">{mode === "center" ? "Your latest updates and leave decisions." : "Messages sent to employees."}</p></div>{canViewHistory && <div className="notification-mode-buttons"><button className={mode === "center" ? "primary" : "light"} onClick={() => setMode("center")}>My Alerts</button><button className={mode === "history" ? "primary" : "light"} onClick={() => setMode("history")}>Sent History</button></div>}</div>
+  return <section className="panel notification-panel"><div className="notification-title-row"><div><h1>{mode === "center" ? "Alerts" : "Notification History"}</h1></div>{canViewHistory && <div className="notification-mode-buttons"><button className={mode === "center" ? "primary" : "light"} onClick={() => setMode("center")}>My Alerts</button><button className={mode === "history" ? "primary" : "light"} onClick={() => setMode("history")}>Sent History</button></div>}</div>
     {mode === "center" && <div className="notification-center-actions"><button className="light" onClick={() => markRead()}>Mark All Read</button><button className="light danger-action" onClick={clearAll}>Clear All</button></div>}
     {msg && <div className="msg warn">{msg}</div>}
     {mode === "center" ? <div className="notification-center-filters"><select aria-label="Alert type" value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })}><option>All</option><option>INVITATION</option><option>INFORMATION</option><option>CELEBRATION</option><option>NOTICE</option></select><input placeholder="Search alerts" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /></div> : <div className="notification-filters"><select value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })}><option>All</option><option>INVITATION</option><option>INFORMATION</option><option>CELEBRATION</option><option>NOTICE</option></select><select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select><select value={filters.department} onChange={e => setFilters({ ...filters, department: e.target.value })}><option>All</option>{departments.map(d => <option key={d}>{d}</option>)}</select><input type="date" value={filters.from} onChange={e => setFilters({ ...filters, from: e.target.value })} /><input type="date" value={filters.to} onChange={e => setFilters({ ...filters, to: e.target.value })} /><input placeholder="Search text" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /></div>}
@@ -1741,7 +1754,7 @@ function Chat({ session }: { session: User }) {
     const tb = threadFor(b)?.updatedAt ? new Date(threadFor(b).updatedAt).getTime() : 0;
     return tb - ta;
   });
-  return <section className="panel chat-page"><div className="chat-grid-title"><h1>Chats</h1><span>{sortedList.length} contacts</span></div><div className={active ? "chat-grid chat-active" : "chat-grid"}><aside className="chat-contacts"><div className="chat-search"><span>⌕</span><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or mobile" /></div><div className="chat-list">{sortedList.length ? sortedList.map(u => { const t = threadFor(u); return <button key={u.id} className="chat-user" onClick={() => ensureThread(u)}>{avatar(u)}<span><b>{u.name}</b><small>{t?.lastMessage?.text || "Tap to start chatting"}</small></span><div className="chat-user-meta">{Boolean(t?.unread) && <strong className="unread-badge">{t.unread}</strong>}{isOnline(u) && <em>online</em>}</div></button>; }) : <div className="chat-empty">No employee found</div>}</div></aside><div className="chat-box"><div className="chat-head">{active?.other ? <><button className="mobile-chat-back" type="button" aria-label="Back to chats" onClick={() => { setActive(null); setMessages([]); }}>←</button>{avatar(active.other)}<div><b>{active.other.name}</b><span>{isOnline(active.other) ? "online" : "offline"}</span></div></> : <b>Select an employee to start chat</b>}</div><div className="chat-messages">{messages.length ? messages.map(m => <div key={m.id} className={m.senderId === session.id ? "bubble me" : "bubble"}><p>{m.text}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} {m.isEdited ? "edited" : ""} {m.senderId === session.id ? "✓✓" : ""} {m.senderId === session.id && Date.now() - new Date(m.createdAt).getTime() < 300000 && <button onClick={() => edit(m)}>Edit</button>}</small></div>) : active && <div className="chat-conversation-empty"><span>✉</span><b>Start your conversation</b><small>Messages are visible only to chat participants.</small></div>}</div><div className="chat-input">
+  return <section className="panel chat-page"><div className="chat-grid-title"><h1>Chats</h1><span>{sortedList.length} contacts</span></div><div className={active ? "chat-grid chat-active" : "chat-grid"}><aside className="chat-contacts"><div className="chat-search"><span>⌕</span><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or mobile" /></div><div className="chat-list">{sortedList.length ? sortedList.map(u => { const t = threadFor(u); return <button key={u.id} className="chat-user" onClick={() => ensureThread(u)}>{avatar(u)}<span><b>{u.name}</b><small>{t?.lastMessage?.text || "No messages yet"}</small></span><div className="chat-user-meta">{Boolean(t?.unread) && <strong className="unread-badge">{t.unread}</strong>}{isOnline(u) && <em>online</em>}</div></button>; }) : <div className="chat-empty">No employee found</div>}</div></aside><div className="chat-box"><div className="chat-head">{active?.other ? <><button className="mobile-chat-back" type="button" aria-label="Back to chats" onClick={() => { setActive(null); setMessages([]); }}>←</button>{avatar(active.other)}<div><b>{active.other.name}</b><span>{isOnline(active.other) ? "online" : "offline"}</span></div></> : <b>Select an employee to start chat</b>}</div><div className="chat-messages">{messages.length ? messages.map(m => <div key={m.id} className={m.senderId === session.id ? "bubble me" : "bubble"}><p>{m.text}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} {m.isEdited ? "edited" : ""} {m.senderId === session.id ? "✓✓" : ""} {m.senderId === session.id && Date.now() - new Date(m.createdAt).getTime() < 300000 && <button onClick={() => edit(m)}>Edit</button>}</small></div>) : active && <div className="chat-conversation-empty"><span>✉</span><b>Start your conversation</b></div>}</div><div className="chat-input">
   <label className={file ? "attach-btn has-file" : "attach-btn"} title={file ? file.name : "Attach file"}>
     📎
     <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />

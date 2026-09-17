@@ -56,7 +56,7 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        setMessage("Notification permission allow nahi hui. Browser settings se enable karein.");
+        setMessage("Notification permission was not granted. Enable it from your browser settings.");
         return;
       }
       const registration = await navigator.serviceWorker.ready;
@@ -69,7 +69,7 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
       setMessage("Notifications enabled");
       window.setTimeout(() => setVisible(false), 1200);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Notifications enable nahi ho payi.");
+      setMessage(error instanceof Error ? error.message : "Notifications could not be enabled.");
     } finally {
       setBusy(false);
     }
@@ -83,7 +83,7 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
   if (!visible) return null;
   return <div className="push-permission-card" role="dialog" aria-label="Enable notifications">
     <div className="push-permission-icon">◴</div>
-    <div className="push-permission-copy"><b>Instant notifications enable karein</b><span>Chat, leave approval/rejection aur important alerts phone screen par milenge.</span>{message && <small>{message}</small>}</div>
+    <div className="push-permission-copy"><b>Enable instant notifications</b><span>Receive chat, leave decisions and important alerts on this device.</span>{message && <small>{message}</small>}</div>
     <div className="push-permission-actions"><button className="primary" type="button" disabled={busy} onClick={enable}>{busy ? "Enabling..." : "Enable"}</button><button className="light" type="button" disabled={busy} onClick={dismiss}>Not now</button></div>
   </div>;
 }
