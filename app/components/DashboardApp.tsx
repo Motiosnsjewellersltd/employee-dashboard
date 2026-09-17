@@ -425,17 +425,12 @@ export default function DashboardApp() {
     if (query && !`${employee.name} ${employee.mobile} ${employee.designation || ""} ${employee.department || ""} ${employee.branch || ""}`.toLowerCase().includes(query)) return false;
     return true;
   });
-  const missingDob = employeeRows.filter(e => !String(e.dob || "").trim()).length;
-  const missingMobile = employeeRows.filter(e => !String(e.mobile || "").trim()).length;
-  const missingDoj = employeeRows.filter(e => !String(e.doj || "").trim()).length;
-  const affected = employeeRows.filter(e => !String(e.dob || "").trim() || !String(e.mobile || "").trim() || !String(e.doj || "").trim()).length;
-  const dataQuality = { missingDob, missingMobile, missingDoj, affected };
   const globalMatches = globalSearch.trim()
     ? employeeRows.filter(e => `${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(globalSearch.trim().toLowerCase())).slice(0, 8)
     : [];
   const sectionTitles: Record<Section, string> = {
-    dashboard: "Dashboard", employees: "Employees", add: "Add Employee", leaves: "Leave Management", reminder: "Reminders",
-    notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login History",
+    dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders",
+    notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login / Export",
     export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile",
     leaveRequests: "Leave Requests"
   };
@@ -504,20 +499,15 @@ export default function DashboardApp() {
       <nav>
         {isAdmin && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
         {isAdmin && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
-        {isAdmin && <MenuItem label="Add Employee" icon="+" active={section === "add"} onClick={() => goto("add")} />}
-        {isAdmin && canUploadLeaves && <MenuItem label="Upload Leaves" icon="⇧" active={section === "leaves"} onClick={() => goto("leaves")} />}
+        {isAdmin && <MenuItem label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
         <MenuItem label="Leave Requests" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />
         {isAdmin && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
         <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />
         <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />
         {isAdmin && canResetPassword && <MenuItem label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
-        {isAdmin && <MenuItem label="Audit Trail" icon="◎" active={section === "audit"} onClick={() => goto("audit")} />}
-        {isSuperAdmin && <MenuItem label="Login History" icon="◉" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
-        {isAdmin && <MenuItem label="Export Data" icon="⇩" active={section === "export"} onClick={() => goto("export")} />}
-        {isAdmin && <MenuItem label="Leave Reports" icon="▤" active={section === "reports"} onClick={() => goto("reports")} />}
+        {isAdmin && <MenuItem label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
         {isSuperAdmin && <MenuItem label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
         {isAdmin && <MenuItem label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
-        {isAdmin && <MenuItem label="System Health" icon="♡" active={section === "systemHealth"} onClick={() => goto("systemHealth")} />}
         {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
         <MenuItem label="Logout" icon="ↄ" active={false} onClick={logout} />
       </nav>
@@ -535,13 +525,12 @@ export default function DashboardApp() {
             {globalMatches.length ? globalMatches.map(u => <button key={u.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => { openProfile(u); setGlobalSearchOpen(false); }}>{avatar(u)}<span><b><Highlight text={u.name} term={globalSearch} /></b><small>{u.designation || "-"} · {u.department || "-"} · <Highlight text={u.mobile} term={globalSearch} /></small></span></button>) : <div className="global-search-empty">No employee found</div>}
           </div>}
         </div>}
-        {isAdmin && <button className={dataQuality.affected ? "quality-badge attention" : "quality-badge"} type="button" onClick={() => goto("employees")} title={`Missing DOB: ${dataQuality.missingDob}, Mobile: ${dataQuality.missingMobile}, DOJ: ${dataQuality.missingDoj}`}><span>Data Quality</span><b>{dataQuality.affected}</b></button>}
         {isAdmin && <button className="desktop-admin-tools" type="button" onClick={() => setMenuOpen(value => !value)}><span>☰</span><b>Tools</b></button>}
         <NotificationBell onOpen={() => goto("notifications")} />
       </div>
       {notice && <div className="msg warn" onClick={() => setNotice("")}>{notice}</div>}
       {section === "dashboard" && <section>
-        <div className="dashboard-hero"><div><h1>{isHr ? "HR Dashboard" : "Admin Dashboard"}</h1></div><div className="dashboard-quality"><span>Data Quality</span><b>{dataQuality.affected ? `${dataQuality.affected} need attention` : "All key fields complete"}</b><small>DOB {dataQuality.missingDob} · Mobile {dataQuality.missingMobile} · DOJ {dataQuality.missingDoj}</small></div></div>
+        <div className="dashboard-hero"><div><h1>{isHr ? "HR Dashboard" : "Admin Dashboard"}</h1></div></div>
         <div className="cards dashboard-cards">{cards.map(c => <button className={dashboardFilter === c[0] || (dashboardFilter === "All Employees" && c[0] === "Total Employees") ? "stat stat-button active" : "stat stat-button"} key={c[0]} onClick={() => setDashboardFilter(c[0] === "Total Employees" ? "All Employees" : String(c[0]))}><span>{c[0]}</span><b>{c[1]}</b></button>)}</div>
         {isHr && <button className="hr-mobile-filter-toggle light" type="button" onClick={() => setHrMobileFiltersOpen(open => !open)}><span>⌕</span>{hrMobileFiltersOpen ? "Hide Filters" : "Search & Filters"}<b>{dashboardRows.length}</b></button>}
         <div className={`panel dashboard-filter-panel${isHr && hrMobileFiltersOpen ? " mobile-open" : ""}`}><div className="filters dashboard-quick">
@@ -556,20 +545,15 @@ export default function DashboardApp() {
         <input placeholder="Type or select name" value={filters.q} onChange={e => setFilters({ ...filters, q: e.target.value })} />
         <select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
       </div><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} /></section>}
-      {section === "add" && <EmployeeForm onSaved={() => { loadEmployees(); setSection("employees"); }} />}
-      {section === "leaves" && isAdmin && canUploadLeaves && <LeavesUpload />}
+      {section === "add" && isAdmin && <AddUploadCenter canUploadLeaves={canUploadLeaves} onEmployeeSaved={() => { loadEmployees(); setSection("employees"); }} />}
       {section === "leaveRequests" && <LeaveRequests session={session} />}
       {section === "reminder" && <Reminder employees={activeEmployeeRows} />}
       {section === "notifications" && <Notifications session={session} employees={activeEmployeeRows} />}
       {section === "chat" && <Chat session={session} />}
       {section === "reset" && isAdmin && canResetPassword && <ResetPassword employees={activeEmployeeRows} />}
-      {section === "audit" && isAdmin && <AuditTrail />}
-      {section === "loginHistory" && isSuperAdmin && <LoginHistory />}
-      {section === "export" && isAdmin && <ExportData />}
-      {section === "reports" && isAdmin && <LeaveReports />}
+      {section === "loginHistory" && isAdmin && <LoginExportCenter />}
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "recycle" && isAdmin && <RecycleBin />}
-      {section === "systemHealth" && isAdmin && <SystemHealth />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} />}
     </main>
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
@@ -583,7 +567,7 @@ export default function DashboardApp() {
       {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
-    {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} />}
+    {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} canDeleteBranchHistory={isSuperAdmin} onBranchHistoryDeleted={() => loadProfileLeaves(profileUser)} />}
     <ToastHost />
     <ConfirmHost />
     <PushNotificationSetup employeeId={session.id} />
@@ -891,6 +875,17 @@ function UploadFormatDownload({ type }: { type: "employees" | "leaves" }) {
     </div>
     <a className="light button-link" href={href} download={fileName}>Download Excel Format</a>
   </div>;
+}
+
+function AddUploadCenter({ canUploadLeaves, onEmployeeSaved }: { canUploadLeaves: boolean; onEmployeeSaved: () => void }) {
+  const [tab, setTab] = useState<"employee" | "leaves">("employee");
+  return <>
+    <div className="panel combined-tool-tabs">
+      <button className={tab === "employee" ? "primary active" : "light"} type="button" onClick={() => setTab("employee")}>Add Employee</button>
+      {canUploadLeaves && <button className={tab === "leaves" ? "primary active" : "light"} type="button" onClick={() => setTab("leaves")}>Upload Leaves</button>}
+    </div>
+    {tab === "employee" ? <EmployeeForm onSaved={onEmployeeSaved} /> : <LeavesUpload />}
+  </>;
 }
 
 function EmployeeForm({ onSaved }: { onSaved: () => void }) {
@@ -1283,7 +1278,7 @@ function ResetPassword({ employees }: { employees: User[] }) {
   </div>{msg && <div className="msg warn">{msg}</div>}</section>;
 }
 
-function ProfileModal({ user, leaves, loading, onClose, employees, onSwitch }: { user: User; leaves: LeaveInfo | null; loading: boolean; onClose: () => void; employees: User[]; onSwitch: (u: User) => void }) {
+function ProfileModal({ user, leaves, loading, onClose, employees, onSwitch, canDeleteBranchHistory, onBranchHistoryDeleted }: { user: User; leaves: LeaveInfo | null; loading: boolean; onClose: () => void; employees: User[]; onSwitch: (u: User) => void; canDeleteBranchHistory: boolean; onBranchHistoryDeleted: () => void | Promise<void> }) {
   useEffect(() => {
     const escClose = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", escClose);
@@ -1299,19 +1294,30 @@ function ProfileModal({ user, leaves, loading, onClose, employees, onSwitch }: {
     <div className="modal-box" onMouseDown={e => e.stopPropagation()}>
       <button className="close" type="button" aria-label="Close profile" onClick={onClose}>×</button>
       <div className="profile-switcher print-exclude"><button className="light" disabled={!previous} onClick={() => previous && onSwitch(previous)}>← Previous</button><select value={user.id} onChange={event => { const selected = ordered.find(e => e.id === event.target.value); if (selected) onSwitch(selected); }}>{ordered.map(employee => <option key={employee.id} value={employee.id}>{employee.name} — {employee.mobile}</option>)}</select><button className="light" disabled={!next} onClick={() => next && onSwitch(next)}>Next →</button></div>
-      <ProfileContent user={user} leaves={leaves} loading={loading} />
+      <ProfileContent user={user} leaves={leaves} loading={loading} canDeleteBranchHistory={canDeleteBranchHistory} onBranchHistoryDeleted={onBranchHistoryDeleted} />
     </div>
   </div>;
 }
 
-function ProfileContent({ user, leaves, loading }: { user: User; leaves: LeaveInfo | null; loading: boolean }) {
+function ProfileContent({ user, leaves, loading, canDeleteBranchHistory = false, onBranchHistoryDeleted }: { user: User; leaves: LeaveInfo | null; loading: boolean; canDeleteBranchHistory?: boolean; onBranchHistoryDeleted?: () => void | Promise<void> }) {
+  async function deleteBranchTransfer(item: NonNullable<LeaveInfo["branchHistory"]>[number]) {
+    if (!(await requestConfirm("Delete transfer history", `Delete ${item.fromBranch || "Not Assigned"} → ${item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch} transfer record?`, "Delete"))) return;
+    try {
+      await api(`/api/employees/${user.id}/leaves?branchTransferId=${encodeURIComponent(item.id)}`, { method: "DELETE" });
+      showToast("Branch transfer history deleted.", "success");
+      await onBranchHistoryDeleted?.();
+    } catch {
+      // API helper already displays the error.
+    }
+  }
+
   return <div className="profile-content">
     <div className="profile-head">{avatar(user, true)}<div><h1>{user.name}</h1><p>{user.designation} | {user.department}{user.branch ? ` | ${user.branch}` : ""}</p></div><button className="light print-btn" onClick={() => window.print()}><span>▣</span> Print / PDF</button></div>
     <div className="profile-grid">
       <Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} /><Info label="Exit / Leave Date" value={user.exitDate || "-"} />
       <Info label="Working Period" value={workingPeriod(user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Status" value={user.status} /><Info label="Role" value={user.role} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
     </div>
-    {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th></tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td></tr>)}</tbody></table></div></> : null}
+    {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null}
     {user.role !== "ADMIN" && <>
       <h2>Leave Balance</h2>
       {loading && <div className="profile-loading"><SkeletonCards count={4} /><div className="skeleton-table"><span /><span /><span /><span /></div></div>}
@@ -1330,6 +1336,7 @@ function Info({ label, value, color }: { label: string; value?: any; color?: str
 function Reminder({ employees }: { employees: User[] }) {
   const [data, setData] = useState<any>({ today: [], upcomingBirthdays: [], todayAnniversaries: [], upcomingAnniversaries: [] });
   const [loading, setLoading] = useState(true);
+  const [upcomingView, setUpcomingView] = useState<"birthdays" | "anniversaries" | null>(null);
   useEffect(() => { api("/api/reminders").then(setData).catch(() => null).finally(() => setLoading(false)); }, []);
 
   const birthdayCard = (u: User & { daysUntil?: number }) => <div className="birthday" key={`birthday-${u.id}-${u.daysUntil || 0}`}>{avatar(u)}<div><b>{u.name}</b><span>{u.designation} | {u.dob}{typeof u.daysUntil === "number" && u.daysUntil > 0 ? ` | In ${u.daysUntil} day${u.daysUntil === 1 ? "" : "s"}` : ""}</span></div><a className="light" href={mobileUrl(u.mobile) + "?text=" + encodeURIComponent(`Happy Birthday ${u.name}! Wishing you a wonderful year ahead. - Motisons`)} target="_blank">Wish</a></div>;
@@ -1337,16 +1344,21 @@ function Reminder({ employees }: { employees: User[] }) {
 
   if (loading) return <section><div className="reminder-loading"><SkeletonCards count={4} /></div></section>;
 
-  return <section>
-    <div className="reminder-block"><h1>Birthday Reminders</h1><div className="reminders">
+  return <section className="reminder-page">
+    <div className="panel reminder-toolbar">
+      <div className="reminder-toolbar-actions">
+        <button className={upcomingView === "birthdays" ? "primary active" : "light"} type="button" onClick={() => setUpcomingView(value => value === "birthdays" ? null : "birthdays")}>Upcoming Birthdays ({data.upcomingBirthdays?.length || 0})</button>
+        <button className={upcomingView === "anniversaries" ? "primary active" : "light"} type="button" onClick={() => setUpcomingView(value => value === "anniversaries" ? null : "anniversaries")}>Upcoming Anniversaries ({data.upcomingAnniversaries?.length || 0})</button>
+      </div>
+      <MessageDraft employees={employees} />
+    </div>
+    <h1 className="reminder-today-title">Today</h1>
+    <div className="reminders reminder-today-grid">
       <div className="panel"><h2>Today&apos;s Birthdays</h2>{data.today?.length ? data.today.map((u: User) => birthdayCard(u)) : <div className="empty-state">No birthdays today.</div>}</div>
-      <div className="panel"><h2>Upcoming Birthdays - 30 Days</h2>{data.upcomingBirthdays?.length ? data.upcomingBirthdays.map((u: User & { daysUntil: number }) => birthdayCard(u)) : <div className="empty-state">No upcoming birthdays in the next 30 days.</div>}</div>
-    </div></div>
-    <div className="reminder-block"><h1>Work Anniversary Reminders</h1><div className="reminders">
       <div className="panel"><h2>Today&apos;s Work Anniversaries</h2>{data.todayAnniversaries?.length ? data.todayAnniversaries.map((u: User & { years: number }) => anniversaryCard(u)) : <div className="empty-state">No work anniversaries today.</div>}</div>
-      <div className="panel"><h2>Upcoming Work Anniversaries - 30 Days</h2>{data.upcomingAnniversaries?.length ? data.upcomingAnniversaries.map((u: User & { daysUntil: number; years: number }) => anniversaryCard(u)) : <div className="empty-state">No upcoming work anniversaries in the next 30 days.</div>}</div>
-    </div></div>
-    <MessageDraft employees={employees} />
+    </div>
+    {upcomingView === "birthdays" && <div className="panel reminder-upcoming-panel"><h2>Upcoming Birthdays - 30 Days</h2>{data.upcomingBirthdays?.length ? data.upcomingBirthdays.map((u: User & { daysUntil: number }) => birthdayCard(u)) : <div className="empty-state">No upcoming birthdays in the next 30 days.</div>}</div>}
+    {upcomingView === "anniversaries" && <div className="panel reminder-upcoming-panel"><h2>Upcoming Work Anniversaries - 30 Days</h2>{data.upcomingAnniversaries?.length ? data.upcomingAnniversaries.map((u: User & { daysUntil: number; years: number }) => anniversaryCard(u)) : <div className="empty-state">No upcoming work anniversaries in the next 30 days.</div>}</div>}
   </section>;
 }
 
@@ -1392,7 +1404,7 @@ function MessageDraft({ employees }: { employees: User[] }) {
     }
   }
 
-  return <div className="panel"><button className="primary" onClick={() => setOpen(true)}>Create Message</button>{res && <div className="msg warn">{res}</div>}{open && <div className="modal" onMouseDown={() => setOpen(false)}><div className="modal-box wide" onMouseDown={e => e.stopPropagation()}><button className="close" type="button" onClick={() => setOpen(false)}>×</button><div className="draft"><div><h2>Message Draft</h2><label>Type</label><select value={type} onChange={e => setType(e.target.value)}><option>INVITATION</option><option>INFORMATION</option><option>CELEBRATION</option><option>NOTICE</option></select><label>Attachment</label><input type="file" onChange={e => setFile(e.target.files?.[0] || null)} /><label>Message Text</label><textarea value={msg} onChange={e => setMsg(e.target.value)} /></div><div><h2>Select Employees</h2><div className="draft-filters"><select value={designation} onChange={e => setDesignation(e.target.value)}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select><select value={department} onChange={e => setDepartment(e.target.value)}><option>All</option>{departments.map(d => <option key={d}>{d}</option>)}</select></div><button className="light" onClick={toggleAll}>Select All Visible</button><div className="pick-list">{visible.map(e => <label key={e.id}><input type="checkbox" checked={selected.includes(e.id)} onChange={ev => setSelected(ev.target.checked ? [...selected, e.id] : selected.filter(x => x !== e.id))} /> <b>{e.name}</b><span>{e.designation} | {e.department}</span></label>)}</div><button className="primary" onClick={send}>Send Message</button></div></div></div></div>}</div>;
+  return <div className="reminder-message-action"><button className="primary" onClick={() => setOpen(true)}>Create Message</button>{res && <div className="msg warn">{res}</div>}{open && <div className="modal" onMouseDown={() => setOpen(false)}><div className="modal-box wide" onMouseDown={e => e.stopPropagation()}><button className="close" type="button" onClick={() => setOpen(false)}>×</button><div className="draft"><div><h2>Message Draft</h2><label>Type</label><select value={type} onChange={e => setType(e.target.value)}><option>INVITATION</option><option>INFORMATION</option><option>CELEBRATION</option><option>NOTICE</option></select><label>Attachment</label><input type="file" onChange={e => setFile(e.target.files?.[0] || null)} /><label>Message Text</label><textarea value={msg} onChange={e => setMsg(e.target.value)} /></div><div><h2>Select Employees</h2><div className="draft-filters"><select value={designation} onChange={e => setDesignation(e.target.value)}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select><select value={department} onChange={e => setDepartment(e.target.value)}><option>All</option>{departments.map(d => <option key={d}>{d}</option>)}</select></div><button className="light" onClick={toggleAll}>Select All Visible</button><div className="pick-list">{visible.map(e => <label key={e.id}><input type="checkbox" checked={selected.includes(e.id)} onChange={ev => setSelected(ev.target.checked ? [...selected, e.id] : selected.filter(x => x !== e.id))} /> <b>{e.name}</b><span>{e.designation} | {e.department}</span></label>)}</div><button className="primary" onClick={send}>Send Message</button></div></div></div></div>}</div>;
 }
 
 
@@ -1536,6 +1548,17 @@ function ExportData() {
   ];
 
   return <section className="panel"><h1>Backup / Export Data</h1><div className="export-grid">{exports.map(([label, type]) => <a key={type} className="export-card" href={`/api/export?type=${type}`} target="_blank"><b>{label}</b><span>Download CSV</span></a>)}</div></section>;
+}
+
+function LoginExportCenter() {
+  const [tab, setTab] = useState<"login" | "export">("login");
+  return <>
+    <div className="panel combined-tool-tabs">
+      <button className={tab === "login" ? "primary active" : "light"} type="button" onClick={() => setTab("login")}>Login History</button>
+      <button className={tab === "export" ? "primary active" : "light"} type="button" onClick={() => setTab("export")}>Export Data</button>
+    </div>
+    {tab === "login" ? <LoginHistory /> : <ExportData />}
+  </>;
 }
 
 function LeaveReports() {

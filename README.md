@@ -4,21 +4,21 @@ Next.js + Prisma + MySQL employee dashboard built in the same style as the Motis
 
 ## Default Login
 
-- Username: `admin`
-- Password: `admin123`
+* Username: `admin`
+* Password: `admin@1234`
 
 ## Main Features
 
-- Admin / HR / Employee login
-- Employee management
-- Bulk employee Excel import
-- Employee photo upload
-- ID-based leave import and leave balance
-- Employee profile with working period and inactive/exit support
-- Birthday reminders
-- Message draft and notification history
-- WhatsApp-style chat with polling refresh, unread count support, attachments, and edit within 5 minutes
-- Mobile menu like LMS
+* Admin / HR / Employee login
+* Employee management
+* Bulk employee Excel import
+* Employee photo upload
+* ID-based leave import and leave balance
+* Employee profile with working period and inactive/exit support
+* Birthday reminders
+* Message draft and notification history
+* WhatsApp-style chat with polling refresh, unread count support, attachments, and edit within 5 minutes
+* Mobile menu like LMS
 
 ## Excel Formats
 
@@ -26,29 +26,29 @@ Next.js + Prisma + MySQL employee dashboard built in the same style as the Motis
 
 Required columns:
 
-- Name
-- Mobile
-- Password
-- DOB
-- Role
-- Designation
-- Department
-- DOJ
-- Status
+* Name
+* Mobile
+* Password
+* DOB
+* Role
+* Designation
+* Department
+* DOJ
+* Status
 
 Optional:
 
-- Exit Date
+* Exit Date
 
 ### Leave Excel
 
 Recommended columns:
 
-- Month/Year
-- EmployeeID
-- Employee Name
-- Mobile
-- Leave
+* Month/Year
+* EmployeeID
+* Employee Name
+* Mobile
+* Leave
 
 EmployeeID is best. If it is blank, system matches by Mobile, then Employee Name.
 
@@ -95,13 +95,14 @@ http://localhost:5020
 Create database first:
 
 ```sql
-CREATE DATABASE motisons_employee_dashboard;
+CREATE DATABASE motisons\_employee\_dashboard;
 ```
 
 Then set `.env`:
 
 ```env
-DATABASE_URL="mysql://root:root123@localhost:3306/motisons_employee_dashboard"
-JWT_SECRET="motisons_employee_dashboard_secret_change_me"
-NEXT_PUBLIC_APP_URL="http://localhost:5020"
+DATABASE\_URL="mysql://root:root123@localhost:3306/motisons\_employee\_dashboard"
+JWT\_SECRET="motisons\_employee\_dashboard\_secret\_change\_me"
+NEXT\_PUBLIC\_APP\_URL="http://localhost:5020"
 ```
+

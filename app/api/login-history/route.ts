@@ -6,7 +6,7 @@ import { fail, ok } from "@/lib/utils";
 export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
-    if (session.role !== "ADMIN") throw new Error("Only Admin allowed.");
+    if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
 
     const url = new URL(req.url);
     const status = String(url.searchParams.get("status") || "All");

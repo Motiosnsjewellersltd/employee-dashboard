@@ -80,6 +80,31 @@
   }
 }
 
+/* Compact combined admin/HR tools and reminder controls */
+.combined-tool-tabs,.reminder-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;margin-bottom:14px}
+.combined-tool-tabs .active,.reminder-toolbar .active{background:linear-gradient(135deg,#0877bd,#1ca3e8);color:#fff}
+.reminder-toolbar{justify-content:space-between}
+.reminder-toolbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.reminder-message-action{display:flex;align-items:center;gap:8px}
+.reminder-message-action>.msg{margin:0}
+.reminder-today-title{margin:4px 0 10px}
+.reminder-upcoming-panel{margin-top:14px}
+.branch-transfer-table .danger-btn{min-height:34px;padding:7px 12px;border:1px solid #f1aaaa;border-radius:10px;background:#fff1f1;color:#c92727;font-weight:800;cursor:pointer}
+
+@media(max-width:900px){
+  .combined-tool-tabs,.reminder-toolbar{padding:8px!important;gap:6px;margin-bottom:8px}
+  .combined-tool-tabs button{flex:1;min-width:0}
+  .reminder-toolbar{display:grid;grid-template-columns:1fr}
+  .reminder-toolbar-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .reminder-toolbar-actions button{min-width:0;padding:8px 6px;font-size:10px;line-height:1.2}
+  .reminder-message-action{width:100%}
+  .reminder-message-action>button{width:100%}
+  .reminder-today-title{font-size:21px;margin:2px 0 7px}
+  .reminder-today-grid{display:grid!important;grid-template-columns:1fr!important;gap:7px!important}
+  .reminder-today-grid .panel,.reminder-upcoming-panel{padding:10px!important;margin-bottom:0!important}
+  .reminder-today-grid h2,.reminder-upcoming-panel h2{font-size:16px;margin-bottom:7px}
+}
+
 @media(max-width:560px){
   .profile-content .cards.small {
     grid-template-columns: 1fr;

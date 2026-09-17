@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { employeeEarnsLeaveInMonth, fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
+import { addAuditLog } from "@/lib/audit";
 
 function getFyMonths() {
   const now = new Date();
@@ -79,4 +80,19 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
       branchHistory
     });
   } catch (e) { return fail(e, 401); }
+}
+
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await requireSession();
+    if (session.role !== "ADMIN") throw new Error("Only Admin can delete branch transfer history.");
+    const { id: employeeId } = await ctx.params;
+    const transferId = String(new URL(req.url).searchParams.get("branchTransferId") || "").trim();
+    if (!transferId) throw new Error("Branch transfer record is required.");
+    const transfer = await prisma.branchTransfer.findFirst({ where: { id: transferId, employeeId }, include: { employee: { select: { name: true } } } });
+    if (!transfer) throw new Error("Branch transfer record not found.");
+    await prisma.branchTransfer.delete({ where: { id: transferId } });
+    await addAuditLog({ actorId: session.id, actorName: session.name, action: "DELETE_BRANCH_TRANSFER_HISTORY", target: transfer.employee.name, details: { fromBranch: transfer.fromBranch, toBranch: transfer.toBranch, transferredAt: transfer.transferredAt } });
+    return ok({ deleted: 1 });
+  } catch (e) { return fail(e); }
 }
