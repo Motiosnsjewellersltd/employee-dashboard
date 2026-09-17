@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
-import { fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
+import { employeeEarnsLeaveInMonth, fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { normalizeMonthYear } from "@/lib/leaveImport";
 
@@ -14,7 +14,7 @@ async function requireHrOrAdmin() {
 async function negativeBalanceStatus(employeeId: string) {
   const now = new Date();
   const fy = getFinancialYear(now);
-  const employee = await prisma.employee.findFirst({ where: { id: employeeId, deletedAt: null }, select: { doj: true } });
+  const employee = await prisma.employee.findFirst({ where: { id: employeeId, deletedAt: null }, select: { doj: true, exitDate: true, status: true, updatedAt: true } });
   const records = await prisma.leaveRecord.findMany({ where: { employeeId, deletedAt: null }, select: { monthYear: true, leave: true } });
   const usedByMonth = new Map(records.map(r => [r.monthYear, Number(r.leave || 0)]));
   const currentKey = now.getFullYear() * 100 + (now.getMonth() + 1);
@@ -26,9 +26,7 @@ async function negativeBalanceStatus(employeeId: string) {
   for (let month = 1; month <= 3; month++) if (fy.end * 100 + month <= currentKey) months.push({ month, year: fy.end });
 
   for (const item of months) {
-    const eligibilityKey = employee?.doj ? employee.doj.getFullYear() * 12 + employee.doj.getMonth() + 3 : null;
-    const monthKey = item.year * 12 + (item.month - 1);
-    const earned = eligibilityKey === null || monthKey >= eligibilityKey ? monthEarned(item.month) : 0;
+    const earned = employee && employeeEarnsLeaveInMonth(employee, item.year, item.month) ? monthEarned(item.month) : 0;
     const label = `${String(item.month).padStart(2, "0")}/${item.year}`;
     const raw = balance + earned - Number(usedByMonth.get(label) || 0);
     if (raw < 0) excess += Math.abs(raw);

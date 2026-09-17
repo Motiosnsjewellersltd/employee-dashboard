@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
-import { fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
+import { employeeEarnsLeaveInMonth, fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
 
 function getFyMonths() {
   const now = new Date();
@@ -24,7 +24,7 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
     const session = await requireSession();
     const { id } = await ctx.params;
     if (session.role === "EMPLOYEE" && session.id !== id) throw new Error("Unauthorized");
-    const employee = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { doj: true } });
+    const employee = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { doj: true, exitDate: true, status: true, updatedAt: true } });
     if (!employee) throw new Error("Employee not found.");
     const records = await prisma.leaveRecord.findMany({ where: { employeeId: id, deletedAt: null }, orderBy: { monthYear: "asc" } });
     const { fy, months } = getFyMonths();
@@ -33,11 +33,7 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
     let excessUsed = 0;
     const rows = months.map(m => {
       const used = Number(map.get(m.label) || 0);
-      const eligibilityKey = employee.doj
-        ? employee.doj.getFullYear() * 12 + employee.doj.getMonth() + 3
-        : null;
-      const monthKey = m.year * 12 + (m.month - 1);
-      const earned = eligibilityKey === null || monthKey >= eligibilityKey ? m.earned : 0;
+      const earned = employeeEarnsLeaveInMonth(employee, m.year, m.month) ? m.earned : 0;
       const rawBalance = balance + earned - used;
       if (rawBalance < 0) excessUsed += Math.abs(rawBalance);
       balance = Math.max(0, rawBalance);

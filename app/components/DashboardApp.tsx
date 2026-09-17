@@ -173,13 +173,10 @@ export default function DashboardApp() {
     }
   }
 
-  async function loadEmployees(q = filters.q, designation = filters.designation) {
-    const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (designation && designation !== "All") params.set("designation", designation);
+  async function loadEmployees() {
     setEmployeesLoading(true);
     try {
-      const data = await api(`/api/employees?${params.toString()}`);
+      const data = await api("/api/employees");
       setEmployees(data.employees);
     } finally {
       setEmployeesLoading(false);
@@ -411,7 +408,12 @@ export default function DashboardApp() {
   const activeEmployeeRows = employeeRows.filter(e => String(e.status || "").toUpperCase() === "ACTIVE");
   const designations = Array.from(new Set(employeeRows.map(e => e.designation).filter(Boolean) as string[])).sort();
   const departments = Array.from(new Set(employeeRows.map(e => e.department).filter(Boolean) as string[])).sort();
-  const filtered = employeeRows;
+  const filtered = employeeRows.filter(employee => {
+    const query = filters.q.trim().toLowerCase();
+    if (filters.designation !== "All" && employee.designation !== filters.designation) return false;
+    if (query && !`${employee.name} ${employee.mobile} ${employee.designation || ""} ${employee.department || ""}`.toLowerCase().includes(query)) return false;
+    return true;
+  });
   const missingDob = employeeRows.filter(e => !String(e.dob || "").trim()).length;
   const missingMobile = employeeRows.filter(e => !String(e.mobile || "").trim()).length;
   const missingDoj = employeeRows.filter(e => !String(e.doj || "").trim()).length;
@@ -540,8 +542,8 @@ export default function DashboardApp() {
         <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={openEmployeeEdit} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} />
       </section>}
       {section === "employees" && <section className="panel employees-section"><h1>Employees Details</h1><div className="filters">
-        <input placeholder="Type or select name" value={filters.q} onChange={e => { const q = e.target.value; setFilters({ ...filters, q }); loadEmployees(q, filters.designation).catch(() => null); }} />
-        <select value={filters.designation} onChange={e => { setFilters({ ...filters, designation: e.target.value }); loadEmployees(filters.q, e.target.value).catch(() => null); }}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
+        <input placeholder="Type or select name" value={filters.q} onChange={e => setFilters({ ...filters, q: e.target.value })} />
+        <select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
       </div><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} /></section>}
       {section === "add" && <EmployeeForm onSaved={() => { loadEmployees(); setSection("employees"); }} />}
       {section === "leaves" && isAdmin && canUploadLeaves && <LeavesUpload />}

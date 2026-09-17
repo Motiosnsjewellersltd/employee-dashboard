@@ -120,3 +120,20 @@ export function monthEarned(month: number) {
   const thirtyOne = [1, 3, 5, 7, 8, 10, 12];
   return thirtyOne.includes(month) ? 2 : 1.5;
 }
+
+export function employeeEarnsLeaveInMonth(
+  employee: { doj?: Date | null; exitDate?: Date | null; status?: string | null; updatedAt?: Date | null },
+  year: number,
+  month: number
+) {
+  const monthKey = year * 12 + (month - 1);
+  const eligibilityKey = employee.doj
+    ? employee.doj.getFullYear() * 12 + employee.doj.getMonth() + 3
+    : null;
+  if (eligibilityKey !== null && monthKey < eligibilityKey) return false;
+
+  const accrualEnd = employee.exitDate || (String(employee.status || "").toUpperCase() === "INACTIVE" ? employee.updatedAt || null : null);
+  if (!accrualEnd) return true;
+  const accrualEndKey = accrualEnd.getFullYear() * 12 + accrualEnd.getMonth();
+  return monthKey <= accrualEndKey;
+}

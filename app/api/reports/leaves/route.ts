@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
-import { fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
+import { employeeEarnsLeaveInMonth, fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
 
 function monthNumber(label: string) {
   return Number(String(label).split("/")[0] || 0);
@@ -44,9 +44,7 @@ export async function GET() {
         const from = y === fy.start ? 4 : 1;
         const to = y === current.getFullYear() ? current.getMonth() + 1 : 12;
         for (let m = from; m <= to; m++) {
-          const eligibilityKey = e.doj ? e.doj.getFullYear() * 12 + e.doj.getMonth() + 3 : null;
-          const monthKey = y * 12 + (m - 1);
-          if (eligibilityKey === null || monthKey >= eligibilityKey) earned += monthEarned(m);
+          if (employeeEarnsLeaveInMonth(e, y, m)) earned += monthEarned(m);
         }
       }
 
