@@ -36,11 +36,11 @@ export async function POST(req: NextRequest) {
       where: { deletedAt: null, OR: [{ mobile: username }, { name: username }] }
     });
     if (!matchedUser) throw new Error("Invalid login.");
-    if (matchedUser.status !== "ACTIVE") throw new Error("This user is inactive.");
 
     const plainOk = matchedUser.password === password;
     const hashOk = matchedUser.password.startsWith("$2") ? await bcrypt.compare(password, matchedUser.password) : false;
     if (!plainOk && !hashOk) throw new Error("Invalid login.");
+    if (matchedUser.status !== "ACTIVE") throw new Error("You are an inactive employee.");
 
     if (plainOk && !hashOk) {
       await prisma.employee.update({ where: { id: matchedUser.id }, data: { password: await bcrypt.hash(password, 10) } });

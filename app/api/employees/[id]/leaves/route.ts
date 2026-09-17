@@ -28,10 +28,21 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
     if (!employee) throw new Error("Employee not found.");
     const records = await prisma.leaveRecord.findMany({ where: { employeeId: id, deletedAt: null }, orderBy: { monthYear: "asc" } });
     const { fy, months } = getFyMonths();
-    const map = new Map(records.map(r => [r.monthYear, r.leave]));
+    const exitMonthKey = employee.exitDate
+      ? employee.exitDate.getFullYear() * 12 + employee.exitDate.getMonth()
+      : null;
+    const isVisibleMonth = (monthYear: string) => {
+      if (exitMonthKey === null) return true;
+      const [month, year] = String(monthYear).split("/").map(Number);
+      if (!month || !year) return true;
+      return year * 12 + (month - 1) <= exitMonthKey;
+    };
+    const visibleRecords = records.filter(record => isVisibleMonth(record.monthYear));
+    const visibleMonths = months.filter(month => exitMonthKey === null || month.year * 12 + (month.month - 1) <= exitMonthKey);
+    const map = new Map(visibleRecords.map(r => [r.monthYear, r.leave]));
     let balance = 0;
     let excessUsed = 0;
-    const rows = months.map(m => {
+    const rows = visibleMonths.map(m => {
       const used = Number(map.get(m.label) || 0);
       const earned = employeeEarnsLeaveInMonth(employee, m.year, m.month) ? m.earned : 0;
       const rawBalance = balance + earned - used;
@@ -42,12 +53,12 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
     const used = rows.reduce((s, r) => s + r.used, 0);
     const earned = rows.reduce((s, r) => s + r.earned, 0);
     const byYear: Record<string, number> = {};
-    records.forEach(r => {
+    visibleRecords.forEach(r => {
       const year = String(r.monthYear).split("/")[1] || "Unknown";
       byYear[year] = (byYear[year] || 0) + Number(r.leave || 0);
     });
     return ok({
-      records: records.map(r => ({ id: r.id, monthYear: r.monthYear, leave: r.leave, reason: r.reason || "" })),
+      records: visibleRecords.map(r => ({ id: r.id, monthYear: r.monthYear, leave: r.leave, reason: r.reason || "" })),
       balance: {
         financialYear: fy.label,
         earned: Number(earned.toFixed(2)),
