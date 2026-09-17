@@ -31,6 +31,10 @@
 .employees-section .bulk-employee-bar{gap:6px;margin-bottom:8px;padding:6px 8px;min-height:44px}
 .employees-section .bulk-employee-bar b{font-size:12px}
 .employees-section .bulk-employee-bar .light{min-height:34px;padding:6px 9px;font-size:11px}
+.bulk-action-select{width:210px;height:36px;padding:6px 32px 6px 11px;border-radius:10px;background:#fff}
+.bulk-value-editor{display:flex;align-items:center;gap:6px;min-width:0}
+.bulk-value-editor input,.bulk-value-editor select{width:210px;height:36px;padding:6px 10px;border-radius:10px}
+.bulk-value-editor .primary,.bulk-value-editor .light{height:36px;min-height:36px;padding:6px 11px;font-size:11px;border-radius:10px}
 
 @media(min-width:901px){
   .admin-shell .employees-section .employee-data-table .table-wrap{max-height:calc(100dvh - 235px)!important}
@@ -48,6 +52,9 @@
   .employee-list-filters{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:6px;margin-bottom:7px}
   .employee-list-filters input,.employee-list-filters select{height:40px;padding:8px 9px;font-size:11px}
   .employee-list-header .employee-table-tools{white-space:normal}
+  .bulk-action-select{width:100%;grid-column:1/-1}
+  .bulk-value-editor{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto auto;width:100%}
+  .bulk-value-editor input,.bulk-value-editor select{width:100%;min-width:0}
 }
 
 .profile-content {

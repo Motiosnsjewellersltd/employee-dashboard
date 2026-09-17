@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
-import { fail, ok } from "@/lib/utils";
+import { fail, ok, parseDate } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { addSystemNotification } from "@/lib/systemNotification";
 import { requireHrPermission } from "@/lib/permissions";
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         role: { not: "ADMIN" },
         deletedAt: null
       },
-      select: { id: true, name: true }
+      select: { id: true, name: true, branch: true }
     });
     const eligibleIds = eligible.map(e => e.id);
     if (!eligibleIds.length) throw new Error("No eligible employees selected.");
@@ -67,6 +67,34 @@ export async function POST(req: NextRequest) {
       affected = result.count;
       auditAction = "BULK_CHANGE_DESIGNATION";
       notificationText = `${affected} employee${affected === 1 ? "" : "s"} designation changed to ${designation} by ${session.name}.`;
+    } else if (action === "CHANGE_DOJ") {
+      const doj = parseDate(body.doj);
+      if (!doj) throw new Error("Joining date is required.");
+      const result = await prisma.employee.updateMany({ where: { id: { in: eligibleIds } }, data: { doj } });
+      affected = result.count;
+      auditAction = "BULK_CHANGE_JOINING_DATE";
+      notificationText = `${affected} employee${affected === 1 ? "" : "s"} joining date updated by ${session.name}.`;
+    } else if (action === "CHANGE_BRANCH") {
+      const branch = String(body.branch || "").trim().toUpperCase();
+      if (!["MT", "JB", "VN"].includes(branch)) throw new Error("Branch must be MT, JB or VN.");
+      const changedEmployees = eligible.filter(employee => (employee.branch || null) !== branch);
+      if (changedEmployees.length) {
+        await prisma.$transaction(async tx => {
+          await tx.employee.updateMany({ where: { id: { in: changedEmployees.map(employee => employee.id) } }, data: { branch } });
+          await tx.branchTransfer.createMany({ data: changedEmployees.map(employee => ({ employeeId: employee.id, fromBranch: employee.branch || null, toBranch: branch, changedById: session.id, changedByName: session.name })) });
+        });
+      }
+      affected = changedEmployees.length;
+      actionSkipped = eligibleIds.length - changedEmployees.length;
+      auditAction = "BULK_CHANGE_BRANCH";
+      notificationText = `${affected} employee${affected === 1 ? "" : "s"} transferred to ${branch} by ${session.name}.`;
+    } else if (action === "CHANGE_EXIT_DATE") {
+      const exitDate = parseDate(body.exitDate);
+      if (!exitDate) throw new Error("Exit / Leave date is required.");
+      const result = await prisma.employee.updateMany({ where: { id: { in: eligibleIds } }, data: { exitDate, status: "INACTIVE" } });
+      affected = result.count;
+      auditAction = "BULK_CHANGE_EXIT_DATE";
+      notificationText = `${affected} employee${affected === 1 ? "" : "s"} exit / leave date updated and status set to inactive by ${session.name}.`;
     } else if (action === "DELETE") {
       const result = await prisma.employee.updateMany({ where: { id: { in: eligibleIds }, deletedAt: null }, data: { deletedAt: new Date(), deletedById: session.id, deletedByName: session.name } });
       affected = result.count;

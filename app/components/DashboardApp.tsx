@@ -669,6 +669,8 @@ function Highlight({ text, term }: { text?: any; term?: string }) {
 function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, canExport = true, loading = false, page: controlledPage, onPageChange, topControls }: { title: string; employees: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; canExport?: boolean; loading?: boolean; page?: number; onPageChange?: (page: number) => void; topControls?: React.ReactNode }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkMsg, setBulkMsg] = useState("");
+  const [bulkAction, setBulkAction] = useState("");
+  const [bulkValue, setBulkValue] = useState("");
   const [localPage, setLocalPage] = useState(1);
   const page = controlledPage ?? localPage;
   const setPage = (next: number | ((current: number) => number)) => {
@@ -735,35 +737,66 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     setSelected(allSelected ? selected.filter(id => !ids.includes(id)) : Array.from(new Set([...selected, ...ids])));
   }
 
-  async function runBulk(action: "ACTIVATE" | "DEACTIVATE" | "CHANGE_DEPARTMENT" | "CHANGE_DESIGNATION" | "DELETE") {
-    if (!selected.length) return setBulkMsg("Select at least one employee.");
-    let department = "";
-    let designation = "";
-    if (action === "CHANGE_DEPARTMENT") {
-      const value = prompt("Enter new department name:");
-      if (value === null) return;
-      department = value.trim();
-      if (!department) return setBulkMsg("Department is required.");
+  type BulkAction = "ACTIVATE" | "DEACTIVATE" | "CHANGE_DEPARTMENT" | "CHANGE_DESIGNATION" | "CHANGE_DOJ" | "CHANGE_BRANCH" | "CHANGE_EXIT_DATE" | "DELETE";
+
+  async function runBulk(action: BulkAction, value = "") {
+    if (!selected.length) {
+      setBulkMsg("Select at least one employee.");
+      return false;
     }
-    if (action === "CHANGE_DESIGNATION") {
-      const value = prompt("Enter new designation:");
-      if (value === null) return;
-      designation = value.trim();
-      if (!designation) return setBulkMsg("Designation is required.");
-    }
-    if (action === "DELETE" && !(await requestConfirm("Move selected employees to Recycle Bin", `Move ${selected.length} selected employee(s) to Recycle Bin? They can be restored within 30 days.`, "Move Selected"))) return;
+    const cleanValue = value.trim();
+    if (action === "CHANGE_DEPARTMENT" && !cleanValue) { setBulkMsg("Department is required."); return false; }
+    if (action === "CHANGE_DESIGNATION" && !cleanValue) { setBulkMsg("Designation is required."); return false; }
+    if (action === "CHANGE_BRANCH" && !["MT", "JB", "VN"].includes(cleanValue)) { setBulkMsg("Choose MT, JB or VN branch."); return false; }
+    if ((action === "CHANGE_DOJ" || action === "CHANGE_EXIT_DATE") && !cleanValue) { setBulkMsg("Date is required."); return false; }
+    if (action === "DELETE" && !(await requestConfirm("Move selected employees to Recycle Bin", `Move ${selected.length} selected employee(s) to Recycle Bin? They can be restored within 30 days.`, "Move Selected"))) return false;
     try {
       const data = await api("/api/employees/bulk", {
         method: "POST",
-        body: JSON.stringify({ action, ids: selected, department, designation })
+        body: JSON.stringify({
+          action,
+          ids: selected,
+          department: action === "CHANGE_DEPARTMENT" ? cleanValue : "",
+          designation: action === "CHANGE_DESIGNATION" ? cleanValue : "",
+          branch: action === "CHANGE_BRANCH" ? cleanValue : "",
+          doj: action === "CHANGE_DOJ" ? cleanValue : "",
+          exitDate: action === "CHANGE_EXIT_DATE" ? cleanValue : ""
+        })
       });
       const successMessage = `${data.affected} employee(s) updated.${data.skipped ? ` ${data.skipped} skipped.` : ""}`;
       setBulkMsg(successMessage);
       showToast(successMessage, "success");
       setSelected([]);
       onReload();
+      return true;
     } catch (e: any) {
       setBulkMsg(e.message);
+      return false;
+    }
+  }
+
+  async function handleBulkActionChange(action: string) {
+    setBulkMsg("");
+    setBulkValue("");
+    if (!action) return setBulkAction("");
+    if (action === "EXPORT_SELECTED") {
+      setBulkAction("");
+      await exportSelected();
+      return;
+    }
+    if (["ACTIVATE", "DEACTIVATE", "DELETE"].includes(action)) {
+      setBulkAction("");
+      await runBulk(action as BulkAction);
+      return;
+    }
+    setBulkAction(action);
+  }
+
+  async function applyBulkValue() {
+    const saved = await runBulk(bulkAction as BulkAction, bulkValue);
+    if (saved) {
+      setBulkAction("");
+      setBulkValue("");
     }
   }
 
@@ -829,12 +862,25 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     </div>
     {bulkActions && admin && <div className="bulk-employee-bar">
       <b>{selected.length} selected</b>
-      {canEdit && <button className="light" onClick={() => runBulk("ACTIVATE")}>Activate</button>}
-      {canEdit && <button className="light" onClick={() => runBulk("DEACTIVATE")}>Deactivate</button>}
-      {canEdit && <button className="light" onClick={() => runBulk("CHANGE_DEPARTMENT")}>Change Department</button>}
-      {canEdit && <button className="light" onClick={() => runBulk("CHANGE_DESIGNATION")}>Change Designation</button>}
-      {canExport && <button className="light" onClick={exportSelected}>Export Selected</button>}
-      {canDelete && <button className="light danger-action" onClick={() => runBulk("DELETE")}>Delete Selected</button>}
+      <select className="bulk-action-select" aria-label="Bulk actions" value={bulkAction} onChange={event => handleBulkActionChange(event.target.value)}>
+        <option value="">Bulk Actions</option>
+        {canEdit && <option value="ACTIVATE">Activate</option>}
+        {canEdit && <option value="DEACTIVATE">Deactivate</option>}
+        {canEdit && <option value="CHANGE_DEPARTMENT">Change Department</option>}
+        {canEdit && <option value="CHANGE_DESIGNATION">Change Designation</option>}
+        {canEdit && <option value="CHANGE_DOJ">Change Joining Date</option>}
+        {canEdit && <option value="CHANGE_BRANCH">Change Branch</option>}
+        {canEdit && <option value="CHANGE_EXIT_DATE">Change Exit / Leave Date</option>}
+        {canExport && <option value="EXPORT_SELECTED">Export Selected</option>}
+        {canDelete && <option value="DELETE">Delete Selected</option>}
+      </select>
+      {bulkAction && !["ACTIVATE", "DEACTIVATE", "DELETE", "EXPORT_SELECTED"].includes(bulkAction) && <div className="bulk-value-editor">
+        {bulkAction === "CHANGE_BRANCH" ? <select aria-label="Choose new branch" value={bulkValue} onChange={event => setBulkValue(event.target.value)}><option value="">Choose Branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select> :
+          bulkAction === "CHANGE_DOJ" || bulkAction === "CHANGE_EXIT_DATE" ? <input aria-label={bulkAction === "CHANGE_DOJ" ? "Joining date" : "Exit or leave date"} type="date" value={bulkValue} onChange={event => setBulkValue(event.target.value)} /> :
+          <input aria-label={bulkAction === "CHANGE_DEPARTMENT" ? "New department" : "New designation"} placeholder={bulkAction === "CHANGE_DEPARTMENT" ? "Enter department" : "Enter designation"} value={bulkValue} onChange={event => setBulkValue(event.target.value)} />}
+        <button className="primary" type="button" onClick={applyBulkValue}>Apply</button>
+        <button className="light" type="button" onClick={() => { setBulkAction(""); setBulkValue(""); }}>Cancel</button>
+      </div>}
     </div>}
     {bulkMsg && bulkActions && <div className="msg warn">{bulkMsg}</div>}
     <div className="table-wrap"><table><thead><tr>{bulkActions && admin && <th><input type="checkbox" aria-label="Select all employees on this page" checked={allSelected} onChange={toggleAll} /></th>}<th>S.No</th>{visibleColumns.photo && <th>Photo</th>}{visibleColumns.name && <th>Name</th>}{visibleColumns.mobile && <th>Mobile</th>}{visibleColumns.dob && <th>DOB</th>}{visibleColumns.designation && <th>Designation</th>}{visibleColumns.department && <th>Department</th>}{visibleColumns.branch && <th>Branch</th>}{visibleColumns.doj && <th>DOJ</th>}{visibleColumns.role && <th>Role</th>}{visibleColumns.status && <th>Status</th>}{showActions && <th>Action</th>}</tr></thead><tbody>
