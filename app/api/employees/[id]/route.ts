@@ -6,6 +6,13 @@ import { employeeSelect, fail, ok, parseDate } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 import { addSystemNotification } from "@/lib/systemNotification";
 
+function cleanBranch(value: unknown) {
+  const branch = String(value || "").trim().toUpperCase();
+  if (!branch) return null;
+  if (!["MT", "JB", "VN"].includes(branch)) throw new Error("Branch must be MT, JB or VN.");
+  return branch;
+}
+
 export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireSession();
@@ -23,22 +30,33 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!["ADMIN", "HR"].includes(session.role)) throw new Error("Only Admin/HR allowed.");
     const { id } = await ctx.params;
     const data = await req.json();
-    const before = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { status: true } });
+    const before = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { status: true, branch: true } });
     if (!before) throw new Error("Employee not found.");
+    const exitDate = parseDate(data.exitDate);
+    const branch = cleanBranch(data.branch);
     const update: any = {
       name: String(data.name || "").trim(),
       mobile: String(data.mobile || "").trim(),
       role: data.role || "EMPLOYEE",
       designation: data.designation || "",
       department: data.department || "",
+      branch,
       dob: parseDate(data.dob),
       doj: parseDate(data.doj),
-      exitDate: parseDate(data.exitDate),
-      status: data.status || "ACTIVE"
+      exitDate,
+      status: exitDate ? "INACTIVE" : (data.status || "ACTIVE")
     };
     if (data.password) update.password = await bcrypt.hash(String(data.password), 10);
-    const employee = await prisma.employee.update({ where: { id }, data: update });
-    await addAuditLog({ actorId: session.id, actorName: session.name, action: data.password ? "RESET_PASSWORD_OR_UPDATE_EMPLOYEE" : "UPDATE_EMPLOYEE", target: employee.name, details: { mobile: employee.mobile, designation: employee.designation, department: employee.department, status: employee.status } });
+    const employee = await prisma.$transaction(async tx => {
+      const saved = await tx.employee.update({ where: { id }, data: update });
+      if ((before.branch || null) !== branch) {
+        await tx.branchTransfer.create({
+          data: { employeeId: id, fromBranch: before.branch || null, toBranch: branch || "UNASSIGNED", changedById: session.id, changedByName: session.name }
+        });
+      }
+      return saved;
+    });
+    await addAuditLog({ actorId: session.id, actorName: session.name, action: data.password ? "RESET_PASSWORD_OR_UPDATE_EMPLOYEE" : "UPDATE_EMPLOYEE", target: employee.name, details: { mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status } });
     if (before.status !== employee.status) {
       await addSystemNotification({
         actorId: session.id,

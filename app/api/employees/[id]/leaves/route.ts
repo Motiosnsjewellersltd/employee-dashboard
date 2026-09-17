@@ -27,6 +27,11 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
     const employee = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { doj: true, exitDate: true, status: true, updatedAt: true } });
     if (!employee) throw new Error("Employee not found.");
     const records = await prisma.leaveRecord.findMany({ where: { employeeId: id, deletedAt: null }, orderBy: { monthYear: "asc" } });
+    const branchHistory = await prisma.branchTransfer.findMany({
+      where: { employeeId: id },
+      orderBy: { transferredAt: "desc" },
+      select: { id: true, fromBranch: true, toBranch: true, changedByName: true, transferredAt: true }
+    });
     const { fy, months } = getFyMonths();
     const exitMonthKey = employee.exitDate
       ? employee.exitDate.getFullYear() * 12 + employee.exitDate.getMonth()
@@ -70,7 +75,8 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
         negativeBalanceWarning: excessUsed > 0,
         excessUsed: Number(excessUsed.toFixed(2))
       },
-      yearwise: byYear
+      yearwise: byYear,
+      branchHistory
     });
   } catch (e) { return fail(e, 401); }
 }

@@ -10,6 +10,13 @@ function roleGuard(role: string) {
   if (!["ADMIN", "HR"].includes(role)) throw new Error("Only Admin/HR allowed.");
 }
 
+function cleanBranch(value: unknown) {
+  const branch = String(value || "").trim().toUpperCase();
+  if (!branch) return null;
+  if (!["MT", "JB", "VN"].includes(branch)) throw new Error("Branch must be MT, JB or VN.");
+  return branch;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
@@ -40,33 +47,33 @@ export async function POST(req: NextRequest) {
     const password = data.password ? await bcrypt.hash(String(data.password), 10) : await bcrypt.hash("1234", 10);
     const existing = await prisma.employee.findUnique({ where: { mobile: String(data.mobile).trim() } });
     if (existing?.deletedAt) throw new Error("An employee with this mobile is in Recycle Bin. Restore that employee first.");
-    const employee = await prisma.employee.upsert({
-      where: { mobile: String(data.mobile).trim() },
-      update: {
+    const exitDate = parseDate(data.exitDate);
+    const branch = cleanBranch(data.branch);
+    const status = exitDate ? "INACTIVE" : (data.status || "ACTIVE");
+    const employeeData = {
         name: String(data.name).trim(),
         role: data.role || "EMPLOYEE",
         designation: data.designation || "",
         department: data.department || "",
+        branch,
         dob: parseDate(data.dob),
         doj: parseDate(data.doj),
-        exitDate: parseDate(data.exitDate),
-        status: data.status || "ACTIVE",
+        exitDate,
+        status,
         password
-      },
-      create: {
-        name: String(data.name).trim(),
-        mobile: String(data.mobile).trim(),
-        password,
-        role: data.role || "EMPLOYEE",
-        designation: data.designation || "",
-        department: data.department || "",
-        dob: parseDate(data.dob),
-        doj: parseDate(data.doj),
-        exitDate: parseDate(data.exitDate),
-        status: data.status || "ACTIVE"
+      } as const;
+    const employee = await prisma.$transaction(async tx => {
+      const saved = existing
+        ? await tx.employee.update({ where: { id: existing.id }, data: employeeData })
+        : await tx.employee.create({ data: { ...employeeData, mobile: String(data.mobile).trim() } });
+      if (existing && (existing.branch || null) !== branch) {
+        await tx.branchTransfer.create({
+          data: { employeeId: saved.id, fromBranch: existing.branch || null, toBranch: branch || "UNASSIGNED", changedById: session.id, changedByName: session.name }
+        });
       }
+      return saved;
     });
-    await addAuditLog({ actorId: session.id, actorName: session.name, action: existing ? "UPDATE_EMPLOYEE" : "ADD_EMPLOYEE", target: employee.name, details: { mobile: employee.mobile, designation: employee.designation, department: employee.department } });
+    await addAuditLog({ actorId: session.id, actorName: session.name, action: existing ? "UPDATE_EMPLOYEE" : "ADD_EMPLOYEE", target: employee.name, details: { mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status } });
     if (!existing) {
       await addSystemNotification({
         actorId: session.id,

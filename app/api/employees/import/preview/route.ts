@@ -42,7 +42,9 @@ export async function POST(req: NextRequest) {
       const row = i + 2;
       const name = String(excelCell(r, ["Name", "Employee Name", "Name of Employee"])).trim();
       const mobile = String(excelCell(r, ["Mobile", "Mobile No.", "Username / Mobile", "Number"])).trim();
+      const branch = String(excelCell(r, ["Branch", "Store"]) || "").trim().toUpperCase();
       if (!name || !mobile) { skipped++; errors.push({ row, reason: "Name or mobile missing" }); return; }
+      if (branch && !["MT", "JB", "VN"].includes(branch)) { skipped++; errors.push({ row, reason: "Branch must be MT, JB or VN", mobile }); return; }
       if (seen.has(mobile)) { skipped++; errors.push({ row, reason: "Duplicate mobile in Excel", mobile }); return; }
       seen.add(mobile);
       if (recycledMobiles.has(mobile)) { skipped++; errors.push({ row, reason: "Employee with this mobile is in Recycle Bin. Restore first.", mobile }); return; }

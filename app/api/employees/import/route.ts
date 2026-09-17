@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
       const old = await prisma.employee.findUnique({ where: { mobile } });
       if (old?.deletedAt) { skipped++; continue; }
       const plainPass = String(excelCell(r, ["Password"]) || "1234").trim() || "1234";
+      const rawBranch = String(excelCell(r, ["Branch", "Store"]) || "").trim().toUpperCase();
+      if (rawBranch && !["MT", "JB", "VN"].includes(rawBranch)) { skipped++; continue; }
+      const exitDate = parseDate(excelCell(r, ["Exit Date", "ExitDate", "Leave Date"]));
       const data = {
         name,
         mobile,
@@ -56,12 +59,18 @@ export async function POST(req: NextRequest) {
         role: String(excelCell(r, ["Role"]) || "Employee").toUpperCase().includes("HR") ? "HR" as const : "EMPLOYEE" as const,
         designation: String(excelCell(r, ["Designation", "Post"]) || "").trim(),
         department: String(excelCell(r, ["Department"]) || "").trim(),
+        branch: rawBranch || null,
         dob: parseDate(excelCell(r, ["DOB", "Date of Birth"])),
         doj: parseDate(excelCell(r, ["DOJ", "Date of Joining"])),
-        exitDate: parseDate(excelCell(r, ["Exit Date", "ExitDate", "Leave Date"])),
-        status: String(excelCell(r, ["Status"]) || "Active").toLowerCase().includes("inactive") ? "INACTIVE" as const : "ACTIVE" as const
+        exitDate,
+        status: exitDate || String(excelCell(r, ["Status"]) || "Active").toLowerCase().includes("inactive") ? "INACTIVE" as const : "ACTIVE" as const
       };
-      await prisma.employee.upsert({ where: { mobile }, update: data, create: data });
+      await prisma.$transaction(async tx => {
+        const employee = await tx.employee.upsert({ where: { mobile }, update: data, create: data });
+        if (old && (old.branch || null) !== data.branch) {
+          await tx.branchTransfer.create({ data: { employeeId: employee.id, fromBranch: old.branch || null, toBranch: data.branch || "UNASSIGNED", changedById: session.id, changedByName: session.name } });
+        }
+      });
       old ? updated++ : added++;
     }
 

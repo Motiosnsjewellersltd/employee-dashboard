@@ -40,13 +40,15 @@ export async function POST(req: NextRequest) {
     if (!eligibleIds.length) throw new Error("No eligible employees selected.");
 
     let affected = 0;
+    let actionSkipped = 0;
     let auditAction = "";
     let notificationText = "";
 
     if (action === "ACTIVATE" || action === "DEACTIVATE") {
       const status = action === "ACTIVATE" ? "ACTIVE" : "INACTIVE";
-      const result = await prisma.employee.updateMany({ where: { id: { in: eligibleIds } }, data: { status } });
+      const result = await prisma.employee.updateMany({ where: { id: { in: eligibleIds }, ...(action === "ACTIVATE" ? { exitDate: null } : {}) }, data: { status } });
       affected = result.count;
+      actionSkipped = eligibleIds.length - result.count;
       auditAction = action === "ACTIVATE" ? "BULK_ACTIVATE_EMPLOYEES" : "BULK_DEACTIVATE_EMPLOYEES";
       notificationText = `${affected} employee${affected === 1 ? "" : "s"} ${status === "ACTIVE" ? "activated" : "deactivated"} in bulk by ${session.name}.`;
     } else if (action === "CHANGE_DEPARTMENT") {
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
       actorName: session.name,
       action: auditAction,
       target: `${affected} employees`,
-      details: { selected: ids.length, affected, skipped: ids.length - eligibleIds.length, names: eligible.map(e => e.name) }
+      details: { selected: ids.length, affected, skipped: ids.length - eligibleIds.length + actionSkipped, names: eligible.map(e => e.name) }
     });
     await addSystemNotification({
       actorId: session.id,
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
       type: action === "DELETE" || action === "DEACTIVATE" ? "NOTICE" : "INFORMATION"
     });
 
-    return ok({ affected, skipped: ids.length - eligibleIds.length });
+    return ok({ affected, skipped: ids.length - eligibleIds.length + actionSkipped });
   } catch (e) {
     return fail(e);
   }
@@ -99,13 +101,14 @@ export async function GET(req: NextRequest) {
     });
 
     const lines = [
-      ["Name", "Mobile", "DOB", "Designation", "Department", "DOJ", "Role", "Status"].map(csvCell).join(","),
+      ["Name", "Mobile", "DOB", "Designation", "Department", "Branch", "DOJ", "Role", "Status"].map(csvCell).join(","),
       ...employees.map(e => [
         e.name,
         e.mobile,
         e.dob ? e.dob.toLocaleDateString("en-GB") : "",
         e.designation || "",
         e.department || "",
+        e.branch || "",
         e.doj ? e.doj.toLocaleDateString("en-GB") : "",
         e.role,
         e.status

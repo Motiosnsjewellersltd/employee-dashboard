@@ -10,6 +10,7 @@ type User = {
   role: "ADMIN" | "HR" | "EMPLOYEE";
   designation?: string;
   department?: string;
+  branch?: "MT" | "JB" | "VN";
   dob?: string;
   doj?: string;
   exitDate?: string;
@@ -24,6 +25,7 @@ type LeaveInfo = {
   records: { id: string; monthYear: string; leave: number; reason?: string }[];
   balance: { financialYear: string; earned: number; used: number; currentBalance: number; rows: { monthYear: string; earned: number; used: number; balance: number }[]; negativeBalanceWarning?: boolean; excessUsed?: number };
   yearwise: Record<string, number>;
+  branchHistory?: { id: string; fromBranch?: string | null; toBranch: string; changedByName?: string | null; transferredAt: string }[];
 };
 
 type Section = "dashboard" | "employees" | "add" | "leaves" | "leaveRequests" | "reminder" | "notifications" | "chat" | "reset" | "audit" | "loginHistory" | "export" | "reports" | "permissions" | "recycle" | "systemHealth" | "profile";
@@ -420,7 +422,7 @@ export default function DashboardApp() {
   const filtered = employeeRows.filter(employee => {
     const query = filters.q.trim().toLowerCase();
     if (filters.designation !== "All" && employee.designation !== filters.designation) return false;
-    if (query && !`${employee.name} ${employee.mobile} ${employee.designation || ""} ${employee.department || ""}`.toLowerCase().includes(query)) return false;
+    if (query && !`${employee.name} ${employee.mobile} ${employee.designation || ""} ${employee.department || ""} ${employee.branch || ""}`.toLowerCase().includes(query)) return false;
     return true;
   });
   const missingDob = employeeRows.filter(e => !String(e.dob || "").trim()).length;
@@ -429,7 +431,7 @@ export default function DashboardApp() {
   const affected = employeeRows.filter(e => !String(e.dob || "").trim() || !String(e.mobile || "").trim() || !String(e.doj || "").trim()).length;
   const dataQuality = { missingDob, missingMobile, missingDoj, affected };
   const globalMatches = globalSearch.trim()
-    ? employeeRows.filter(e => `${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""}`.toLowerCase().includes(globalSearch.trim().toLowerCase())).slice(0, 8)
+    ? employeeRows.filter(e => `${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(globalSearch.trim().toLowerCase())).slice(0, 8)
     : [];
   const sectionTitles: Record<Section, string> = {
     dashboard: "Dashboard", employees: "Employees", add: "Add Employee", leaves: "Leave Management", reminder: "Reminders",
@@ -483,7 +485,7 @@ export default function DashboardApp() {
     if (dashboardQuick.status !== "All" && String(e.status || "") !== dashboardQuick.status) return false;
     if (dashboardQuick.designation !== "All" && e.designation !== dashboardQuick.designation) return false;
     if (dashboardQuick.department !== "All" && e.department !== dashboardQuick.department) return false;
-    if (dashboardQuick.q && !`${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""}`.toLowerCase().includes(dashboardQuick.q.toLowerCase())) return false;
+    if (dashboardQuick.q && !`${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(dashboardQuick.q.toLowerCase())) return false;
     return true;
   });
 
@@ -636,6 +638,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     dob: true,
     designation: true,
     department: true,
+    branch: true,
     doj: true,
     role: true,
     status: true
@@ -648,6 +651,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     dob: "DOB",
     designation: "Designation",
     department: "Department",
+    branch: "Branch",
     doj: "DOJ",
     role: "Role",
     status: "Status"
@@ -775,8 +779,8 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
       {canDelete && <button className="light danger-action" onClick={() => runBulk("DELETE")}>Delete Selected</button>}
     </div>}
     {bulkMsg && bulkActions && <div className="msg warn">{bulkMsg}</div>}
-    <div className="table-wrap"><table><thead><tr>{bulkActions && admin && <th><input type="checkbox" aria-label="Select all employees on this page" checked={allSelected} onChange={toggleAll} /></th>}<th>S.No</th>{visibleColumns.photo && <th>Photo</th>}{visibleColumns.name && <th>Name</th>}{visibleColumns.mobile && <th>Mobile</th>}{visibleColumns.dob && <th>DOB</th>}{visibleColumns.designation && <th>Designation</th>}{visibleColumns.department && <th>Department</th>}{visibleColumns.doj && <th>DOJ</th>}{visibleColumns.role && <th>Role</th>}{visibleColumns.status && <th>Status</th>}{showActions && <th>Action</th>}</tr></thead><tbody>
-    {loading ? Array.from({ length: 6 }).map((_, index) => <tr className="skeleton-row" key={`skeleton-${index}`}><td colSpan={12}><span className="skeleton-line" /></td></tr>) : pageRows.length ? pageRows.map((e, index) => <tr className={selected.includes(e.id) ? "employee-row selected" : "employee-row"} key={e.id}>
+    <div className="table-wrap"><table><thead><tr>{bulkActions && admin && <th><input type="checkbox" aria-label="Select all employees on this page" checked={allSelected} onChange={toggleAll} /></th>}<th>S.No</th>{visibleColumns.photo && <th>Photo</th>}{visibleColumns.name && <th>Name</th>}{visibleColumns.mobile && <th>Mobile</th>}{visibleColumns.dob && <th>DOB</th>}{visibleColumns.designation && <th>Designation</th>}{visibleColumns.department && <th>Department</th>}{visibleColumns.branch && <th>Branch</th>}{visibleColumns.doj && <th>DOJ</th>}{visibleColumns.role && <th>Role</th>}{visibleColumns.status && <th>Status</th>}{showActions && <th>Action</th>}</tr></thead><tbody>
+    {loading ? Array.from({ length: 6 }).map((_, index) => <tr className="skeleton-row" key={`skeleton-${index}`}><td colSpan={13}><span className="skeleton-line" /></td></tr>) : pageRows.length ? pageRows.map((e, index) => <tr className={selected.includes(e.id) ? "employee-row selected" : "employee-row"} key={e.id}>
       {bulkActions && admin && <td><input type="checkbox" aria-label={`Select ${e.name}`} checked={selected.includes(e.id)} onChange={event => setSelected(event.target.checked ? Array.from(new Set([...selected, e.id])) : selected.filter(id => id !== e.id))} /></td>}
       <td>{startIndex + index + 1}</td>
       {visibleColumns.photo && <td>{avatar(e)}</td>}
@@ -785,17 +789,18 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
       {visibleColumns.dob && <td>{e.dob}</td>}
       {visibleColumns.designation && <td><Highlight text={e.designation} term={searchTerm} /></td>}
       {visibleColumns.department && <td><Highlight text={e.department} term={searchTerm} /></td>}
+      {visibleColumns.branch && <td>{e.branch || "-"}</td>}
       {visibleColumns.doj && <td>{e.doj}</td>}
       {visibleColumns.role && <td><span className="pill">{e.role}</span></td>}
       {visibleColumns.status && <td><span className={e.status === "ACTIVE" ? "pill ok" : "pill danger"}>{e.status}</span></td>}
       {showActions && <td>{admin && e.role !== "ADMIN" && <div className="action-buttons">{canEdit && <button className="light" onClick={() => onEdit?.(e)}>Edit</button>}{canDelete && <button className="light" onClick={() => del(e.id)}>Delete</button>}</div>}</td>}
-    </tr>) : <tr><td className="table-empty-cell" colSpan={12}><div className="empty-table-state"><span>⌕</span><b>No employee records found</b></div></td></tr>}
+    </tr>) : <tr><td className="table-empty-cell" colSpan={13}><div className="empty-table-state"><span>⌕</span><b>No employee records found</b></div></td></tr>}
   </tbody></table></div>
   <div className="employee-mobile-list">
     {loading ? Array.from({ length: 4 }).map((_, index) => <div className="employee-mobile-card" key={`mobile-skeleton-${index}`}><span className="skeleton-line" /></div>) : pageRows.length ? pageRows.map(e => <div className={`${selected.includes(e.id) ? "employee-mobile-card selected" : "employee-mobile-card"}${bulkActions && admin ? " has-select" : ""}`} key={`mobile-${e.id}`}>
       {bulkActions && admin && <input className="employee-mobile-select" type="checkbox" aria-label={`Select ${e.name}`} checked={selected.includes(e.id)} onChange={event => setSelected(event.target.checked ? Array.from(new Set([...selected, e.id])) : selected.filter(id => id !== e.id))} />}
       {avatar(e)}
-      <div className="employee-mobile-main"><b>{e.name}</b><span>{e.designation || "-"}{e.department ? ` · ${e.department}` : ""}</span><small>{e.mobile || "-"}</small></div>
+      <div className="employee-mobile-main"><b>{e.name}</b><span>{e.designation || "-"}{e.department ? ` · ${e.department}` : ""}{e.branch ? ` · ${e.branch}` : ""}</span><small>{e.mobile || "-"}</small></div>
       <span className={e.status === "ACTIVE" ? "pill ok" : "pill danger"}>{e.status}</span>
       {(clickable || (showActions && admin && e.role !== "ADMIN")) && <div className="employee-mobile-actions">
         {clickable && <button className="light" onClick={() => onProfile(e)}>View</button>}
@@ -817,6 +822,7 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
     role: user.role || "EMPLOYEE",
     designation: user.designation || "",
     department: user.department || "",
+    branch: user.branch || "",
     doj: toDateInputValue(user.doj),
     exitDate: toDateInputValue(user.exitDate),
     status: user.status || "ACTIVE"
@@ -863,9 +869,10 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
         <div><label>Role</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option>EMPLOYEE</option><option>HR</option><option>ADMIN</option></select></div>
         {field("designation", "Designation")}
         {field("department", "Department")}
+        <div><label>Branch</label><select value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })}><option value="">Select Branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select></div>
         {field("doj", "Date of Joining", "date")}
-        {field("exitDate", "Exit / Leave Date", "date")}
-        <div><label>Status</label><select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select></div>
+        <div><label>Exit / Leave Date</label><input type="date" value={form.exitDate || ""} onChange={e => setForm({ ...form, exitDate: e.target.value, status: e.target.value ? "INACTIVE" : form.status })} /></div>
+        <div><label>Status</label><select value={form.status} disabled={Boolean(form.exitDate)} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select>{form.exitDate && <small>Exit/Leave Date automatically sets status to INACTIVE.</small>}</div>
         <div><label>Update Photo</label><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
         <button className="primary">Update Employee</button>
         {msg && <div className="msg warn">{msg}</div>}
@@ -887,7 +894,7 @@ function UploadFormatDownload({ type }: { type: "employees" | "leaves" }) {
 }
 
 function EmployeeForm({ onSaved }: { onSaved: () => void }) {
-  const [form, setForm] = useState<any>({ role: "EMPLOYEE", status: "ACTIVE", password: "1234" });
+  const [form, setForm] = useState<any>({ role: "EMPLOYEE", status: "ACTIVE", password: "1234", branch: "" });
   const [file, setFile] = useState<File | null>(null);
   const [bulk, setBulk] = useState<File | null>(null);
   const [preview, setPreview] = useState<any>(null);
@@ -946,8 +953,9 @@ function EmployeeForm({ onSaved }: { onSaved: () => void }) {
     <form className="employee-form" onSubmit={save}>
       {field("name", "Name")}{field("mobile", "Username / Mobile")}{field("password", "Password")}{field("dob", "Date of Birth", "date")}
       <div><label>Role</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option>EMPLOYEE</option><option>HR</option><option>ADMIN</option></select></div>
-      {field("designation", "Designation")}{field("department", "Department")}{field("doj", "Date of Joining", "date")}{field("exitDate", "Exit / Leave Date", "date")}
-      <div><label>Status</label><select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select></div>
+      {field("designation", "Designation")}{field("department", "Department")}<div><label>Branch</label><select value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })}><option value="">Select Branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select></div>{field("doj", "Date of Joining", "date")}
+      <div><label>Exit / Leave Date</label><input type="date" value={form.exitDate || ""} onChange={e => setForm({ ...form, exitDate: e.target.value, status: e.target.value ? "INACTIVE" : form.status })} /></div>
+      <div><label>Status</label><select value={form.status} disabled={Boolean(form.exitDate)} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select>{form.exitDate && <small>Exit/Leave Date automatically sets status to INACTIVE.</small>}</div>
       <div><label>Photo</label><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
       <button className="primary">Save Employee</button>{msg && <div className="msg warn">{msg}</div>}
     </form>
@@ -1243,6 +1251,7 @@ function ResetPassword({ employees }: { employees: User[] }) {
           role: employee.role,
           designation: employee.designation || "",
           department: employee.department || "",
+          branch: employee.branch || "",
           dob: employee.dob || "",
           doj: employee.doj || "",
           exitDate: employee.exitDate || "",
@@ -1297,11 +1306,12 @@ function ProfileModal({ user, leaves, loading, onClose, employees, onSwitch }: {
 
 function ProfileContent({ user, leaves, loading }: { user: User; leaves: LeaveInfo | null; loading: boolean }) {
   return <div className="profile-content">
-    <div className="profile-head">{avatar(user, true)}<div><h1>{user.name}</h1><p>{user.designation} | {user.department}</p></div><button className="light print-btn" onClick={() => window.print()}><span>▣</span> Print / PDF</button></div>
+    <div className="profile-head">{avatar(user, true)}<div><h1>{user.name}</h1><p>{user.designation} | {user.department}{user.branch ? ` | ${user.branch}` : ""}</p></div><button className="light print-btn" onClick={() => window.print()}><span>▣</span> Print / PDF</button></div>
     <div className="profile-grid">
       <Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} /><Info label="Exit / Leave Date" value={user.exitDate || "-"} />
-      <Info label="Working Period" value={workingPeriod(user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Status" value={user.status} /><Info label="Role" value={user.role} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} />
+      <Info label="Working Period" value={workingPeriod(user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Status" value={user.status} /><Info label="Role" value={user.role} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
     </div>
+    {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th></tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td></tr>)}</tbody></table></div></> : null}
     {user.role !== "ADMIN" && <>
       <h2>Leave Balance</h2>
       {loading && <div className="profile-loading"><SkeletonCards count={4} /><div className="skeleton-table"><span /><span /><span /><span /></div></div>}

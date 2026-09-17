@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   if (type === "employees") {
     const rows = await prisma.employee.findMany({ where: { role: { not: "ADMIN" }, deletedAt: null }, orderBy: { name: "asc" } });
-    body = csv(rows, ["ID", "Name", "Mobile", "Role", "Designation", "Department", "DOB", "DOJ", "ExitDate", "Status"], r => [r.id, r.name, r.mobile, r.role, r.designation, r.department, formatDate(r.dob), formatDate(r.doj), formatDate(r.exitDate), r.status]);
+    body = csv(rows, ["ID", "Name", "Mobile", "Role", "Designation", "Department", "Branch", "DOB", "DOJ", "ExitDate", "Status"], r => [r.id, r.name, r.mobile, r.role, r.designation, r.department, r.branch || "", formatDate(r.dob), formatDate(r.doj), formatDate(r.exitDate), r.status]);
   } else if (type === "leaves") {
     const rows = await prisma.leaveRecord.findMany({ where: { deletedAt: null, employee: { deletedAt: null } }, include: { employee: true }, orderBy: [{ monthYear: "asc" }, { employee: { name: "asc" } }] });
     body = csv(rows, ["EmployeeID", "Employee Name", "Mobile", "Month/Year", "Leave", "Reason / Remark"], r => [r.employeeId, r.employee.name, r.employee.mobile, r.monthYear, r.leave, r.reason || ""]);
