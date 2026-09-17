@@ -38,7 +38,9 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
       return year * 12 + (month - 1) <= exitMonthKey;
     };
     const visibleRecords = records.filter(record => isVisibleMonth(record.monthYear));
-    const visibleMonths = months.filter(month => exitMonthKey === null || month.year * 12 + (month.month - 1) <= exitMonthKey);
+    // The exit month is not an accrual month. Show balance rows only for the
+    // fully completed months before the employee's Exit / Leave Date month.
+    const visibleMonths = months.filter(month => exitMonthKey === null || month.year * 12 + (month.month - 1) < exitMonthKey);
     const map = new Map(visibleRecords.map(r => [r.monthYear, r.leave]));
     let balance = 0;
     let excessUsed = 0;
