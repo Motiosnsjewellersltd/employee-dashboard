@@ -505,36 +505,35 @@ export default function DashboardApp() {
     leaveRequests: "Leave Requests"
   };
 
+  function normalizedDesignation(e: User) {
+    return String(e.designation || "").trim().toLowerCase();
+  }
+
   function isSalespersonEmployee(e: User) {
-    const designation = String(e.designation || "").toLowerCase();
+    return normalizedDesignation(e) === "sales executive";
+  }
 
-    // Salesperson means actual sales executive staff only.
-    // Supporting sales staff must NOT be counted in Salesperson.
-    if (e.role !== "EMPLOYEE") return false;
-    if (designation.includes("support")) return false;
-
-    return designation.includes("sales executive");
+  function isSeniorSalespersonEmployee(e: User) {
+    return normalizedDesignation(e) === "sr. sales executive";
   }
 
   function isSupportingEmployee(e: User) {
-    const designation = String(e.designation || "").toLowerCase();
-
-    // Supporting card/list must include only employees whose Designation contains Supporting/Support.
-    // Department-based support or Accounts Support will not be counted here.
-    return e.role === "EMPLOYEE" && designation.includes("support") && !/account/i.test(e.designation || "");
+    return normalizedDesignation(e) === "supporting sales";
   }
 
   function isAccountsEmployee(e: User) {
-    return e.role === "EMPLOYEE" && (/account/i.test(e.designation || "") || /account/i.test(e.department || ""));
+    const designation = normalizedDesignation(e);
+    return designation === "accounts manager" || designation === "accounts executive";
   }
 
   function isHrEmployee(e: User) {
-    return e.role === "HR" || /\b(hr|hrd)\b/i.test(e.designation || "") || /\b(hr|hrd)\b/i.test(e.department || "");
+    return normalizedDesignation(e) === "hr manager";
   }
 
   const cards = [
-    ["Total Employees", activeEmployeeRows.filter(e => e.role === "EMPLOYEE").length],
+    ["Total Employees", activeEmployeeRows.length],
     ["Salesperson", activeEmployeeRows.filter(isSalespersonEmployee).length],
+    ["Sr. Salesperson", activeEmployeeRows.filter(isSeniorSalespersonEmployee).length],
     ["Supporting", activeEmployeeRows.filter(isSupportingEmployee).length],
     ["Accounts", activeEmployeeRows.filter(isAccountsEmployee).length],
     ["HR", activeEmployeeRows.filter(isHrEmployee).length]
@@ -542,10 +541,10 @@ export default function DashboardApp() {
 
   const dashboardRows = employeeRows.filter(e => {
     if (dashboardFilter === "Salesperson" && !isSalespersonEmployee(e)) return false;
+    if (dashboardFilter === "Sr. Salesperson" && !isSeniorSalespersonEmployee(e)) return false;
     if (dashboardFilter === "Supporting" && !isSupportingEmployee(e)) return false;
     if (dashboardFilter === "Accounts" && !isAccountsEmployee(e)) return false;
     if (dashboardFilter === "HR" && !isHrEmployee(e)) return false;
-    if (dashboardFilter === "All Employees" && e.role !== "EMPLOYEE") return false;
 
     if (dashboardQuick.status !== "All" && String(e.status || "") !== dashboardQuick.status) return false;
     if (dashboardQuick.designation !== "All" && e.designation !== dashboardQuick.designation) return false;
