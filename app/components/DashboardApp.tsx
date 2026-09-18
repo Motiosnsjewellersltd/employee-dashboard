@@ -616,7 +616,7 @@ export default function DashboardApp() {
         </div></div>
         <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={openEmployeeEdit} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} canExport={canExportData} />
       </section>}
-      {section === "employees" && showEmployees && <section className="panel employees-section"><h1>Employees Details</h1><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} canExport={canExportData} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} topControls={<div className="employee-list-filters">
+      {section === "employees" && showEmployees && <section className="panel employees-section"><h1>Employees Details</h1><EmployeeTable title="" employees={filtered} allEmployees={employeeRows} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} canExport={canExportData} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} topControls={<div className="employee-list-filters">
         <input placeholder="Employee ID, name or mobile" value={filters.q} onChange={e => setFilters({ ...filters, q: e.target.value })} />
         <select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
       </div>} /></section>}
@@ -678,8 +678,9 @@ function Highlight({ text, term }: { text?: any; term?: string }) {
   return <>{parts.map((part, index) => part.toLowerCase() === q.toLowerCase() ? <mark className="search-highlight" key={index}>{part}</mark> : <React.Fragment key={index}>{part}</React.Fragment>)}</>;
 }
 
-function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, canExport = true, loading = false, page: controlledPage, onPageChange, topControls }: { title: string; employees: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; canExport?: boolean; loading?: boolean; page?: number; onPageChange?: (page: number) => void; topControls?: React.ReactNode }) {
+function EmployeeTable({ title, employees, allEmployees, clickable, onProfile, onEdit, onReload, admin, showActions = true, bulkActions = false, searchTerm = "", canEdit = true, canDelete = true, canExport = true, loading = false, page: controlledPage, onPageChange, topControls }: { title: string; employees: User[]; allEmployees?: User[]; clickable: boolean; onProfile: (u: User) => void; onEdit?: (u: User) => void; onReload: () => void; admin: boolean; showActions?: boolean; bulkActions?: boolean; searchTerm?: string; canEdit?: boolean; canDelete?: boolean; canExport?: boolean; loading?: boolean; page?: number; onPageChange?: (page: number) => void; topControls?: React.ReactNode }) {
   const [selected, setSelected] = useState<string[]>([]);
+  const [showSelected, setShowSelected] = useState(false);
   const [bulkMsg, setBulkMsg] = useState("");
   const [bulkAction, setBulkAction] = useState("");
   const [bulkUploadBusy, setBulkUploadBusy] = useState(false);
@@ -727,15 +728,24 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     if (window.matchMedia("(max-width: 900px)").matches) setPageSize(10);
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(employees.length / pageSize));
+  const selectionSource = allEmployees || employees;
+  const displayedEmployees = showSelected ? selectionSource.filter(employee => selected.includes(employee.id)) : employees;
+  const totalPages = Math.max(1, Math.ceil(displayedEmployees.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * pageSize;
-  const pageRows = employees.slice(startIndex, startIndex + pageSize);
+  const pageRows = displayedEmployees.slice(startIndex, startIndex + pageSize);
 
   useEffect(() => {
-    const visibleIds = new Set(employees.map(e => e.id));
-    setSelected(current => current.filter(id => visibleIds.has(id)));
-  }, [employees]);
+    const availableIds = new Set(selectionSource.map(e => e.id));
+    setSelected(current => current.filter(id => availableIds.has(id)));
+  }, [allEmployees]);
+
+  useEffect(() => {
+    if (showSelected && selected.length === 0) {
+      setShowSelected(false);
+      setPage(1);
+    }
+  }, [showSelected, selected.length]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -916,7 +926,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     const quote = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
     const lines = [
       ["S.No", ...keys.map(key => columnLabels[key])].map(quote).join(","),
-      ...employees.map((employee, index) => [
+      ...displayedEmployees.map((employee, index) => [
         index + 1,
         ...keys.map(key => (employee as any)[key] ?? "")
       ].map(quote).join(","))
@@ -949,6 +959,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     </div>
     {bulkActions && admin && <div className="bulk-employee-bar">
       <b>{selected.length} selected</b>
+      {selected.length > 0 && <button className="light" type="button" onClick={() => { setShowSelected(value => !value); setPage(1); }}>{showSelected ? "Show All" : `Show Selected (${selected.length})`}</button>}
       <select className="bulk-action-select" aria-label="Bulk actions" value={bulkAction} onChange={event => handleBulkActionChange(event.target.value)}>
         <option value="">Bulk Actions</option>
         {canEdit && <option value="ACTIVATE">Activate</option>}
@@ -1014,7 +1025,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
       </div>}
     </div>) : <div className="empty-state">No employee records found</div>}
   </div>
-  <div className="pagination-bar"><span>Showing {employees.length ? startIndex + 1 : 0}-{Math.min(startIndex + pageRows.length, employees.length)} of {employees.length}</span><div><button className="light" disabled={safePage <= 1} onClick={() => setPage(1)}>First</button><button className="light" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</button><b>Page {safePage} / {totalPages}</b><button className="light" disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</button><button className="light" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>Last</button></div></div>
+  <div className="pagination-bar"><span>Showing {displayedEmployees.length ? startIndex + 1 : 0}-{Math.min(startIndex + pageRows.length, displayedEmployees.length)} of {displayedEmployees.length}</span><div><button className="light" disabled={safePage <= 1} onClick={() => setPage(1)}>First</button><button className="light" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</button><b>Page {safePage} / {totalPages}</b><button className="light" disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</button><button className="light" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>Last</button></div></div>
   </div>;
 }
 
