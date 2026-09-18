@@ -21,16 +21,16 @@ export async function POST(req: NextRequest) {
     const rows = await rowsFromLeaveExcel(file);
     const employees = await prisma.employee.findMany({
       where: { role: { not: "ADMIN" }, deletedAt: null },
-      select: { id: true, name: true, mobile: true }
+      select: { id: true, employeeCode: true, name: true, mobile: true }
     });
 
-    type EmployeeLookup = { id: string; name: string; mobile: string | null };
-    const byId = new Map<string, EmployeeLookup>();
+    type EmployeeLookup = { id: string; employeeCode: string | null; name: string; mobile: string | null };
+    const byEmployeeCode = new Map<string, EmployeeLookup>();
     const byMobile = new Map<string, EmployeeLookup>();
     const byName = new Map<string, EmployeeLookup>();
     const byCompactName = new Map<string, EmployeeLookup>();
     for (const e of employees) {
-      byId.set(String(e.id), e);
+      if (e.employeeCode) byEmployeeCode.set(e.employeeCode, e);
       const mobile = onlyDigits(e.mobile);
       if (mobile) byMobile.set(mobile, e);
       const name = normalizeName(e.name);
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         continue;
       }
       const emp =
-        byId.get(r.employeeId) ||
+        byEmployeeCode.get(r.employeeId) ||
         byMobile.get(r.mobile) ||
         byName.get(normalizeName(r.employeeName)) ||
         byCompactName.get(compactName(r.employeeName));

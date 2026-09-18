@@ -14,6 +14,13 @@ function cleanBranch(value: unknown) {
   return branch;
 }
 
+function cleanEmployeeCode(value: unknown) {
+  const employeeCode = String(value || "").trim();
+  if (!employeeCode) return null;
+  if (!/^\d+$/.test(employeeCode)) throw new Error("Employee ID must contain numbers only.");
+  return employeeCode;
+}
+
 export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireSession();
@@ -42,9 +49,18 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (data.password) await requireHrPermission(session.role, "hrCanResetPassword", "HR is not allowed to reset passwords.");
     const before = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { status: true, branch: true } });
     if (!before) throw new Error("Employee not found.");
+    const employeeCode = cleanEmployeeCode(data.employeeCode);
+    if (employeeCode) {
+      const codeOwner = await prisma.employee.findUnique({ where: { employeeCode } });
+      if (codeOwner && codeOwner.id !== id) {
+        if (codeOwner.deletedAt) throw new Error(`Employee ID ${employeeCode} is in Recycle Bin. Restore that employee first.`);
+        throw new Error(`Employee ID ${employeeCode} is already assigned to ${codeOwner.name}.`);
+      }
+    }
     const exitDate = parseDate(data.exitDate);
     const branch = cleanBranch(data.branch);
     const update: any = {
+      employeeCode,
       name: String(data.name || "").trim(),
       mobile: String(data.mobile || "").trim(),
       role: data.role || "EMPLOYEE",
@@ -66,7 +82,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       }
       return saved;
     });
-    await addAuditLog({ actorId: session.id, actorName: session.name, action: data.password ? "RESET_PASSWORD_OR_UPDATE_EMPLOYEE" : "UPDATE_EMPLOYEE", target: employee.name, details: { mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status } });
+    await addAuditLog({ actorId: session.id, actorName: session.name, action: data.password ? "RESET_PASSWORD_OR_UPDATE_EMPLOYEE" : "UPDATE_EMPLOYEE", target: employee.name, details: { employeeCode: employee.employeeCode, mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status } });
     if (before.status !== employee.status) {
       await addSystemNotification({
         actorId: session.id,

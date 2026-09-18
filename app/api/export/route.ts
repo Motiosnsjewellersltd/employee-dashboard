@@ -24,10 +24,10 @@ export async function GET(req: NextRequest) {
 
   if (type === "employees") {
     const rows = await prisma.employee.findMany({ where: { role: { not: "ADMIN" }, deletedAt: null }, orderBy: { name: "asc" } });
-    body = csv(rows, ["ID", "Name", "Mobile", "Role", "Designation", "Department", "Branch", "DOB", "DOJ", "ExitDate", "Status"], r => [r.id, r.name, r.mobile, r.role, r.designation, r.department, r.branch || "", formatDate(r.dob), formatDate(r.doj), formatDate(r.exitDate), r.status]);
+    body = csv(rows, ["Employee ID", "Name", "Mobile", "Role", "Designation", "Department", "Branch", "DOB", "DOJ", "ExitDate", "Status"], r => [r.employeeCode || "", r.name, r.mobile, r.role, r.designation, r.department, r.branch || "", formatDate(r.dob), formatDate(r.doj), formatDate(r.exitDate), r.status]);
   } else if (type === "leaves") {
     const rows = await prisma.leaveRecord.findMany({ where: { deletedAt: null, employee: { deletedAt: null } }, include: { employee: true }, orderBy: [{ monthYear: "asc" }, { employee: { name: "asc" } }] });
-    body = csv(rows, ["EmployeeID", "Employee Name", "Mobile", "Month/Year", "Leave", "Reason / Remark"], r => [r.employeeId, r.employee.name, r.employee.mobile, r.monthYear, r.leave, r.reason || ""]);
+    body = csv(rows, ["Employee ID", "Employee Name", "Mobile", "Month/Year", "Leave", "Reason / Remark"], r => [r.employee.employeeCode || "", r.employee.name, r.employee.mobile, r.monthYear, r.leave, r.reason || ""]);
   } else if (type === "notifications") {
     const rows = await prisma.notificationBlast.findMany({ include: { recipients: { include: { employee: true } }, createdBy: true }, orderBy: { createdAt: "desc" } });
     body = csv(rows, ["Type", "Text", "Attachment", "Created By", "Created At", "Recipients"], r => [r.type, r.text, r.attachmentName || "", r.createdBy.name, r.createdAt.toISOString(), r.recipients.map((x: any) => x.employee.name).join("; ")]);

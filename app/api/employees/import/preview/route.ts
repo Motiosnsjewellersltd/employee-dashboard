@@ -33,24 +33,35 @@ export async function POST(req: NextRequest) {
     const file = form.get("file") as File | null;
     if (!file) throw new Error("Excel file required.");
     const rows = await rowsFromExcel(file);
-    const existing = await prisma.employee.findMany({ select: { mobile: true, deletedAt: true } });
-    const existingMobiles = new Set(existing.filter(e => !e.deletedAt).map(e => e.mobile));
+    const existing = await prisma.employee.findMany({ select: { id: true, employeeCode: true, mobile: true, deletedAt: true } });
+    const activeByMobile = new Map(existing.filter(e => !e.deletedAt).map(e => [e.mobile, e]));
+    const activeByCode = new Map(existing.filter(e => !e.deletedAt && e.employeeCode).map(e => [e.employeeCode as string, e]));
     const recycledMobiles = new Set(existing.filter(e => !!e.deletedAt).map(e => e.mobile));
-    const seen = new Set<string>();
+    const recycledCodes = new Set(existing.filter(e => !!e.deletedAt && e.employeeCode).map(e => e.employeeCode as string));
+    const seenMobiles = new Set<string>();
+    const seenCodes = new Set<string>();
     const errors: any[] = [];
     let add = 0, update = 0, skipped = 0;
 
     rows.forEach((r, i) => {
       const row = i + 2;
+      const employeeCode = String(excelCell(r, ["Employee ID", "EmployeeID", "Emp ID", "EmpID"]) || "").trim();
       const name = String(excelCell(r, ["Name", "Employee Name", "Name of Employee"])).trim();
       const mobile = String(excelCell(r, ["Mobile", "Mobile No.", "Username / Mobile", "Number"])).trim();
       const branch = String(excelCell(r, ["Branch", "Store"]) || "").trim().toUpperCase();
       if (!name || !mobile) { skipped++; errors.push({ row, reason: "Name or mobile missing" }); return; }
+      if (employeeCode && !/^\d+$/.test(employeeCode)) { skipped++; errors.push({ row, reason: "Employee ID must contain numbers only", employeeCode }); return; }
       if (branch && !["MT", "JB", "VN"].includes(branch)) { skipped++; errors.push({ row, reason: "Branch must be MT, JB or VN", mobile }); return; }
-      if (seen.has(mobile)) { skipped++; errors.push({ row, reason: "Duplicate mobile in Excel", mobile }); return; }
-      seen.add(mobile);
+      if (seenMobiles.has(mobile)) { skipped++; errors.push({ row, reason: "Duplicate mobile in Excel", mobile }); return; }
+      if (employeeCode && seenCodes.has(employeeCode)) { skipped++; errors.push({ row, reason: "Duplicate Employee ID in Excel", employeeCode }); return; }
+      seenMobiles.add(mobile);
+      if (employeeCode) seenCodes.add(employeeCode);
       if (recycledMobiles.has(mobile)) { skipped++; errors.push({ row, reason: "Employee with this mobile is in Recycle Bin. Restore first.", mobile }); return; }
-      existingMobiles.has(mobile) ? update++ : add++;
+      if (employeeCode && recycledCodes.has(employeeCode)) { skipped++; errors.push({ row, reason: "Employee ID is in Recycle Bin. Restore first.", employeeCode }); return; }
+      const byMobile = activeByMobile.get(mobile);
+      const byCode = employeeCode ? activeByCode.get(employeeCode) : undefined;
+      if (byMobile && byCode && byMobile.id !== byCode.id) { skipped++; errors.push({ row, reason: "Employee ID and mobile belong to different employees", employeeCode, mobile }); return; }
+      byMobile || byCode ? update++ : add++;
     });
 
     return ok({ total: rows.length, add, update, skipped, errors: errors.slice(0, 100) });

@@ -16,6 +16,7 @@ function jwtSecret() {
 
 export type SessionUser = {
   id: string;
+  employeeCode?: string | null;
   name: string;
   mobile: string;
   role: "ADMIN" | "HR" | "EMPLOYEE";
@@ -74,6 +75,7 @@ export async function clearAuthCookie() {
 export function publicUser(user: any): SessionUser {
   return {
     id: user.id,
+    employeeCode: user.employeeCode,
     name: user.name,
     mobile: user.mobile,
     role: user.role,

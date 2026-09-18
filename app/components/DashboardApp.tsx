@@ -5,6 +5,7 @@ import PushNotificationSetup from "./PushNotificationSetup";
 
 type User = {
   id: string;
+  employeeCode?: string;
   name: string;
   mobile: string;
   role: "ADMIN" | "HR" | "EMPLOYEE";
@@ -491,11 +492,11 @@ export default function DashboardApp() {
   const filtered = employeeRows.filter(employee => {
     const query = filters.q.trim().toLowerCase();
     if (filters.designation !== "All" && employee.designation !== filters.designation) return false;
-    if (query && !`${employee.name} ${employee.mobile} ${employee.designation || ""} ${employee.department || ""} ${employee.branch || ""}`.toLowerCase().includes(query)) return false;
+    if (query && !`${employee.employeeCode || ""} ${employee.name} ${employee.mobile} ${employee.designation || ""} ${employee.department || ""} ${employee.branch || ""}`.toLowerCase().includes(query)) return false;
     return true;
   });
   const globalMatches = globalSearch.trim()
-    ? employeeRows.filter(e => `${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(globalSearch.trim().toLowerCase())).slice(0, 8)
+    ? employeeRows.filter(e => `${e.employeeCode || ""} ${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(globalSearch.trim().toLowerCase())).slice(0, 8)
     : [];
   const sectionTitles: Record<Section, string> = {
     dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders",
@@ -549,7 +550,7 @@ export default function DashboardApp() {
     if (dashboardQuick.status !== "All" && String(e.status || "") !== dashboardQuick.status) return false;
     if (dashboardQuick.designation !== "All" && e.designation !== dashboardQuick.designation) return false;
     if (dashboardQuick.department !== "All" && e.department !== dashboardQuick.department) return false;
-    if (dashboardQuick.q && !`${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(dashboardQuick.q.toLowerCase())) return false;
+    if (dashboardQuick.q && !`${e.employeeCode || ""} ${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(dashboardQuick.q.toLowerCase())) return false;
     return true;
   });
 
@@ -593,10 +594,10 @@ export default function DashboardApp() {
         <div className="topbar-title"><span>Motisons Employee System</span><b>{sectionTitles[section]}</b></div>
         {session.role !== "EMPLOYEE" && (!isHr || section === "dashboard") && <div className="global-search-wrap">
           <span className="global-search-icon">⌕</span>
-          <input aria-label="Global employee search" placeholder="Search employee, mobile, designation..." value={globalSearch} onFocus={() => setGlobalSearchOpen(true)} onChange={e => { setGlobalSearch(e.target.value); setGlobalSearchOpen(true); }} />
+          <input aria-label="Global employee search" placeholder="Search Employee ID, name, mobile..." value={globalSearch} onFocus={() => setGlobalSearchOpen(true)} onChange={e => { setGlobalSearch(e.target.value); setGlobalSearchOpen(true); }} />
           {globalSearch && <button className="global-search-clear" type="button" onClick={() => { setGlobalSearch(""); setGlobalSearchOpen(false); }}>×</button>}
           {globalSearchOpen && globalSearch.trim() && <div className="global-search-results">
-            {globalMatches.length ? globalMatches.map(u => <button key={u.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => { openProfile(u); setGlobalSearch(""); setGlobalSearchOpen(false); }}>{avatar(u)}<span><b><Highlight text={u.name} term={globalSearch} /></b><small>{u.designation || "-"} · {u.department || "-"} · <Highlight text={u.mobile} term={globalSearch} /></small></span></button>) : <div className="global-search-empty">No employee found</div>}
+            {globalMatches.length ? globalMatches.map(u => <button key={u.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => { openProfile(u); setGlobalSearch(""); setGlobalSearchOpen(false); }}>{avatar(u)}<span><b><Highlight text={u.name} term={globalSearch} /></b><small>ID: <Highlight text={u.employeeCode || "-"} term={globalSearch} /> · {u.designation || "-"} · <Highlight text={u.mobile} term={globalSearch} /></small></span></button>) : <div className="global-search-empty">No employee found</div>}
           </div>}
         </div>}
         {isAdmin && <button className="desktop-admin-tools" type="button" onClick={() => setMenuOpen(value => !value)}><span>☰</span><b>Tools</b></button>}
@@ -608,7 +609,7 @@ export default function DashboardApp() {
         <div className="cards dashboard-cards">{cards.map(c => <button className={dashboardFilter === c[0] || (dashboardFilter === "All Employees" && c[0] === "Total Employees") ? "stat stat-button active" : "stat stat-button"} key={c[0]} onClick={() => setDashboardFilter(c[0] === "Total Employees" ? "All Employees" : String(c[0]))}><span>{c[0]}</span><b>{c[1]}</b></button>)}</div>
         {isHr && <button className="hr-mobile-filter-toggle light" type="button" onClick={() => setHrMobileFiltersOpen(open => !open)}><span>⌕</span>{hrMobileFiltersOpen ? "Hide Filters" : "Search & Filters"}<b>{dashboardRows.length}</b></button>}
         <div className={`panel dashboard-filter-panel${isHr && hrMobileFiltersOpen ? " mobile-open" : ""}`}><div className="filters dashboard-quick">
-          <input placeholder="Search dashboard" value={dashboardQuick.q} onChange={e => setDashboardQuick({ ...dashboardQuick, q: e.target.value })} />
+          <input placeholder="Search Employee ID, name or mobile" value={dashboardQuick.q} onChange={e => setDashboardQuick({ ...dashboardQuick, q: e.target.value })} />
           <select value={dashboardQuick.status} onChange={e => setDashboardQuick({ ...dashboardQuick, status: e.target.value })}><option>All</option><option>ACTIVE</option><option>INACTIVE</option></select>
           <select value={dashboardQuick.designation} onChange={e => setDashboardQuick({ ...dashboardQuick, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
           <select value={dashboardQuick.department} onChange={e => setDashboardQuick({ ...dashboardQuick, department: e.target.value })}><option>All</option>{departments.map(d => <option key={d}>{d}</option>)}</select>
@@ -616,7 +617,7 @@ export default function DashboardApp() {
         <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={openEmployeeEdit} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} canExport={canExportData} />
       </section>}
       {section === "employees" && showEmployees && <section className="panel employees-section"><h1>Employees Details</h1><EmployeeTable title="" employees={filtered} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} canExport={canExportData} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} topControls={<div className="employee-list-filters">
-        <input placeholder="Type or select name" value={filters.q} onChange={e => setFilters({ ...filters, q: e.target.value })} />
+        <input placeholder="Employee ID, name or mobile" value={filters.q} onChange={e => setFilters({ ...filters, q: e.target.value })} />
         <select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
       </div>} /></section>}
       {section === "add" && isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <AddUploadCenter canAddEmployee={canAddEmployee} canUploadLeaves={canUploadLeaves} onEmployeeSaved={() => { loadEmployees(); setSection("employees"); }} />}
@@ -695,6 +696,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
   const [pageSize, setPageSize] = useState(25);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    employeeCode: true,
     photo: true,
     name: true,
     mobile: true,
@@ -708,6 +710,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
   });
 
   const columnLabels: Record<string, string> = {
+    employeeCode: "Employee ID",
     photo: "Photo",
     name: "Name",
     mobile: "Mobile",
@@ -966,7 +969,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
       </div>}
     </div>}
     {bulkMsg && bulkActions && <div className="msg warn">{bulkMsg}</div>}
-    <div className="table-wrap"><table><thead><tr>{bulkActions && admin && <th><input type="checkbox" aria-label="Select all employees on this page" checked={allSelected} onChange={toggleAll} /></th>}<th>S.No</th>{visibleColumns.photo && <th>Photo</th>}{visibleColumns.name && <th>Name</th>}{visibleColumns.mobile && <th>Mobile</th>}{visibleColumns.dob && <th>DOB</th>}{visibleColumns.designation && <th>Designation</th>}{visibleColumns.department && <th>Department</th>}{visibleColumns.branch && <th>Branch</th>}{visibleColumns.doj && <th>DOJ</th>}{visibleColumns.role && <th>Role</th>}{visibleColumns.status && <th>Status</th>}{showActions && <th>Action</th>}</tr></thead><tbody>
+    <div className="table-wrap"><table><thead><tr>{bulkActions && admin && <th><input type="checkbox" aria-label="Select all employees on this page" checked={allSelected} onChange={toggleAll} /></th>}<th>S.No</th>{visibleColumns.employeeCode && <th>Employee ID</th>}{visibleColumns.photo && <th>Photo</th>}{visibleColumns.name && <th>Name</th>}{visibleColumns.mobile && <th>Mobile</th>}{visibleColumns.dob && <th>DOB</th>}{visibleColumns.designation && <th>Designation</th>}{visibleColumns.department && <th>Department</th>}{visibleColumns.branch && <th>Branch</th>}{visibleColumns.doj && <th>DOJ</th>}{visibleColumns.role && <th>Role</th>}{visibleColumns.status && <th>Status</th>}{showActions && <th>Action</th>}</tr></thead><tbody>
     {loading ? Array.from({ length: 6 }).map((_, index) => <tr className="skeleton-row" key={`skeleton-${index}`}><td colSpan={13}><span className="skeleton-line" /></td></tr>) : pageRows.length ? pageRows.map((e, index) => <tr
       ref={row => { employeeRowRefs.current[e.id] = row; }}
       className={`employee-row${selected.includes(e.id) ? " selected" : ""}${keyboardRowId === e.id ? " keyboard-focused" : ""}`}
@@ -983,6 +986,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     >
       {bulkActions && admin && <td><input type="checkbox" aria-label={`Select ${e.name}`} checked={selected.includes(e.id)} onChange={event => setSelected(event.target.checked ? Array.from(new Set([...selected, e.id])) : selected.filter(id => id !== e.id))} /></td>}
       <td>{startIndex + index + 1}</td>
+      {visibleColumns.employeeCode && <td><Highlight text={e.employeeCode || "-"} term={searchTerm} /></td>}
       {visibleColumns.photo && <td>{avatar(e)}</td>}
       {visibleColumns.name && <td>{clickable ? <button className="link" onClick={() => onProfile(e)}><Highlight text={e.name} term={searchTerm} /></button> : <Highlight text={e.name} term={searchTerm} />}</td>}
       {visibleColumns.mobile && <td><Highlight text={e.mobile} term={searchTerm} /></td>}
@@ -1000,7 +1004,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
     {loading ? Array.from({ length: 4 }).map((_, index) => <div className="employee-mobile-card" key={`mobile-skeleton-${index}`}><span className="skeleton-line" /></div>) : pageRows.length ? pageRows.map(e => <div className={`${selected.includes(e.id) ? "employee-mobile-card selected" : "employee-mobile-card"}${bulkActions && admin ? " has-select" : ""}`} key={`mobile-${e.id}`}>
       {bulkActions && admin && <input className="employee-mobile-select" type="checkbox" aria-label={`Select ${e.name}`} checked={selected.includes(e.id)} onChange={event => setSelected(event.target.checked ? Array.from(new Set([...selected, e.id])) : selected.filter(id => id !== e.id))} />}
       {avatar(e)}
-      <div className="employee-mobile-main"><b>{e.name}</b><span>{e.designation || "-"}{e.department ? ` · ${e.department}` : ""}{e.branch ? ` · ${e.branch}` : ""}</span><small>{e.mobile || "-"}</small></div>
+      <div className="employee-mobile-main"><b>{e.name}</b><span>ID: {e.employeeCode || "-"} · {e.designation || "-"}{e.department ? ` · ${e.department}` : ""}{e.branch ? ` · ${e.branch}` : ""}</span><small>{e.mobile || "-"}</small></div>
       <span className={e.status === "ACTIVE" ? "pill ok" : "pill danger"}>{e.status}</span>
       {(clickable || (showActions && admin && e.role !== "ADMIN")) && <div className="employee-mobile-actions">
         {clickable && <button className="light" onClick={() => onProfile(e)}>View</button>}
@@ -1015,6 +1019,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
 
 function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => void | Promise<void> }) {
   const [form, setForm] = useState<any>({
+    employeeCode: user.employeeCode || "",
     name: user.name || "",
     mobile: user.mobile || "",
     password: "",
@@ -1062,6 +1067,7 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
       <button className="close" type="button" onClick={onClose}>×</button>
       <div className="edit-head">{avatar(user, true)}<div><h1>Edit Employee</h1><p>{user.name}</p></div></div>
       <form className="employee-form edit-form" onSubmit={save}>
+        <div><label>Employee ID (Unique Number)</label><input inputMode="numeric" pattern="[0-9]*" value={form.employeeCode || ""} onChange={e => setForm({ ...form, employeeCode: e.target.value.replace(/\D/g, "") })} /></div>
         {field("name", "Name")}
         {field("mobile", "Username / Mobile")}
         {field("password", "New Password (blank = no change)", "text")}
@@ -1162,6 +1168,7 @@ function EmployeeForm({ onSaved }: { onSaved: () => void }) {
     </div>
     {preview && <ImportPreview title="Employee Import Preview" data={preview} />}
     <form className="employee-form" onSubmit={save}>
+      <div><label>Employee ID (Unique Number)</label><input inputMode="numeric" pattern="[0-9]*" value={form.employeeCode || ""} onChange={e => setForm({ ...form, employeeCode: e.target.value.replace(/\D/g, "") })} /></div>
       {field("name", "Name")}{field("mobile", "Username / Mobile")}{field("password", "Password")}{field("dob", "Date of Birth", "date")}
       <div><label>Role</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option>EMPLOYEE</option><option>HR</option><option>ADMIN</option></select></div>
       {field("designation", "Designation")}{field("department", "Department")}<div><label>Branch</label><select value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })}><option value="">Select Branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select></div>{field("doj", "Date of Joining", "date")}
@@ -1336,7 +1343,7 @@ function LeavesUpload() {
       </div>
     </div>
     <div className="leave-filters">
-      <div><label>Employee</label><select value={manualEmployeeId} onChange={e => setManualEmployeeId(e.target.value)}><option value="">Select Employee</option>{manualEmployees.map(e => <option key={e.id} value={e.id}>{e.name} - {e.mobile}</option>)}</select></div>
+      <div><label>Employee</label><select value={manualEmployeeId} onChange={e => setManualEmployeeId(e.target.value)}><option value="">Select Employee</option>{manualEmployees.map(e => <option key={e.id} value={e.id}>{e.employeeCode ? `${e.employeeCode} - ` : ""}{e.name} - {e.mobile}</option>)}</select></div>
       <div><label>Month</label><input type="month" value={manualMonth} onChange={e => setManualMonth(e.target.value)} /></div>
       <div><label>Leave</label><input type="number" min="0" step="0.5" value={manualLeave} onChange={e => setManualLeave(e.target.value)} placeholder="0" /></div>
       <div><label>Reason / Remark</label><input value={manualReason} onChange={e => setManualReason(e.target.value)} placeholder="Optional reason / remark" /></div>
@@ -1356,7 +1363,7 @@ function LeavesUpload() {
     </div>
 
     <div className="leave-filters">
-      <div><label>Search Employee</label><input placeholder="Name / Mobile / Designation / Department" value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => { if (e.key === "Enter") loadHistory(); }} /></div>
+      <div><label>Search Employee</label><input placeholder="Employee ID / Name / Mobile / Designation" value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => { if (e.key === "Enter") loadHistory(); }} /></div>
       <div><label>Month/Year</label><input type="month" value={monthFilter} onChange={e => { setMonthFilter(e.target.value); loadHistory(search, e.target.value); }} /></div>
       <div className="leave-filter-action"><button className="light" onClick={() => loadHistory()}>Search</button></div>
       <div className="leave-filter-action"><button className="light" onClick={() => { setSearch(""); setMonthFilter(""); loadHistory("", ""); }}>Clear</button></div>
@@ -1365,11 +1372,12 @@ function LeavesUpload() {
     <div className="leave-summary-line"><b>{historyLoading ? "Loading..." : `${history.length} record(s)`}</b>{monthFilter && <span>Month: {pickerToMonthYear(monthFilter)}</span>}</div>
     <div className="table-wrap leave-history-table">
       <table>
-        <thead><tr><th>Month/Year</th><th>Employee</th><th>Mobile</th><th>Designation</th><th>Department</th><th>Leave</th><th>Reason / Remark</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Month/Year</th><th>Employee ID</th><th>Employee</th><th>Mobile</th><th>Designation</th><th>Department</th><th>Leave</th><th>Reason / Remark</th><th>Actions</th></tr></thead>
         <tbody>
-          {!historyLoading && history.length === 0 && <tr><td colSpan={8}>No leave records found.</td></tr>}
+          {!historyLoading && history.length === 0 && <tr><td colSpan={9}>No leave records found.</td></tr>}
           {history.map(record => <tr key={record.id}>
             <td>{record.monthYear}</td>
+            <td>{record.employee.employeeCode || "-"}</td>
             <td>{record.employee.name}</td>
             <td>{record.employee.mobile || "-"}</td>
             <td>{record.employee.designation || "-"}</td>
@@ -1394,7 +1402,7 @@ function LeavesUpload() {
 }
 
 function ImportPreview({ title, data }: { title: string; data: any }) {
-  return <div className="preview-box"><h3>{title}</h3><div className="preview-cards">{Object.entries(data).filter(([k]) => k !== "errors").map(([k, v]) => <div key={k}><span>{k}</span><b>{String(v)}</b></div>)}</div>{data.errors?.length ? <div className="preview-errors"><b>Error / Skipped Rows</b>{data.errors.slice(0, 20).map((e: any, i: number) => <p key={i}>Row {e.row}: {e.reason} {e.name || e.mobile || ""}</p>)}</div> : <div className="empty-state">No validation errors found.</div>}</div>;
+  return <div className="preview-box"><h3>{title}</h3><div className="preview-cards">{Object.entries(data).filter(([k]) => k !== "errors").map(([k, v]) => <div key={k}><span>{k}</span><b>{String(v)}</b></div>)}</div>{data.errors?.length ? <div className="preview-errors"><b>Error / Skipped Rows</b>{data.errors.slice(0, 20).map((e: any, i: number) => <p key={i}>Row {e.row}: {e.reason} {e.employeeCode || e.name || e.mobile || ""}</p>)}</div> : <div className="empty-state">No validation errors found.</div>}</div>;
 }
 
 function MyProfile({ user, leaves, loading, loadLeaves }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void> }) {
@@ -1414,6 +1422,7 @@ function ResetPassword({ employees }: { employees: User[] }) {
   const filteredEmployees = employees
     .filter(e =>
       !normalizedSearch ||
+      String(e.employeeCode || "").includes(normalizedSearch) ||
       e.name.toLowerCase().includes(normalizedSearch) ||
       e.mobile.includes(normalizedSearch) ||
       String(e.designation || "").toLowerCase().includes(normalizedSearch) ||
@@ -1486,8 +1495,8 @@ function ResetPassword({ employees }: { employees: User[] }) {
   return <section className="panel reset-panel portrait-panel"><h1>Reset Password</h1><div className="reset-portrait">
     <div className="custom-picker" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
       <label>Employee Name</label>
-      <input value={employeeSearch} onFocus={() => setShowList(true)} onClick={() => setShowList(true)} onChange={e => { setEmployeeSearch(e.target.value); setEmployeeId(""); setShowList(true); }} placeholder="Type or select employee" />
-      {showList && <div className="custom-picker-list">{filteredEmployees.length ? filteredEmployees.map(e => <button type="button" key={e.id} onMouseDown={event => { event.preventDefault(); chooseEmployee(e); }}><b>{e.name}</b><span>{e.designation || "-"} | {e.department || "-"} | {e.mobile}</span></button>) : <div className="empty-state">No employees found.</div>}</div>}
+      <input value={employeeSearch} onFocus={() => setShowList(true)} onClick={() => setShowList(true)} onChange={e => { setEmployeeSearch(e.target.value); setEmployeeId(""); setShowList(true); }} placeholder="Employee ID, name or mobile" />
+      {showList && <div className="custom-picker-list">{filteredEmployees.length ? filteredEmployees.map(e => <button type="button" key={e.id} onMouseDown={event => { event.preventDefault(); chooseEmployee(e); }}><b>{e.employeeCode ? `${e.employeeCode} - ` : ""}{e.name}</b><span>{e.designation || "-"} | {e.department || "-"} | {e.mobile}</span></button>) : <div className="empty-state">No employees found.</div>}</div>}
       {selectedEmployee && <div className="selected-chip">{selectedEmployee.name}</div>}
     </div>
     <div><label>New Password</label><input value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter new password" /></div>
@@ -1510,7 +1519,7 @@ function ProfileModal({ user, leaves, loading, onClose, employees, onSwitch, can
   return <div className="modal" onMouseDown={onClose}>
     <div className="modal-box" onMouseDown={e => e.stopPropagation()}>
       <button className="close" type="button" aria-label="Close profile" onClick={onClose}>×</button>
-      <div className="profile-switcher print-exclude"><button className="light" disabled={!previous} onClick={() => previous && onSwitch(previous)}>← Previous</button><select value={user.id} onChange={event => { const selected = ordered.find(e => e.id === event.target.value); if (selected) onSwitch(selected); }}>{ordered.map(employee => <option key={employee.id} value={employee.id}>{employee.name} — {employee.mobile}</option>)}</select><button className="light" disabled={!next} onClick={() => next && onSwitch(next)}>Next →</button></div>
+      <div className="profile-switcher print-exclude"><button className="light" disabled={!previous} onClick={() => previous && onSwitch(previous)}>← Previous</button><select value={user.id} onChange={event => { const selected = ordered.find(e => e.id === event.target.value); if (selected) onSwitch(selected); }}>{ordered.map(employee => <option key={employee.id} value={employee.id}>{employee.employeeCode ? `${employee.employeeCode} — ` : ""}{employee.name} — {employee.mobile}</option>)}</select><button className="light" disabled={!next} onClick={() => next && onSwitch(next)}>Next →</button></div>
       <ProfileContent user={user} leaves={leaves} loading={loading} canDeleteBranchHistory={canDeleteBranchHistory} onBranchHistoryDeleted={onBranchHistoryDeleted} />
     </div>
   </div>;
@@ -1531,7 +1540,7 @@ function ProfileContent({ user, leaves, loading, canDeleteBranchHistory = false,
   return <div className="profile-content">
     <div className="profile-head">{avatar(user, true)}<div><h1>{user.name}</h1><p>{user.designation} | {user.department}{user.branch ? ` | ${user.branch}` : ""}</p></div><button className="light print-btn" onClick={() => window.print()}><span>▣</span> Print / PDF</button></div>
     <div className="profile-grid">
-      <Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} /><Info label="Exit / Leave Date" value={user.exitDate || "-"} />
+      <Info label="Employee ID" value={user.employeeCode || "-"} /><Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} /><Info label="Exit / Leave Date" value={user.exitDate || "-"} />
       <Info label="Working Period" value={workingPeriod(user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Status" value={user.status} /><Info label="Role" value={user.role} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
     </div>
     {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null}
@@ -1675,7 +1684,7 @@ function RecycleBin() {
       <button className={filter === "leaves" ? "light active" : "light"} onClick={() => setFilter("leaves")}>Leaves</button>
     </div>
     {loading ? <div className="recycle-loading"><SkeletonCards count={3} /></div> : <>
-      {(filter === "all" || filter === "employees") && <div className="recycle-section"><h2>Deleted Employees <span className="pill">{employees.length}</span></h2><div className="table-wrap"><table><thead><tr><th>Name</th><th>Mobile</th><th>Designation</th><th>Department</th><th>Deleted By</th><th>Deleted At</th><th>Actions</th></tr></thead><tbody>{employees.length ? employees.map((item: any) => <tr key={item.id}><td><b>{item.name}</b></td><td>{item.mobile}</td><td>{item.designation || "-"}</td><td>{item.department || "-"}</td><td>{item.deletedByName || "-"}</td><td>{item.deletedAt ? new Date(item.deletedAt).toLocaleString() : "-"}</td><td><div className="action-buttons"><button className="light" onClick={() => act("employee", item.id, "RESTORE", item.name)}>Restore</button><button className="danger-btn small" onClick={() => act("employee", item.id, "PERMANENT_DELETE", item.name)}>Permanent Delete</button></div></td></tr>) : <tr><td colSpan={7}>No deleted employees.</td></tr>}</tbody></table></div></div>}
+      {(filter === "all" || filter === "employees") && <div className="recycle-section"><h2>Deleted Employees <span className="pill">{employees.length}</span></h2><div className="table-wrap"><table><thead><tr><th>Employee ID</th><th>Name</th><th>Mobile</th><th>Designation</th><th>Department</th><th>Deleted By</th><th>Deleted At</th><th>Actions</th></tr></thead><tbody>{employees.length ? employees.map((item: any) => <tr key={item.id}><td>{item.employeeCode || "-"}</td><td><b>{item.name}</b></td><td>{item.mobile}</td><td>{item.designation || "-"}</td><td>{item.department || "-"}</td><td>{item.deletedByName || "-"}</td><td>{item.deletedAt ? new Date(item.deletedAt).toLocaleString() : "-"}</td><td><div className="action-buttons"><button className="light" onClick={() => act("employee", item.id, "RESTORE", item.name)}>Restore</button><button className="danger-btn small" onClick={() => act("employee", item.id, "PERMANENT_DELETE", item.name)}>Permanent Delete</button></div></td></tr>) : <tr><td colSpan={8}>No deleted employees.</td></tr>}</tbody></table></div></div>}
       {(filter === "all" || filter === "leaves") && <div className="recycle-section"><h2>Deleted Leaves <span className="pill">{leaves.length}</span></h2><div className="table-wrap"><table><thead><tr><th>Employee</th><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th><th>Deleted By</th><th>Deleted At</th><th>Actions</th></tr></thead><tbody>{leaves.length ? leaves.map((item: any) => <tr key={item.id}><td><b>{item.employee?.name || "-"}</b>{item.employee?.deletedAt && <small className="recycle-parent-note"> Employee also deleted</small>}</td><td>{item.monthYear}</td><td>{item.leave}</td><td>{item.reason || "-"}</td><td>{item.deletedByName || "-"}</td><td>{item.deletedAt ? new Date(item.deletedAt).toLocaleString() : "-"}</td><td><div className="action-buttons"><button className="light" onClick={() => act("leave", item.id, "RESTORE", `${item.employee?.name || "employee"} - ${item.monthYear}`)}>Restore</button><button className="danger-btn small" onClick={() => act("leave", item.id, "PERMANENT_DELETE", `${item.employee?.name || "employee"} - ${item.monthYear}`)}>Permanent Delete</button></div></td></tr>) : <tr><td colSpan={7}>No deleted leave records.</td></tr>}</tbody></table></div></div>}
     </>}
   </section>;
@@ -2126,14 +2135,14 @@ function Chat({ session }: { session: User }) {
   async function loadMessages(id: string) { const d = await api(`/api/chat/threads/${id}`); setMessages(d.messages); }
   async function send() { if (!active || (!text.trim() && !file)) return; const fd = new FormData(); fd.append("threadId", active.id); fd.append("text", text); if (file) fd.append("attachment", file); setText(""); setFile(null); await api("/api/chat/messages", { method: "POST", body: fd }); await loadMessages(active.id); await bootstrap(); }
   async function edit(m: any) { const next = prompt("Edit message", m.text); if (next === null) return; await api(`/api/chat/messages/${m.id}`, { method: "PUT", body: JSON.stringify({ text: next }) }); loadMessages(active.id); }
-  const list = users.filter(u => !q || `${u.name} ${u.mobile}`.toLowerCase().includes(q.toLowerCase()));
+  const list = users.filter(u => !q || `${u.employeeCode || ""} ${u.name} ${u.mobile}`.toLowerCase().includes(q.toLowerCase()));
   const threadFor = (u: User) => threads.find((t: any) => t.other?.id === u.id);
   const sortedList = [...list].sort((a, b) => {
     const ta = threadFor(a)?.updatedAt ? new Date(threadFor(a).updatedAt).getTime() : 0;
     const tb = threadFor(b)?.updatedAt ? new Date(threadFor(b).updatedAt).getTime() : 0;
     return tb - ta;
   });
-  return <section className="panel chat-page"><div className="chat-grid-title"><h1>Chats</h1><span>{sortedList.length} contacts</span></div><div className={active ? "chat-grid chat-active" : "chat-grid"}><aside className="chat-contacts"><div className="chat-search"><span>⌕</span><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or mobile" /></div><div className="chat-list">{sortedList.length ? sortedList.map(u => { const t = threadFor(u); return <button key={u.id} className="chat-user" onClick={() => ensureThread(u)}>{avatar(u)}<span><b>{u.name}</b><small>{t?.lastMessage?.text || "No messages yet"}</small></span><div className="chat-user-meta">{Boolean(t?.unread) && <strong className="unread-badge">{t.unread}</strong>}{isOnline(u) && <em>online</em>}</div></button>; }) : <div className="chat-empty">No employee found</div>}</div></aside><div className="chat-box"><div className="chat-head">{active?.other ? <><button className="mobile-chat-back" type="button" aria-label="Back to chats" onClick={() => { setActive(null); setMessages([]); }}>←</button>{avatar(active.other)}<div><b>{active.other.name}</b><span>{isOnline(active.other) ? "online" : "offline"}</span></div></> : <b>Select an employee to start chat</b>}</div><div className="chat-messages">{messages.length ? messages.map(m => <div key={m.id} className={m.senderId === session.id ? "bubble me" : "bubble"}><p>{m.text}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} {m.isEdited ? "edited" : ""} {m.senderId === session.id ? "✓✓" : ""} {m.senderId === session.id && Date.now() - new Date(m.createdAt).getTime() < 300000 && <button onClick={() => edit(m)}>Edit</button>}</small></div>) : active && <div className="chat-conversation-empty"><span>✉</span><b>Start your conversation</b></div>}</div><div className="chat-input">
+  return <section className="panel chat-page"><div className="chat-grid-title"><h1>Chats</h1><span>{sortedList.length} contacts</span></div><div className={active ? "chat-grid chat-active" : "chat-grid"}><aside className="chat-contacts"><div className="chat-search"><span>⌕</span><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search Employee ID, name or mobile" /></div><div className="chat-list">{sortedList.length ? sortedList.map(u => { const t = threadFor(u); return <button key={u.id} className="chat-user" onClick={() => ensureThread(u)}>{avatar(u)}<span><b>{u.name}</b><small>{t?.lastMessage?.text || "No messages yet"}</small></span><div className="chat-user-meta">{Boolean(t?.unread) && <strong className="unread-badge">{t.unread}</strong>}{isOnline(u) && <em>online</em>}</div></button>; }) : <div className="chat-empty">No employee found</div>}</div></aside><div className="chat-box"><div className="chat-head">{active?.other ? <><button className="mobile-chat-back" type="button" aria-label="Back to chats" onClick={() => { setActive(null); setMessages([]); }}>←</button>{avatar(active.other)}<div><b>{active.other.name}</b><span>{isOnline(active.other) ? "online" : "offline"}</span></div></> : <b>Select an employee to start chat</b>}</div><div className="chat-messages">{messages.length ? messages.map(m => <div key={m.id} className={m.senderId === session.id ? "bubble me" : "bubble"}><p>{m.text}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} {m.isEdited ? "edited" : ""} {m.senderId === session.id ? "✓✓" : ""} {m.senderId === session.id && Date.now() - new Date(m.createdAt).getTime() < 300000 && <button onClick={() => edit(m)}>Edit</button>}</small></div>) : active && <div className="chat-conversation-empty"><span>✉</span><b>Start your conversation</b></div>}</div><div className="chat-input">
   <label className={file ? "attach-btn has-file" : "attach-btn"} title={file ? file.name : "Attach file"}>
     📎
     <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />

@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const employees = type === "all" || type === "employees"
       ? await prisma.employee.findMany({
           where: { deletedAt: { not: null } },
-          select: { id: true, name: true, mobile: true, designation: true, department: true, role: true, deletedAt: true, deletedById: true, deletedByName: true },
+          select: { id: true, employeeCode: true, name: true, mobile: true, designation: true, department: true, role: true, deletedAt: true, deletedById: true, deletedByName: true },
           orderBy: { deletedAt: "desc" }
         })
       : [];

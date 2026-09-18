@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     sheet.columns = [
       { header: "Employee Name", key: "name", width: 34 },
       { header: updateActions[action].header, key: "value", width: 30 },
-      { header: "Employee ID", key: "id", width: 28, hidden: true },
+      { header: "System Record ID", key: "id", width: 28, hidden: true },
       { header: "Bulk Action", key: "action", width: 24, hidden: true }
     ];
     employees.forEach(employee => sheet.addRow({ name: employee.name, value: "", id: employee.id, action }));

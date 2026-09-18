@@ -94,6 +94,7 @@ export async function saveUpload(file: File, folder: "photos" | "chat") {
 export function employeeSelect(e: any) {
   return {
     id: e.id,
+    employeeCode: e.employeeCode,
     name: e.name,
     mobile: e.mobile,
     role: e.role,

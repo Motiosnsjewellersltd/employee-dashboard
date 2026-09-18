@@ -18,6 +18,13 @@ function cleanBranch(value: unknown) {
   return branch;
 }
 
+function cleanEmployeeCode(value: unknown) {
+  const employeeCode = String(value || "").trim();
+  if (!employeeCode) return null;
+  if (!/^\d+$/.test(employeeCode)) throw new Error("Employee ID must contain numbers only.");
+  return employeeCode;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
@@ -28,7 +35,7 @@ export async function GET(req: NextRequest) {
     const where: any = { deletedAt: null };
 
     if (session.role === "EMPLOYEE") where.id = session.id;
-    if (q) where.OR = [{ name: { contains: q } }, { mobile: { contains: q } }];
+    if (q) where.OR = [{ employeeCode: { contains: q } }, { name: { contains: q } }, { mobile: { contains: q } }];
     if (designation && designation !== "All") where.designation = designation;
     if (status && status !== "All") where.status = status;
 
@@ -46,13 +53,22 @@ export async function POST(req: NextRequest) {
     await requireHrPermission(session.role, "hrCanAddEmployee", "HR is not allowed to add employees.");
     const data = await req.json();
     if (!data.name || !data.mobile) throw new Error("Name and mobile required.");
+    const employeeCode = cleanEmployeeCode(data.employeeCode);
     const password = data.password ? await bcrypt.hash(String(data.password), 10) : await bcrypt.hash("1234", 10);
     const existing = await prisma.employee.findUnique({ where: { mobile: String(data.mobile).trim() } });
     if (existing?.deletedAt) throw new Error("An employee with this mobile is in Recycle Bin. Restore that employee first.");
+    if (employeeCode) {
+      const codeOwner = await prisma.employee.findUnique({ where: { employeeCode } });
+      if (codeOwner && codeOwner.id !== existing?.id) {
+        if (codeOwner.deletedAt) throw new Error(`Employee ID ${employeeCode} is in Recycle Bin. Restore that employee first.`);
+        throw new Error(`Employee ID ${employeeCode} is already assigned to ${codeOwner.name}.`);
+      }
+    }
     const exitDate = parseDate(data.exitDate);
     const branch = cleanBranch(data.branch);
     const status = exitDate ? "INACTIVE" : (data.status || "ACTIVE");
     const employeeData = {
+        employeeCode,
         name: String(data.name).trim(),
         role: data.role || "EMPLOYEE",
         designation: data.designation || "",
@@ -75,7 +91,7 @@ export async function POST(req: NextRequest) {
       }
       return saved;
     });
-    await addAuditLog({ actorId: session.id, actorName: session.name, action: existing ? "UPDATE_EMPLOYEE" : "ADD_EMPLOYEE", target: employee.name, details: { mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status } });
+    await addAuditLog({ actorId: session.id, actorName: session.name, action: existing ? "UPDATE_EMPLOYEE" : "ADD_EMPLOYEE", target: employee.name, details: { employeeCode: employee.employeeCode, mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status } });
     if (!existing) {
       await addSystemNotification({
         actorId: session.id,

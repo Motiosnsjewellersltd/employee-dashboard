@@ -139,8 +139,9 @@ export async function GET(req: NextRequest) {
     });
 
     const lines = [
-      ["Name", "Mobile", "DOB", "Designation", "Department", "Branch", "DOJ", "Role", "Status"].map(csvCell).join(","),
+      ["Employee ID", "Name", "Mobile", "DOB", "Designation", "Department", "Branch", "DOJ", "Role", "Status"].map(csvCell).join(","),
       ...employees.map(e => [
+        e.employeeCode || "",
         e.name,
         e.mobile,
         e.dob ? e.dob.toLocaleDateString("en-GB") : "",

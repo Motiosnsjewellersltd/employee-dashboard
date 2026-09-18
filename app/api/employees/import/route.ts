@@ -38,23 +38,31 @@ export async function POST(req: NextRequest) {
     if (!file) throw new Error("Excel file required.");
     const rows = await rowsFromExcel(file);
     let added = 0, updated = 0, skipped = 0;
-    const seen = new Set<string>();
+    const seenMobiles = new Set<string>();
+    const seenCodes = new Set<string>();
 
     for (const r of rows) {
+      const employeeCode = String(excelCell(r, ["Employee ID", "EmployeeID", "Emp ID", "EmpID"]) || "").trim();
       const name = String(excelCell(r, ["Name", "Employee Name", "Name of Employee"])).trim();
       const mobile = String(excelCell(r, ["Mobile", "Mobile No.", "Username / Mobile", "Number"])).trim();
       if (!name || !mobile) { skipped++; continue; }
-      const key = mobile.replace(/\D/g, "") || `${name}-${mobile}`;
-      if (seen.has(key)) { skipped++; continue; }
-      seen.add(key);
+      if (employeeCode && !/^\d+$/.test(employeeCode)) { skipped++; continue; }
+      const mobileKey = mobile.replace(/\D/g, "") || `${name}-${mobile}`;
+      if (seenMobiles.has(mobileKey) || (employeeCode && seenCodes.has(employeeCode))) { skipped++; continue; }
+      seenMobiles.add(mobileKey);
+      if (employeeCode) seenCodes.add(employeeCode);
 
-      const old = await prisma.employee.findUnique({ where: { mobile } });
+      const oldByMobile = await prisma.employee.findUnique({ where: { mobile } });
+      const oldByCode = employeeCode ? await prisma.employee.findUnique({ where: { employeeCode } }) : null;
+      if (oldByMobile && oldByCode && oldByMobile.id !== oldByCode.id) { skipped++; continue; }
+      const old = oldByCode || oldByMobile;
       if (old?.deletedAt) { skipped++; continue; }
       const plainPass = String(excelCell(r, ["Password"]) || "1234").trim() || "1234";
       const rawBranch = String(excelCell(r, ["Branch", "Store"]) || "").trim().toUpperCase();
       if (rawBranch && !["MT", "JB", "VN"].includes(rawBranch)) { skipped++; continue; }
       const exitDate = parseDate(excelCell(r, ["Exit Date", "ExitDate", "Leave Date"]));
       const data = {
+        employeeCode: employeeCode || old?.employeeCode || null,
         name,
         mobile,
         password: await bcrypt.hash(plainPass, 10),
@@ -68,7 +76,9 @@ export async function POST(req: NextRequest) {
         status: exitDate || String(excelCell(r, ["Status"]) || "Active").toLowerCase().includes("inactive") ? "INACTIVE" as const : "ACTIVE" as const
       };
       await prisma.$transaction(async tx => {
-        const employee = await tx.employee.upsert({ where: { mobile }, update: data, create: data });
+        const employee = old
+          ? await tx.employee.update({ where: { id: old.id }, data })
+          : await tx.employee.create({ data });
         if (old && (old.branch || null) !== data.branch) {
           await tx.branchTransfer.create({ data: { employeeId: employee.id, fromBranch: old.branch || null, toBranch: data.branch || "UNASSIGNED", changedById: session.id, changedByName: session.name } });
         }

@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
           employee: {
             deletedAt: null,
             OR: [
+              { employeeCode: { contains: search } },
               { name: { contains: search } },
               { mobile: { contains: search } },
               { designation: { contains: search } },
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
           }
         } : {})
       },
-      include: { employee: { select: { id: true, name: true, mobile: true, designation: true, department: true } } },
+      include: { employee: { select: { id: true, employeeCode: true, name: true, mobile: true, designation: true, department: true } } },
       orderBy: [{ monthYear: "desc" }, { employee: { name: "asc" } }],
       take: 2000
     });
