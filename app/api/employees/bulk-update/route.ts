@@ -8,6 +8,7 @@ import { addAuditLog } from "@/lib/audit";
 import { addSystemNotification } from "@/lib/systemNotification";
 
 const updateActions = {
+  CHANGE_EMPLOYEE_CODE: { header: "Employee ID", file: "employee-id" },
   CHANGE_DEPARTMENT: { header: "Department", file: "department" },
   CHANGE_DESIGNATION: { header: "Designation", file: "designation" },
   CHANGE_DOJ: { header: "Joining Date (dd-mm-yyyy)", file: "joining-date" },
@@ -93,6 +94,10 @@ export async function GET(req: NextRequest) {
     });
     for (let rowNumber = 2; rowNumber <= employees.length + 1; rowNumber++) {
       const valueCell = sheet.getCell(`B${rowNumber}`);
+      if (action === "CHANGE_EMPLOYEE_CODE") {
+        valueCell.numFmt = "0";
+        valueCell.dataValidation = { type: "whole", operator: "between", allowBlank: true, formulae: [1, 999999999], showErrorMessage: true, errorTitle: "Invalid Employee ID", error: "Enter numbers only." };
+      }
       if (action === "CHANGE_DOJ" || action === "CHANGE_EXIT_DATE") valueCell.numFmt = "dd-mm-yyyy";
       if (action === "CHANGE_BRANCH") {
         valueCell.dataValidation = { type: "list", allowBlank: true, formulae: ['"MT,JB,VN"'], showErrorMessage: true, errorTitle: "Invalid Branch", error: "Choose MT, JB or VN." };
@@ -144,10 +149,11 @@ export async function POST(req: NextRequest) {
     const uniqueIds = Array.from(new Set(rows.map(row => row.id)));
     const employees = await prisma.employee.findMany({
       where: { id: { in: uniqueIds, not: session.id }, role: { not: "ADMIN" }, deletedAt: null },
-      select: { id: true, name: true, branch: true }
+      select: { id: true, name: true, employeeCode: true, branch: true }
     });
     const employeeMap = new Map(employees.map(employee => [employee.id, employee]));
     const seen = new Set<string>();
+    const seenEmployeeCodes = new Set<string>();
     const errors: string[] = [];
     let updated = 0;
     let skipped = 0;
@@ -158,7 +164,19 @@ export async function POST(req: NextRequest) {
       const employee = employeeMap.get(row.id);
       if (!employee) { skipped++; errors.push(`Row ${row.row}: employee not available.`); continue; }
       try {
-        if (action === "CHANGE_DEPARTMENT") {
+        if (action === "CHANGE_EMPLOYEE_CODE") {
+          const employeeCode = String(row.value).trim();
+          if (!/^\d+$/.test(employeeCode)) throw new Error("Employee ID must contain numbers only");
+          if (seenEmployeeCodes.has(employeeCode)) throw new Error(`Employee ID ${employeeCode} is repeated in this Excel`);
+          seenEmployeeCodes.add(employeeCode);
+          const codeOwner = await prisma.employee.findUnique({ where: { employeeCode } });
+          if (codeOwner && codeOwner.id !== employee.id) {
+            if (codeOwner.deletedAt) throw new Error(`Employee ID ${employeeCode} belongs to an employee in Recycle Bin`);
+            throw new Error(`Employee ID ${employeeCode} is already assigned to ${codeOwner.name}`);
+          }
+          if (employee.employeeCode === employeeCode) { skipped++; continue; }
+          await prisma.employee.update({ where: { id: employee.id }, data: { employeeCode } });
+        } else if (action === "CHANGE_DEPARTMENT") {
           const department = String(row.value).trim();
           if (!department) throw new Error("department is blank");
           await prisma.employee.update({ where: { id: employee.id }, data: { department } });

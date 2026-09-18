@@ -953,6 +953,7 @@ function EmployeeTable({ title, employees, clickable, onProfile, onEdit, onReloa
         <option value="">Bulk Actions</option>
         {canEdit && <option value="ACTIVATE">Activate</option>}
         {canEdit && <option value="DEACTIVATE">Deactivate</option>}
+        {canEdit && <option value="CHANGE_EMPLOYEE_CODE">Change Employee ID</option>}
         {canEdit && <option value="CHANGE_DEPARTMENT">Change Department</option>}
         {canEdit && <option value="CHANGE_DESIGNATION">Change Designation</option>}
         {canEdit && <option value="CHANGE_DOJ">Change Joining Date</option>}
