@@ -125,17 +125,44 @@ function mobileUrl(mobile?: string) {
   return num ? `https://wa.me/91${num.slice(-10)}` : "#";
 }
 
-function workingPeriod(doj?: string, exitDate?: string) {
-  if (!doj) return "-";
+function periodParts(doj?: string, exitDate?: string) {
+  if (!doj) return null;
   const [d, m, y] = doj.split("/").map(Number);
   const start = new Date(y, m - 1, d);
   const end = exitDate ? (() => { const [ed, em, ey] = exitDate.split("/").map(Number); return new Date(ey, em - 1, ed); })() : new Date();
-  if (isNaN(start.getTime())) return "-";
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
   let years = end.getFullYear() - start.getFullYear();
   let months = end.getMonth() - start.getMonth();
   let days = end.getDate() - start.getDate();
   if (days < 0) { months--; days += 30; }
   if (months < 0) { years--; months += 12; }
+  return { years, months, days };
+}
+
+function workingPeriod(doj?: string, exitDate?: string) {
+  const parts = periodParts(doj, exitDate);
+  return parts ? `${parts.years} Years ${parts.months} Month ${parts.days} Day` : "-";
+}
+
+function totalWorkingPeriod(history: any[], doj?: string, exitDate?: string) {
+  const cycles = history?.length ? history : [{ joiningDate: doj, exitDate, current: !exitDate }];
+  let years = 0;
+  let months = 0;
+  let days = 0;
+
+  for (const cycle of cycles) {
+    const parts = periodParts(cycle.joiningDate, cycle.current ? undefined : cycle.exitDate);
+    if (!parts) continue;
+    years += parts.years;
+    months += parts.months;
+    days += parts.days;
+  }
+
+  months += Math.floor(days / 30);
+  days %= 30;
+  years += Math.floor(months / 12);
+  months %= 12;
+
   return `${years} Years ${months} Month ${days} Day`;
 }
 
@@ -1594,6 +1621,16 @@ function ProfileModal({ user, leaves, loading, onClose, employees, onSwitch, can
 }
 
 function ProfileContent({ user, leaves, loading, canDeleteBranchHistory = false, onBranchHistoryDeleted }: { user: User; leaves: LeaveInfo | null; loading: boolean; canDeleteBranchHistory?: boolean; onBranchHistoryDeleted?: () => void | Promise<void> }) {
+  const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api(`/api/employees/${user.id}/employment-history`)
+      .then(data => { if (!cancelled) setEmploymentHistory(data.history || []); })
+      .catch(() => { if (!cancelled) setEmploymentHistory([]); });
+    return () => { cancelled = true; };
+  }, [user.id]);
+
   async function deleteBranchTransfer(item: NonNullable<LeaveInfo["branchHistory"]>[number]) {
     if (!(await requestConfirm("Delete transfer history", `Delete ${item.fromBranch || "Not Assigned"} → ${item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch} transfer record?`, "Delete"))) return;
     try {
@@ -1609,7 +1646,7 @@ function ProfileContent({ user, leaves, loading, canDeleteBranchHistory = false,
     <div className="profile-head">{avatar(user, true)}<div><h1>{user.name}</h1><p>{user.designation} | {user.department}{user.branch ? ` | ${user.branch}` : ""}</p></div><button className="light print-btn" onClick={() => window.print()}><span>▣</span> Print / PDF</button></div>
     <div className="profile-grid">
       <Info label="Employee ID" value={user.employeeCode || "-"} /><Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} />
-      <Info label="Working Period" value={workingPeriod(user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
+      <Info label="Working Period" value={totalWorkingPeriod(employmentHistory, user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
     </div>
     {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null}
     {user.role !== "ADMIN" && <>
