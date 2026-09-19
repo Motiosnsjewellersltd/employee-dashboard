@@ -167,7 +167,7 @@ export default function DashboardApp() {
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
-  const [filters, setFilters] = useState({ q: "", designation: "All" });
+  const [filters, setFilters] = useState({ q: "", status: "All", designation: "All", department: "All", branch: "All" });
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [profileLeaves, setProfileLeaves] = useState<LeaveInfo | null>(null);
@@ -489,9 +489,13 @@ export default function DashboardApp() {
   const activeEmployeeRows = employeeRows.filter(e => String(e.status || "").toUpperCase() === "ACTIVE");
   const designations = Array.from(new Set(employeeRows.map(e => e.designation).filter(Boolean) as string[])).sort();
   const departments = Array.from(new Set(employeeRows.map(e => e.department).filter(Boolean) as string[])).sort();
+  const branches = Array.from(new Set(employeeRows.map(e => e.branch).filter(Boolean) as string[])).sort();
   const filtered = employeeRows.filter(employee => {
     const query = filters.q.trim().toLowerCase();
+    if (filters.status !== "All" && String(employee.status || "").toUpperCase() !== filters.status) return false;
     if (filters.designation !== "All" && employee.designation !== filters.designation) return false;
+    if (filters.department !== "All" && employee.department !== filters.department) return false;
+    if (filters.branch !== "All" && employee.branch !== filters.branch) return false;
     if (query && !`${employee.employeeCode || ""} ${employee.name} ${employee.mobile} ${employee.designation || ""} ${employee.department || ""} ${employee.branch || ""}`.toLowerCase().includes(query)) return false;
     return true;
   });
@@ -615,9 +619,12 @@ export default function DashboardApp() {
         </div></div>
         <EmployeeTable title={dashboardFilter} employees={dashboardRows} clickable={false} onProfile={openProfile} onEdit={openEmployeeEdit} onReload={() => loadEmployees()} admin={false} showActions={false} searchTerm={dashboardQuick.q} loading={employeesLoading} canExport={canExportData} />
       </section>}
-      {section === "employees" && showEmployees && <section className="panel employees-section"><h1>Employees Details</h1><EmployeeTable title="" employees={filtered} allEmployees={employeeRows} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} canExport={canExportData} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} topControls={<div className="employee-list-filters">
+      {section === "employees" && showEmployees && <section className="panel employees-section"><h1>Employees Details</h1><EmployeeTable title="" employees={filtered} allEmployees={employeeRows} clickable onProfile={openProfile} onEdit={openEmployeeEdit} onReload={loadEmployees} admin={isAdmin} showActions bulkActions searchTerm={filters.q} canEdit={canEditEmployee} canDelete={canDeleteEmployee} canExport={canExportData} loading={employeesLoading} page={employeeListPage} onPageChange={setEmployeeListPage} topControls={<div className="employee-list-filters employee-report-filters">
         <input placeholder="Employee ID, name or mobile" value={filters.q} onChange={e => setFilters({ ...filters, q: e.target.value })} />
-        <select value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option>All</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
+        <select aria-label="Status filter" value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}><option value="All">All Status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select>
+        <select aria-label="Designation filter" value={filters.designation} onChange={e => setFilters({ ...filters, designation: e.target.value })}><option value="All">All Designations</option>{designations.map(d => <option key={d}>{d}</option>)}</select>
+        <select aria-label="Department filter" value={filters.department} onChange={e => setFilters({ ...filters, department: e.target.value })}><option value="All">All Departments</option>{departments.map(d => <option key={d}>{d}</option>)}</select>
+        <select aria-label="Branch filter" value={filters.branch} onChange={e => setFilters({ ...filters, branch: e.target.value })}><option value="All">All Branches</option>{branches.map(b => <option key={b}>{b}</option>)}</select>
       </div>} /></section>}
       {section === "add" && isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <AddUploadCenter canAddEmployee={canAddEmployee} canUploadLeaves={canUploadLeaves} onEmployeeSaved={() => { loadEmployees(); setSection("employees"); }} />}
       {section === "leaveRequests" && showLeaveRequests && <LeaveRequests session={session} canReview={canReviewLeaveRequests} />}
@@ -920,26 +927,28 @@ function EmployeeTable({ title, employees, allEmployees, clickable, onProfile, o
     }
   }
 
-  function exportCurrentView() {
+  async function exportCurrentView() {
     const keys = Object.keys(columnLabels).filter(key => visibleColumns[key] && key !== "photo");
-    const quote = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-    const lines = [
-      ["S.No", ...keys.map(key => columnLabels[key])].map(quote).join(","),
-      ...displayedEmployees.map((employee, index) => [
-        index + 1,
-        ...keys.map(key => (employee as any)[key] ?? "")
-      ].map(quote).join(","))
-    ];
-    const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const ExcelJS = await import("exceljs");
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Employees");
+    worksheet.addRow(["S.No", ...keys.map(key => columnLabels[key])]);
+    displayedEmployees.forEach((employee, index) => {
+      worksheet.addRow([index + 1, ...keys.map(key => (employee as any)[key] ?? "")]);
+    });
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.columns.forEach(column => { column.width = 18; });
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer as any], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `employees-current-view-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `employees-current-view-${new Date().toISOString().slice(0, 10)}.xlsx`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    showToast("Current employee view exported.", "success");
+    showToast("Filtered employee report exported to Excel.", "success");
   }
 
   const allSelected = pageRows.length > 0 && pageRows.every(e => selected.includes(e.id));
@@ -952,7 +961,7 @@ function EmployeeTable({ title, employees, allEmployees, clickable, onProfile, o
         <button className="light" type="button" onClick={() => setShowColumnMenu(value => !value)}>Columns</button>
         {showColumnMenu && <div className="column-menu">{Object.entries(columnLabels).map(([key, label]) => <label key={key}><input type="checkbox" checked={visibleColumns[key]} onChange={event => setVisibleColumns({ ...visibleColumns, [key]: event.target.checked })} /> {label}</label>)}</div>}
       </div>
-      {canExport && <button className="light" type="button" onClick={exportCurrentView}>Export Current View</button>}
+      {canExport && <button className="light" type="button" onClick={exportCurrentView}>Export Excel</button>}
       <label className="page-size-control">Rows <select value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
       </div>
     </div>

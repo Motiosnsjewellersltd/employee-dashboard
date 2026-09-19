@@ -24,6 +24,7 @@
   min-width:0;
 }
 .employee-list-filters input,.employee-list-filters select{height:42px;min-width:0;padding:8px 12px}
+.employee-report-filters{grid-template-columns:minmax(220px,1.45fr) repeat(4,minmax(125px,1fr));}
 .employee-list-header .employee-table-tools{margin:0;flex-wrap:nowrap;white-space:nowrap;padding:6px 8px}
 .employee-list-header .employee-table-tools .light{padding:8px 11px}
 .employee-list-header .page-size-control select{width:78px;padding:8px 28px 8px 9px}
@@ -44,6 +45,8 @@
 @media(min-width:901px) and (max-width:1250px){
   .employee-list-header{grid-template-columns:minmax(350px,1fr) auto}
   .employee-list-filters{grid-template-columns:minmax(200px,1fr) minmax(145px,190px)}
+  .employee-report-filters{grid-template-columns:repeat(3,minmax(140px,1fr));}
+  .employee-report-filters input{grid-column:1/-1;}
   .employee-list-header .employee-table-tools{gap:6px;padding:6px}
   .employee-list-header .employee-table-tools .light{padding:8px 9px;font-size:11px}
 }
@@ -51,6 +54,8 @@
 @media(max-width:900px){
   .employee-list-header,.employee-list-header.tools-only{display:block;margin-bottom:7px}
   .employee-list-filters{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:6px;margin-bottom:7px}
+  .employee-report-filters{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .employee-report-filters input{grid-column:1/-1;}
   .employee-list-filters input,.employee-list-filters select{height:40px;padding:8px 9px;font-size:11px}
   .employee-list-header .employee-table-tools{white-space:normal}
   .bulk-action-select{width:100%;grid-column:1/-1}
