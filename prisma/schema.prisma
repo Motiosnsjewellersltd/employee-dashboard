@@ -65,6 +65,7 @@ model Employee {
   decidedLeaveRequests LeaveRequest[]      @relation("LeaveRequestDecider")
   pushSubscriptions    PushSubscription[]
   branchTransfers      BranchTransfer[]
+  employmentHistory    EmploymentHistory[]
 
   @@index([name])
   @@index([role])
@@ -73,6 +74,25 @@ model Employee {
   @@index([branch])
   @@index([status])
   @@index([deletedAt])
+}
+
+
+model EmploymentHistory {
+  id            String   @id @default(cuid())
+  employeeId    String
+  joiningDate   DateTime?
+  exitDate      DateTime?
+  designation   String?
+  department    String?
+  branch        String?
+  recordedAt    DateTime @default(now())
+  recordedById  String?
+  recordedByName String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, joiningDate])
+  @@index([employeeId, exitDate])
 }
 
 model BranchTransfer {

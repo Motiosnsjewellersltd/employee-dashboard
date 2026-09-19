@@ -1054,12 +1054,30 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
   });
   const [file, setFile] = useState<File | null>(null);
   const [msg, setMsg] = useState("");
+  const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [rejoinOpen, setRejoinOpen] = useState(false);
+  const [rejoinDate, setRejoinDate] = useState("");
+  const [rejoinBusy, setRejoinBusy] = useState(false);
+
+  async function loadEmploymentHistory() {
+    setHistoryLoading(true);
+    try {
+      const data = await api(`/api/employees/${user.id}/employment-history`);
+      setEmploymentHistory(data.history || []);
+    } catch {
+      setEmploymentHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   useEffect(() => {
     const escClose = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", escClose);
+    loadEmploymentHistory();
     return () => window.removeEventListener("keydown", escClose);
-  }, [onClose]);
+  }, [onClose, user.id]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -1077,6 +1095,27 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
       await onSaved();
     } catch (e: any) {
       setMsg(e.message);
+    }
+  }
+
+  async function rejoinEmployee() {
+    if (!rejoinDate) { setMsg("Select rejoining date."); return; }
+    setRejoinBusy(true);
+    setMsg("Rejoining employee...");
+    try {
+      const payload = { ...form, doj: rejoinDate, exitDate: "", status: "ACTIVE", rejoin: true };
+      if (!payload.password) delete payload.password;
+      await api(`/api/employees/${user.id}`, { method: "PUT", body: JSON.stringify(payload) });
+      setForm({ ...form, doj: rejoinDate, exitDate: "", status: "ACTIVE" });
+      setRejoinOpen(false);
+      setRejoinDate("");
+      setMsg("Employee rejoined. Previous employment record saved in history.");
+      await loadEmploymentHistory();
+      await onSaved();
+    } catch (e: any) {
+      setMsg(e.message);
+    } finally {
+      setRejoinBusy(false);
     }
   }
 
@@ -1101,8 +1140,17 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
         <div><label>Status</label><select value={form.status} disabled={Boolean(form.exitDate)} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select>{form.exitDate && <small>Exit/Leave Date automatically sets status to INACTIVE.</small>}</div>
         <div><label>Update Photo</label><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
         <button className="primary">Update Employee</button>
+        {user.status === "INACTIVE" && user.exitDate && <button className="light" type="button" onClick={() => setRejoinOpen(value => !value)}>{rejoinOpen ? "Cancel Rejoin" : "Rejoin Employee"}</button>}
+        {rejoinOpen && <div className="bulk import-box">
+          <div><label>Rejoining Date</label><input type="date" min={toDateInputValue(user.exitDate)} value={rejoinDate} onChange={e => setRejoinDate(e.target.value)} /></div>
+          <button className="primary" type="button" disabled={rejoinBusy || !rejoinDate} onClick={rejoinEmployee}>{rejoinBusy ? "Rejoining..." : "Confirm Rejoin"}</button>
+        </div>}
         {msg && <div className="msg warn">{msg}</div>}
       </form>
+      <div className="panel" style={{ marginTop: 14 }}>
+        <h2>Employment History</h2>
+        {historyLoading ? <p>Loading history...</p> : employmentHistory.length ? <div className="table-wrap"><table><thead><tr><th>Cycle</th><th>Joining Date</th><th>Exit Date</th><th>Designation</th><th>Department</th><th>Branch</th></tr></thead><tbody>{employmentHistory.map(row => <tr key={row.id}><td>{row.cycle}{row.current ? " (Current)" : ""}</td><td>{row.joiningDate || "-"}</td><td>{row.current ? "Present" : (row.exitDate || "-")}</td><td>{row.designation || "-"}</td><td>{row.department || "-"}</td><td>{row.branch || "-"}</td></tr>)}</tbody></table></div> : <p>No previous employment cycle recorded.</p>}
+      </div>
     </div>
   </div>;
 }

@@ -47,7 +47,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     }
     await requireHrPermission(session.role, "hrCanEditEmployee", "HR is not allowed to edit employees.");
     if (data.password) await requireHrPermission(session.role, "hrCanResetPassword", "HR is not allowed to reset passwords.");
-    const before = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { status: true, branch: true } });
+    const before = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { status: true, branch: true, doj: true, exitDate: true, designation: true, department: true } });
     if (!before) throw new Error("Employee not found.");
     const employeeCode = cleanEmployeeCode(data.employeeCode);
     if (employeeCode) {
@@ -73,7 +73,30 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       status: exitDate ? "INACTIVE" : (data.status || "ACTIVE")
     };
     if (data.password) update.password = await bcrypt.hash(String(data.password), 10);
+    const isRejoin = data.rejoin === true;
+    if (isRejoin) {
+      if (before.status !== "INACTIVE" || !before.exitDate) throw new Error("Only an exited/inactive employee can be rejoined.");
+      if (!update.doj) throw new Error("Rejoining date is required.");
+      if (update.doj <= before.exitDate) throw new Error("Rejoining date must be after the previous exit date.");
+      update.exitDate = null;
+      update.status = "ACTIVE";
+    }
+
     const employee = await prisma.$transaction(async tx => {
+      if (isRejoin) {
+        await (tx as any).employmentHistory.create({
+          data: {
+            employeeId: id,
+            joiningDate: before.doj,
+            exitDate: before.exitDate,
+            designation: before.designation,
+            department: before.department,
+            branch: before.branch,
+            recordedById: session.id,
+            recordedByName: session.name
+          }
+        });
+      }
       const saved = await tx.employee.update({ where: { id }, data: update });
       if ((before.branch || null) !== branch) {
         await tx.branchTransfer.create({
@@ -82,7 +105,15 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       }
       return saved;
     });
-    await addAuditLog({ actorId: session.id, actorName: session.name, action: data.password ? "RESET_PASSWORD_OR_UPDATE_EMPLOYEE" : "UPDATE_EMPLOYEE", target: employee.name, details: { employeeCode: employee.employeeCode, mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status } });
+    await addAuditLog({ actorId: session.id, actorName: session.name, action: isRejoin ? "REJOIN_EMPLOYEE" : (data.password ? "RESET_PASSWORD_OR_UPDATE_EMPLOYEE" : "UPDATE_EMPLOYEE"), target: employee.name, details: { employeeCode: employee.employeeCode, mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status, rejoin: isRejoin || undefined } });
+    if (isRejoin) {
+      await addSystemNotification({
+        actorId: session.id,
+        action: "REJOIN_EMPLOYEE",
+        text: `Employee rejoined: ${employee.name} on ${String(data.doj || "")} by ${session.name}.`,
+        type: "INFORMATION"
+      });
+    }
     if (before.status !== employee.status) {
       await addSystemNotification({
         actorId: session.id,
