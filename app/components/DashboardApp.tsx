@@ -371,23 +371,6 @@ hrCanManageHelpTickets: "true",
   }, [session]);
 
 
-useEffect(() => {
-  if (!session) return;
-
-  if (
-    section !== "dashboard" &&
-    section !== "employees"
-  ) {
-    return;
-  }
-
-  const timer = window.setInterval(() => {
-    loadEmployees(false).catch(() => null);
-  }, 15000);
-
-  return () => window.clearInterval(timer);
-}, [session?.id, section]);
-
   useEffect(() => {
     if (!session) return;
     const inactivityMs = 30 * 60 * 1000;
@@ -1602,13 +1585,7 @@ function MyProfile({ user, leaves, loading, loadLeaves }: { user: User; leaves: 
 
 useEffect(() => {
   loadLeaves(user);
-
-  const timer = window.setInterval(() => {
-    loadLeaves(user);
-  }, 15000);
-
-  return () => window.clearInterval(timer);
-}, [user.id]);  
+}, [user.id]); 
 
   return <section className="panel"><ProfileContent user={user} leaves={leaves} loading={loading} /></section>;
 }
@@ -2113,12 +2090,6 @@ const canManage =
 
 useEffect(() => {
   load(true);
-
-  const timer = window.setInterval(() => {
-    load(false);
-  }, 10000);
-
-  return () => window.clearInterval(timer);
 }, []);
 
   async function submit(event: React.FormEvent) {
@@ -2604,12 +2575,6 @@ useEffect(() => {
   setMinimumLeaveDate(
     `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`
   );
-
-  const timer = window.setInterval(() => {
-    load();
-  }, 10000);
-
-  return () => window.clearInterval(timer);
 }, []);
 
 
@@ -3013,12 +2978,6 @@ function Notifications({ session, employees }: { session: User; employees: User[
 
  useEffect(() => {
   load();
-
-  const timer = window.setInterval(() => {
-    load();
-  }, 10000);
-
-  return () => window.clearInterval(timer);
 }, [filters, mode]);
 
   async function markRead(id?: string) {
