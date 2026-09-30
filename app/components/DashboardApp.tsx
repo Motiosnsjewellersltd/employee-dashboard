@@ -648,6 +648,15 @@ const canManageHelpTickets =
         {isAdmin && showDashboard && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} mobileBottomDuplicate />}
         {isAdmin && showEmployees && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} mobileBottomDuplicate />}
         {isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <MenuItem label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
+{showLeaveRequests && (
+  <MenuItem
+    label="Leave Requests"
+    icon="✓"
+    active={section === "leaveRequests"}
+    onClick={() => goto("leaveRequests")}
+    mobileBottomDuplicate={isAdmin}
+  />
+)}
         {showHelpTickets && (
   <MenuItem
     label="Help Tickets"
@@ -2027,9 +2036,13 @@ function HelpTickets({
   session: User;
   canManage?: boolean;
 }) {
-  const canManage =
-    session.role === "ADMIN" ||
-    (session.role === "HR" && allowedToManage);
+  const isManagerView =
+  session.role === "ADMIN" ||
+  session.role === "HR";
+
+const canManage =
+  session.role === "ADMIN" ||
+  (session.role === "HR" && allowedToManage);
 
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
