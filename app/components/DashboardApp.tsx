@@ -300,15 +300,20 @@ hrCanManageHelpTickets: "true",
     }
   }
 
-  async function loadEmployees() {
+  async function loadEmployees(showLoader = true) {
+  if (showLoader) {
     setEmployeesLoading(true);
-    try {
-      const data = await api("/api/employees");
-      setEmployees(data.employees);
-    } finally {
+  }
+
+  try {
+    const data = await api("/api/employees");
+    setEmployees(data.employees);
+  } finally {
+    if (showLoader) {
       setEmployeesLoading(false);
     }
   }
+}
 
   async function hasInternetAccess() {
     if (!window.navigator.onLine) return false;
@@ -377,7 +382,7 @@ useEffect(() => {
   }
 
   const timer = window.setInterval(() => {
-    loadEmployees().catch(() => null);
+    loadEmployees(false).catch(() => null);
   }, 15000);
 
   return () => window.clearInterval(timer);
@@ -654,7 +659,7 @@ const canManageHelpTickets =
     setDashboardQuick(current => ({ ...current, q: "" }));
     setEmployeeListPage(1);
     if (session?.role === "EMPLOYEE") setProfileUser(null);
-    if (s === "employees" || s === "dashboard") loadEmployees().catch(() => null);
+    if (s === "employees" || s === "dashboard") loadEmployees(false).catch(() => null);
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
 
@@ -2089,25 +2094,28 @@ const canManage =
   const [solution, setSolution] = useState("");
   const [msg, setMsg] = useState("");
 
-  async function load() {
+  async function load(showLoader = false) {
+  if (showLoader) {
     setLoading(true);
+  }
 
-    try {
-      const data = await api("/api/help-tickets");
-      setRows(data.tickets || []);
-    } catch (error: any) {
-      setRows([]);
-      setMsg(error.message);
-    } finally {
+  try {
+    const data = await api("/api/help-tickets");
+    setRows(data.tickets || []);
+  } catch (error: any) {
+    setMsg(error.message);
+  } finally {
+    if (showLoader) {
       setLoading(false);
     }
   }
+}
 
- useEffect(() => {
-  load();
+useEffect(() => {
+  load(true);
 
   const timer = window.setInterval(() => {
-    load();
+    load(false);
   }, 10000);
 
   return () => window.clearInterval(timer);
@@ -2568,17 +2576,22 @@ const [showEmployeeSummary, setShowEmployeeSummary] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [msg, setMsg] = useState("");
 
-  async function load() {
+  async function load(showLoader = false) {
+  if (showLoader) {
     setLoading(true);
-    try {
-      const data = await api("/api/leave-requests");
-      setRows(data.requests || []);
-    } catch {
-      setRows([]);
-    } finally {
+  }
+
+  try {
+    const data = await api("/api/leave-requests");
+    setRows(data.requests || []);
+  } catch {
+    // Background refresh fail ho to existing data ko screen se remove mat karo.
+  } finally {
+    if (showLoader) {
       setLoading(false);
     }
   }
+}
 
 
 useEffect(() => {
