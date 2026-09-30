@@ -2641,3 +2641,111 @@ html,body{width:100%;min-height:100%;max-width:100%;}
     font-size:9px;
   }
 }
+
+
+/* Employee mobile bottom navigation - always one line */
+@media (max-width: 900px) {
+  .employee-shell .mobile-bottom-nav {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden !important;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .employee-shell .mobile-bottom-nav .mobile-nav-item {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 7px 2px !important;
+    margin: 0 !important;
+    flex: none !important;
+  }
+
+  .employee-shell .mobile-bottom-nav .mobile-nav-item span {
+    font-size: 20px !important;
+    line-height: 1 !important;
+  }
+
+  .employee-shell .mobile-bottom-nav .mobile-nav-item b {
+    display: block !important;
+    margin-top: 5px !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+  }
+}
+
+
+
+.leave-request-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.leave-request-toolbar .leave-request-filters {
+  margin: 0;
+}
+
+.leave-summary-open-btn {
+  white-space: nowrap;
+}
+
+.leave-summary-modal {
+  width: min(1150px, 96vw);
+  max-height: 88vh;
+  overflow: auto;
+}
+
+.leave-summary-modal .leave-summary-table {
+  max-height: 65vh;
+}
+
+.selected-leave-employee-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f1f9ff;
+}
+
+@media (max-width: 900px) {
+  .leave-request-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .leave-request-toolbar .leave-request-filters {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+  }
+
+  .leave-request-toolbar .leave-request-filters button {
+    min-width: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 11px;
+  }
+
+  .leave-summary-open-btn {
+    width: 100%;
+  }
+
+  .leave-summary-modal {
+    width: 96vw;
+    max-height: 90vh;
+  }
+
+  .selected-leave-employee-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

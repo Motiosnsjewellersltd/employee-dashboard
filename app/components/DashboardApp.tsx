@@ -2209,7 +2209,7 @@ const canManage =
         )}
       </div>
 
-      {!canManage && (
+    {!isManagerView && (
         <form className="help-ticket-form" onSubmit={submit}>
           <div>
             <label>Category</label>
@@ -2300,7 +2300,7 @@ const canManage =
           <thead>
             <tr>
               <th>Ticket No.</th>
-              {canManage && <th>Employee</th>}
+              {isManagerView && <th>Employee</th>}
               <th>Category</th>
               <th>Subject</th>
               <th>Raised On</th>
@@ -2313,7 +2313,7 @@ const canManage =
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={canManage ? 8 : 7}>
+                <td colSpan={isManagerView ? 8 : 7}>
                   Loading help tickets...
                 </td>
               </tr>
@@ -2321,7 +2321,7 @@ const canManage =
 
             {!loading && filteredRows.length === 0 && (
               <tr>
-                <td colSpan={canManage ? 8 : 7}>
+                <td colSpan={isManagerView ? 8 : 7}>
                   No help tickets found.
                 </td>
               </tr>
@@ -2334,7 +2334,7 @@ const canManage =
                     <b>{row.ticketNumber}</b>
                   </td>
 
-                  {canManage && (
+                  {isManagerView && (
                     <td>
                       <b>{row.employee?.name || "-"}</b>
 
@@ -2528,6 +2528,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
   const [minimumLeaveDate, setMinimumLeaveDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+const [showEmployeeSummary, setShowEmployeeSummary] = useState(false);
   const [form, setForm] = useState({ fromDate: "", toDate: "", fromDayType: "FULL", toDayType: "FULL", reason: "" });
   const [rejecting, setRejecting] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -2708,93 +2709,159 @@ const visibleRows = rows.filter(row => {
       <div className="leave-request-submit"><button className="primary" disabled={saving}>{saving ? "Submitting..." : "Submit Leave Request"}</button></div>
     </form>}
 
-    {canReview && <div className="leave-request-filters"><button className={statusFilter === "ALL" ? "light active" : "light"} onClick={() => setStatusFilter("ALL")}>All</button><button className={statusFilter === "PENDING" ? "light active" : "light"} onClick={() => setStatusFilter("PENDING")}>Pending</button><button className={statusFilter === "APPROVED" ? "light active" : "light"} onClick={() => setStatusFilter("APPROVED")}>Approved</button><button className={statusFilter === "REJECTED" ? "light active" : "light"} onClick={() => setStatusFilter("REJECTED")}>Rejected</button></div>}
-    {msg && <div className="msg warn">{msg}</div>}
+    {canReview && (
+  <div className="leave-request-toolbar">
+    <div className="leave-request-filters">
+      <button
+        className={statusFilter === "ALL" ? "light active" : "light"}
+        onClick={() => setStatusFilter("ALL")}
+      >
+        All
+      </button>
 
-{canReview && (
-  <div className="leave-employee-summary">
-    <div className="leave-summary-title">
-      <div>
-        <h2>Employee Summary</h2>
-        <p className="hint">
-          Employee-wise leave request history and totals.
-        </p>
-      </div>
+      <button
+        className={statusFilter === "PENDING" ? "light active" : "light"}
+        onClick={() => setStatusFilter("PENDING")}
+      >
+        Pending
+      </button>
 
-      {selectedEmployeeId && (
-        <button
-          className="light"
-          type="button"
-          onClick={() => setSelectedEmployeeId("")}
-        >
-          Show All Employees
-        </button>
-      )}
+      <button
+        className={statusFilter === "APPROVED" ? "light active" : "light"}
+        onClick={() => setStatusFilter("APPROVED")}
+      >
+        Approved
+      </button>
+
+      <button
+        className={statusFilter === "REJECTED" ? "light active" : "light"}
+        onClick={() => setStatusFilter("REJECTED")}
+      >
+        Rejected
+      </button>
     </div>
 
-    <div className="table-wrap leave-summary-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Total Requests</th>
-            <th>Pending</th>
-            <th>Approved</th>
-            <th>Rejected</th>
-            <th>Requested Days</th>
-            <th>Approved Days</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+    <button
+      className="primary leave-summary-open-btn"
+      type="button"
+      onClick={() => setShowEmployeeSummary(true)}
+    >
+      Employee Summary
+    </button>
+  </div>
+)}
+    {msg && <div className="msg warn">{msg}</div>}
 
-        <tbody>
-          {employeeSummary.length ? (
-            employeeSummary.map((item: any) => (
-              <tr key={item.employeeId}>
-                <td>
-                  <b>{item.employee.name}</b>
+{canReview && showEmployeeSummary && (
+  <div
+    className="modal"
+    onMouseDown={() => setShowEmployeeSummary(false)}
+  >
+    <div
+      className="modal-box wide leave-summary-modal"
+      onMouseDown={event => event.stopPropagation()}
+    >
+      <button
+        className="close"
+        type="button"
+        onClick={() => setShowEmployeeSummary(false)}
+      >
+        ×
+      </button>
 
-                  <small className="leave-request-person-meta">
-                    {item.employee.designation || "Employee"}
-                    {item.employee.department
-                      ? ` · ${item.employee.department}`
-                      : ""}
-                  </small>
-                </td>
+      <div className="leave-summary-title">
+        <div>
+          <h2>Employee Summary</h2>
+          <p className="hint">
+            Employee-wise leave request history and totals.
+          </p>
+        </div>
+      </div>
 
-                <td>{item.total}</td>
-                <td>{item.pending}</td>
-                <td>{item.approved}</td>
-                <td>{item.rejected}</td>
-                <td>{item.requestedDays}</td>
-                <td>{item.approvedDays}</td>
+      <div className="table-wrap leave-summary-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Total Requests</th>
+              <th>Pending</th>
+              <th>Approved</th>
+              <th>Rejected</th>
+              <th>Requested Days</th>
+              <th>Approved Days</th>
+              <th>Action</th>
+            </tr>
+          </thead>
 
-                <td>
-                  <button
-                    className="light"
-                    type="button"
-                    onClick={() => {
-                      setSelectedEmployeeId(item.employeeId);
-                      setStatusFilter("ALL");
-                    }}
-                  >
-                    View Requests
-                  </button>
+          <tbody>
+            {employeeSummary.length ? (
+              employeeSummary.map((item: any) => (
+                <tr key={item.employeeId}>
+                  <td>
+                    <b>{item.employee.name}</b>
+
+                    <small className="leave-request-person-meta">
+                      {item.employee.designation || "Employee"}
+                      {item.employee.department
+                        ? ` · ${item.employee.department}`
+                        : ""}
+                    </small>
+                  </td>
+
+                  <td>{item.total}</td>
+                  <td>{item.pending}</td>
+                  <td>{item.approved}</td>
+                  <td>{item.rejected}</td>
+                  <td>{item.requestedDays}</td>
+                  <td>{item.approvedDays}</td>
+
+                  <td>
+                    <button
+                      className="light"
+                      type="button"
+                      onClick={() => {
+                        setSelectedEmployeeId(item.employeeId);
+                        setStatusFilter("ALL");
+                        setShowEmployeeSummary(false);
+                      }}
+                    >
+                      View Requests
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={8}>
+                  No employee leave requests found.
                 </td>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={8}>
-                No employee leave requests found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 )}
+
+{canReview && selectedEmployeeId && (
+  <div className="selected-leave-employee-bar">
+    <b>
+      Showing selected employee&apos;s leave requests
+    </b>
+
+    <button
+      className="light"
+      type="button"
+      onClick={() => setSelectedEmployeeId("")}
+    >
+      Show All Requests
+    </button>
+  </div>
+)}
+
+
+
     <div className="table-wrap leave-request-table"><table><thead><tr>{canReview && <th>Employee / Manager</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Decision</th>{canReview && <th>Action</th>}</tr></thead><tbody>
       {loading && <tr><td colSpan={canReview ? 8 : 7}>Loading leave requests...</td></tr>}
       {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 8 : 7}>No leave requests found.</td></tr>}
