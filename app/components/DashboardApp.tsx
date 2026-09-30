@@ -29,13 +29,36 @@ type LeaveInfo = {
   branchHistory?: { id: string; fromBranch?: string | null; toBranch: string; changedByName?: string | null; transferredAt: string }[];
 };
 
-type Section = "dashboard" | "employees" | "add" | "leaves" | "leaveRequests" | "reminder" | "notifications" | "chat" | "reset" | "audit" | "loginHistory" | "export" | "reports" | "permissions" | "recycle" | "systemHealth" | "profile";
+type Section =
+  | "dashboard"
+  | "employees"
+  | "add"
+  | "leaves"
+  | "leaveRequests"
+  | "helpTickets"
+  | "reminder"
+  | "notifications"
+  | "chat"
+  | "reset"
+  | "audit"
+  | "loginHistory"
+  | "export"
+  | "reports"
+  | "permissions"
+  | "recycle"
+  | "systemHealth"
+  | "profile";
 
 function initialSection(user: User): Section {
   const fallback: Section = user.role === "EMPLOYEE" ? "profile" : "dashboard";
   if (typeof window === "undefined") return fallback;
   const requested = new URLSearchParams(window.location.search).get("section") as Section | null;
-  const common: Section[] = ["leaveRequests", "notifications", "chat"];
+  const common: Section[] = [
+  "leaveRequests",
+  "helpTickets",
+  "notifications",
+  "chat"
+];
   if (requested && common.includes(requested)) return requested;
   return fallback;
 }
@@ -47,6 +70,7 @@ function hrSectionAllowed(section: Section, permissions: Record<string, string>)
     employees: enabled("hrMenuEmployees"),
     add: enabled("hrMenuAddUpload") && (enabled("hrCanAddEmployee") || enabled("hrCanUploadLeaves")),
     leaveRequests: enabled("hrMenuLeaveRequests"),
+helpTickets: enabled("hrMenuHelpTickets"),
     reminder: enabled("hrMenuReminder"),
     notifications: enabled("hrMenuNotifications"),
     chat: enabled("hrMenuChat"),
@@ -58,7 +82,20 @@ function hrSectionAllowed(section: Section, permissions: Record<string, string>)
 }
 
 function firstHrSection(permissions: Record<string, string>): Section {
-  const order: Section[] = ["dashboard", "employees", "add", "leaveRequests", "reminder", "notifications", "chat", "reset", "loginHistory", "recycle"];
+  const order: Section[] = [
+    "dashboard",
+    "employees",
+    "add",
+    "leaveRequests",
+    "helpTickets",
+    "reminder",
+    "notifications",
+    "chat",
+    "reset",
+    "loginHistory",
+    "recycle"
+  ];
+
   return order.find(item => hrSectionAllowed(item, permissions)) || "dashboard";
 }
 
@@ -206,6 +243,7 @@ export default function DashboardApp() {
     hrMenuEmployees: "true",
     hrMenuAddUpload: "true",
     hrMenuLeaveRequests: "true",
+hrMenuHelpTickets: "true",
     hrMenuReminder: "true",
     hrMenuNotifications: "true",
     hrMenuChat: "true",
@@ -218,6 +256,7 @@ export default function DashboardApp() {
     hrCanResetPassword: "false",
     hrCanUploadLeaves: "true",
     hrCanReviewLeaveRequests: "true",
+hrCanManageHelpTickets: "true",
     hrCanCreateNotifications: "true",
     hrCanViewLoginHistory: "true",
     hrCanExportData: "true",
@@ -494,6 +533,8 @@ export default function DashboardApp() {
   const showEmployees = hrAllowed("hrMenuEmployees");
   const showAddUpload = hrAllowed("hrMenuAddUpload");
   const showLeaveRequests = session.role === "EMPLOYEE" || hrAllowed("hrMenuLeaveRequests");
+const showHelpTickets =
+  session.role === "EMPLOYEE" || hrAllowed("hrMenuHelpTickets");
   const showReminder = hrAllowed("hrMenuReminder");
   const showNotifications = session.role === "EMPLOYEE" || hrAllowed("hrMenuNotifications");
   const showChat = session.role === "EMPLOYEE" || hrAllowed("hrMenuChat");
@@ -506,6 +547,8 @@ export default function DashboardApp() {
   const canResetPassword = isSuperAdmin || rolePermissions.hrCanResetPassword === "true";
   const canUploadLeaves = isSuperAdmin || rolePermissions.hrCanUploadLeaves === "true";
   const canReviewLeaveRequests = isSuperAdmin || rolePermissions.hrCanReviewLeaveRequests === "true";
+const canManageHelpTickets =
+  isSuperAdmin || rolePermissions.hrCanManageHelpTickets === "true";
   const canCreateNotifications = isSuperAdmin || rolePermissions.hrCanCreateNotifications === "true";
   const canViewLoginHistory = isSuperAdmin || rolePermissions.hrCanViewLoginHistory === "true";
   const canExportData = isSuperAdmin || rolePermissions.hrCanExportData === "true";
@@ -532,7 +575,7 @@ export default function DashboardApp() {
   const sectionTitles: Record<Section, string> = {
     dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders",
     notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login / Export",
-    export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile",
+    export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile",helpTickets: "Help Tickets",
     leaveRequests: "Leave Requests"
   };
 
@@ -605,7 +648,15 @@ export default function DashboardApp() {
         {isAdmin && showDashboard && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} mobileBottomDuplicate />}
         {isAdmin && showEmployees && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} mobileBottomDuplicate />}
         {isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <MenuItem label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
-        {showLeaveRequests && <MenuItem label="Leave Requests" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} mobileBottomDuplicate={isAdmin} />}
+        {showHelpTickets && (
+  <MenuItem
+    label="Help Tickets"
+    icon="?"
+    active={section === "helpTickets"}
+    onClick={() => goto("helpTickets")}
+    mobileBottomDuplicate={isAdmin}
+  />
+)}
         {isAdmin && showReminder && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
         {showNotifications && <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} mobileBottomDuplicate={isAdmin} />}
         {showChat && <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
@@ -655,6 +706,12 @@ export default function DashboardApp() {
       </div>} /></section>}
       {section === "add" && isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <AddUploadCenter canAddEmployee={canAddEmployee} canUploadLeaves={canUploadLeaves} onEmployeeSaved={() => { loadEmployees(); setSection("employees"); }} />}
       {section === "leaveRequests" && showLeaveRequests && <LeaveRequests session={session} canReview={canReviewLeaveRequests} />}
+{section === "helpTickets" && showHelpTickets && (
+  <HelpTickets
+    session={session}
+    canManage={canManageHelpTickets}
+  />
+)}
       {section === "reminder" && isAdmin && showReminder && <Reminder employees={activeEmployeeRows} canCreateMessage={canCreateNotifications} />}
       {section === "notifications" && showNotifications && <Notifications session={session} employees={activeEmployeeRows} />}
       {section === "chat" && showChat && <Chat session={session} />}
@@ -670,6 +727,15 @@ export default function DashboardApp() {
         {showEmployees && <MobileNavItem label="Team" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
       </> : <MobileNavItem label="Profile" icon="◎" active={section === "profile"} onClick={() => goto("profile")} />}
       {showLeaveRequests && <MobileNavItem label="Leave" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />}
+
+{showHelpTickets && (
+  <MobileNavItem
+    label="Help"
+    icon="?"
+    active={section === "helpTickets"}
+    onClick={() => goto("helpTickets")}
+  />
+)}
       {showNotifications && <MobileNavItem label="Alerts" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />}
       {!isAdmin && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
       {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
@@ -1928,6 +1994,7 @@ function PermissionsPanel({ session }: { session: User }) {
     ["hrMenuEmployees", "Employees Details"],
     ["hrMenuAddUpload", "Add / Upload"],
     ["hrMenuLeaveRequests", "Leave Requests"],
+["hrMenuHelpTickets", "Help Tickets"],
     ["hrMenuReminder", "Reminder"],
     ["hrMenuNotifications", "Notification Center"],
     ["hrMenuChat", "Chat"],
@@ -1942,6 +2009,7 @@ function PermissionsPanel({ session }: { session: User }) {
     ["hrCanResetPassword", "Reset employee passwords"],
     ["hrCanUploadLeaves", "Upload, add, edit or delete leave records"],
     ["hrCanReviewLeaveRequests", "Approve or reject leave requests"],
+["hrCanManageHelpTickets", "View, update and resolve Help Tickets"],
     ["hrCanCreateNotifications", "Create messages / notifications"],
     ["hrCanViewLoginHistory", "View login history"],
     ["hrCanExportData", "Export system and employee data"],
@@ -1952,6 +2020,493 @@ function PermissionsPanel({ session }: { session: User }) {
   return <section className="panel permission-panel"><h1>HR Permission Control</h1><p className="permission-help">Choose which menu options HR can see and which actions HR can perform.</p><div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save HR Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
 }
 
+function HelpTickets({
+  session,
+  canManage: allowedToManage = false
+}: {
+  session: User;
+  canManage?: boolean;
+}) {
+  const canManage =
+    session.role === "ADMIN" ||
+    (session.role === "HR" && allowedToManage);
+
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [search, setSearch] = useState("");
+
+  const [form, setForm] = useState({
+    category: "GENERAL",
+    subject: "",
+    description: ""
+  });
+
+  const [editingTicket, setEditingTicket] = useState<any | null>(null);
+  const [editStatus, setEditStatus] = useState("IN_PROGRESS");
+  const [solution, setSolution] = useState("");
+  const [msg, setMsg] = useState("");
+
+  async function load() {
+    setLoading(true);
+
+    try {
+      const data = await api("/api/help-tickets");
+      setRows(data.tickets || []);
+    } catch (error: any) {
+      setRows([]);
+      setMsg(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+
+    if (!form.subject.trim() || !form.description.trim()) {
+      setMsg("Subject and ticket details are required.");
+      return;
+    }
+
+    setSaving(true);
+    setMsg("");
+
+    try {
+      const data = await api("/api/help-tickets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(form)
+      });
+
+      setForm({
+        category: "GENERAL",
+        subject: "",
+        description: ""
+      });
+
+      setMsg(`Ticket ${data.ticket.ticketNumber} raised successfully.`);
+      showToast(`Ticket ${data.ticket.ticketNumber} raised successfully.`, "success");
+
+      await load();
+    } catch (error: any) {
+      setMsg(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openUpdate(row: any, status: string) {
+    setEditingTicket(row);
+    setEditStatus(status);
+    setSolution(status === "RESOLVED" ? row.solution || "" : "");
+  }
+
+  async function updateTicket() {
+    if (!editingTicket) return;
+
+    if (editStatus === "RESOLVED" && !solution.trim()) {
+      setMsg("Solution is required before resolving the ticket.");
+      return;
+    }
+
+    setSaving(true);
+    setMsg("");
+
+    try {
+      await api("/api/help-tickets", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: editingTicket.id,
+          status: editStatus,
+          solution
+        })
+      });
+
+      setEditingTicket(null);
+      setSolution("");
+
+      showToast("Help ticket updated.", "success");
+
+      await load();
+    } catch (error: any) {
+      setMsg(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function displayDateTime(value?: string) {
+    if (!value) return "-";
+
+    return new Date(value).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  const filteredRows = rows.filter(row => {
+    if (statusFilter !== "ALL" && row.status !== statusFilter) {
+      return false;
+    }
+
+    const query = search.trim().toLowerCase();
+
+    if (
+      query &&
+      !`${row.ticketNumber} ${row.subject} ${row.description} ${row.employee?.name || ""}`
+        .toLowerCase()
+        .includes(query)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return (
+    <section className="panel help-ticket-panel">
+      <div className="help-ticket-title">
+        <div>
+          <h1>Help Tickets</h1>
+          <p className="hint">
+            {canManage
+              ? "View and manage employee help tickets."
+              : "Raise a help request and track its status here."}
+          </p>
+        </div>
+
+        {canManage && (
+          <span className="help-open-count">
+            {rows.filter(row => row.status !== "RESOLVED").length} Open
+          </span>
+        )}
+      </div>
+
+      {!canManage && (
+        <form className="help-ticket-form" onSubmit={submit}>
+          <div>
+            <label>Category</label>
+
+            <select
+              value={form.category}
+              onChange={event =>
+                setForm({
+                  ...form,
+                  category: event.target.value
+                })
+              }
+            >
+              <option value="GENERAL">General</option>
+              <option value="HR">HR</option>
+              <option value="PAYROLL">Payroll</option>
+              <option value="LEAVE">Leave</option>
+              <option value="ATTENDANCE">Attendance</option>
+              <option value="IT">IT / System</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Subject</label>
+
+            <input
+              maxLength={150}
+              placeholder="Enter ticket subject"
+              value={form.subject}
+              onChange={event =>
+                setForm({
+                  ...form,
+                  subject: event.target.value
+                })
+              }
+            />
+          </div>
+
+          <div className="help-description">
+            <label>Details</label>
+
+            <textarea
+              rows={4}
+              placeholder="Explain your issue"
+              value={form.description}
+              onChange={event =>
+                setForm({
+                  ...form,
+                  description: event.target.value
+                })
+              }
+            />
+          </div>
+
+          <button className="primary" disabled={saving}>
+            {saving ? "Submitting..." : "Raise Ticket"}
+          </button>
+        </form>
+      )}
+
+      <div className="help-ticket-filters">
+        <input
+          placeholder={
+            canManage
+              ? "Search ticket no., employee, subject..."
+              : "Search your tickets..."
+          }
+          value={search}
+          onChange={event => setSearch(event.target.value)}
+        />
+
+        <select
+          value={statusFilter}
+          onChange={event => setStatusFilter(event.target.value)}
+        >
+          <option value="ALL">All Status</option>
+          <option value="OPEN">Open</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="RESOLVED">Resolved</option>
+        </select>
+      </div>
+
+      {msg && <div className="msg warn">{msg}</div>}
+
+      <div className="table-wrap help-ticket-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket No.</th>
+              {canManage && <th>Employee</th>}
+              <th>Category</th>
+              <th>Subject</th>
+              <th>Raised On</th>
+              <th>Status</th>
+              <th>Resolution</th>
+              {canManage && <th>Action</th>}
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={canManage ? 8 : 7}>
+                  Loading help tickets...
+                </td>
+              </tr>
+            )}
+
+            {!loading && filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={canManage ? 8 : 7}>
+                  No help tickets found.
+                </td>
+              </tr>
+            )}
+
+            {!loading &&
+              filteredRows.map(row => (
+                <tr key={row.id}>
+                  <td>
+                    <b>{row.ticketNumber}</b>
+                  </td>
+
+                  {canManage && (
+                    <td>
+                      <b>{row.employee?.name || "-"}</b>
+
+                      <small className="help-person-meta">
+                        ID: {row.employee?.employeeCode || "-"}
+                        {row.employee?.designation
+                          ? ` · ${row.employee.designation}`
+                          : ""}
+                      </small>
+                    </td>
+                  )}
+
+                  <td>{row.category || "-"}</td>
+
+                  <td>
+                    <b>{row.subject}</b>
+
+                    <small className="help-description-text">
+                      {row.description}
+                    </small>
+                  </td>
+
+                  <td>{displayDateTime(row.createdAt)}</td>
+
+                  <td>
+                    <span
+                      className={`help-status ${String(
+                        row.status
+                      ).toLowerCase()}`}
+                    >
+                      {row.status === "IN_PROGRESS"
+                        ? "IN PROGRESS"
+                        : row.status}
+                    </span>
+                  </td>
+
+                  <td>
+                    {row.status === "RESOLVED" ? (
+                      <>
+                        <b>{row.resolvedBy?.name || "-"}</b>
+
+                        <small className="help-resolution-meta">
+                          {displayDateTime(row.resolvedAt)}
+                        </small>
+
+                        <small className="help-solution-text">
+                          Solution: {row.solution || "-"}
+                        </small>
+                      </>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+
+                  {canManage && (
+                    <td>
+                      <div className="action-buttons">
+                        {row.status === "OPEN" && (
+                          <button
+                            className="light"
+                            disabled={saving}
+                            onClick={() =>
+                              openUpdate(row, "IN_PROGRESS")
+                            }
+                          >
+                            Start
+                          </button>
+                        )}
+
+                        {row.status !== "RESOLVED" && (
+                          <button
+                            className="primary small"
+                            disabled={saving}
+                            onClick={() =>
+                              openUpdate(row, "RESOLVED")
+                            }
+                          >
+                            Resolve
+                          </button>
+                        )}
+
+                        {row.status === "RESOLVED" && (
+                          <button
+                            className="light"
+                            disabled={saving}
+                            onClick={() =>
+                              openUpdate(row, "OPEN")
+                            }
+                          >
+                            Reopen
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+
+      {editingTicket && (
+        <div
+          className="modal"
+          onMouseDown={() => setEditingTicket(null)}
+        >
+          <div
+            className="modal-box help-ticket-modal"
+            onMouseDown={event => event.stopPropagation()}
+          >
+            <button
+              className="close"
+              type="button"
+              onClick={() => setEditingTicket(null)}
+            >
+              ×
+            </button>
+
+            <h2>{editingTicket.ticketNumber}</h2>
+
+            <p>
+              <b>{editingTicket.employee?.name}</b>
+              {" · "}
+              {editingTicket.subject}
+            </p>
+
+            <label>Status</label>
+
+            <select
+              value={editStatus}
+              onChange={event => {
+                setEditStatus(event.target.value);
+
+                if (event.target.value !== "RESOLVED") {
+                  setSolution("");
+                }
+              }}
+            >
+              <option value="OPEN">Open</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="RESOLVED">Resolved</option>
+            </select>
+
+            {editStatus === "RESOLVED" && (
+              <>
+                <label>Solution</label>
+
+                <textarea
+                  rows={5}
+                  autoFocus
+                  placeholder="Write complete solution / action taken"
+                  value={solution}
+                  onChange={event => setSolution(event.target.value)}
+                />
+              </>
+            )}
+
+            <div className="help-ticket-modal-actions">
+              <button
+                className="light"
+                type="button"
+                onClick={() => setEditingTicket(null)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="primary"
+                type="button"
+                disabled={
+                  saving ||
+                  (editStatus === "RESOLVED" && !solution.trim())
+                }
+                onClick={updateTicket}
+              >
+                {saving ? "Saving..." : "Update Ticket"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function LeaveRequests({ session, canReview: allowedToReview = false }: { session: User; canReview?: boolean }) {
   const canReview = session.role === "ADMIN" || (session.role === "HR" && allowedToReview);
   const [rows, setRows] = useState<any[]>([]);
@@ -1959,6 +2514,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
   const [saving, setSaving] = useState(false);
   const [minimumLeaveDate, setMinimumLeaveDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [form, setForm] = useState({ fromDate: "", toDate: "", fromDayType: "FULL", toDayType: "FULL", reason: "" });
   const [rejecting, setRejecting] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -2060,7 +2616,72 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
     return calendarDays - (fromDayType === "HALF" ? 0.5 : 0) - (toDayType === "HALF" ? 0.5 : 0);
   }
 
-  const visibleRows = statusFilter === "ALL" ? rows : rows.filter(row => row.status === statusFilter);
+  const employeeSummary = canReview
+  ? Array.from(
+      rows.reduce((map: Map<string, any>, row: any) => {
+        const employeeId = row.requester?.id;
+
+        if (!employeeId) return map;
+
+        const existing =
+          map.get(employeeId) || {
+            employeeId,
+            employee: row.requester,
+            total: 0,
+            pending: 0,
+            approved: 0,
+            rejected: 0,
+            requestedDays: 0,
+            approvedDays: 0
+          };
+
+        const days = leaveDayCount(
+          row.fromDate,
+          row.toDate,
+          row.fromDayType,
+          row.toDayType
+        );
+
+        existing.total += 1;
+        existing.requestedDays += days;
+
+        if (row.status === "PENDING") {
+          existing.pending += 1;
+        }
+
+        if (row.status === "APPROVED") {
+          existing.approved += 1;
+          existing.approvedDays += days;
+        }
+
+        if (row.status === "REJECTED") {
+          existing.rejected += 1;
+        }
+
+        map.set(employeeId, existing);
+
+        return map;
+      }, new Map<string, any>())
+    ).map(([, value]: any) => value)
+  : [];
+
+const visibleRows = rows.filter(row => {
+  if (
+    statusFilter !== "ALL" &&
+    row.status !== statusFilter
+  ) {
+    return false;
+  }
+
+  if (
+    selectedEmployeeId &&
+    row.requester?.id !== selectedEmployeeId
+  ) {
+    return false;
+  }
+
+  return true;
+});
   const formDays = leaveDayCount(form.fromDate, form.toDate, form.fromDayType, form.toDayType);
 
   return <section className="panel leave-request-panel">
@@ -2077,6 +2698,90 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
     {canReview && <div className="leave-request-filters"><button className={statusFilter === "ALL" ? "light active" : "light"} onClick={() => setStatusFilter("ALL")}>All</button><button className={statusFilter === "PENDING" ? "light active" : "light"} onClick={() => setStatusFilter("PENDING")}>Pending</button><button className={statusFilter === "APPROVED" ? "light active" : "light"} onClick={() => setStatusFilter("APPROVED")}>Approved</button><button className={statusFilter === "REJECTED" ? "light active" : "light"} onClick={() => setStatusFilter("REJECTED")}>Rejected</button></div>}
     {msg && <div className="msg warn">{msg}</div>}
 
+{canReview && (
+  <div className="leave-employee-summary">
+    <div className="leave-summary-title">
+      <div>
+        <h2>Employee Summary</h2>
+        <p className="hint">
+          Employee-wise leave request history and totals.
+        </p>
+      </div>
+
+      {selectedEmployeeId && (
+        <button
+          className="light"
+          type="button"
+          onClick={() => setSelectedEmployeeId("")}
+        >
+          Show All Employees
+        </button>
+      )}
+    </div>
+
+    <div className="table-wrap leave-summary-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Total Requests</th>
+            <th>Pending</th>
+            <th>Approved</th>
+            <th>Rejected</th>
+            <th>Requested Days</th>
+            <th>Approved Days</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {employeeSummary.length ? (
+            employeeSummary.map((item: any) => (
+              <tr key={item.employeeId}>
+                <td>
+                  <b>{item.employee.name}</b>
+
+                  <small className="leave-request-person-meta">
+                    {item.employee.designation || "Employee"}
+                    {item.employee.department
+                      ? ` · ${item.employee.department}`
+                      : ""}
+                  </small>
+                </td>
+
+                <td>{item.total}</td>
+                <td>{item.pending}</td>
+                <td>{item.approved}</td>
+                <td>{item.rejected}</td>
+                <td>{item.requestedDays}</td>
+                <td>{item.approvedDays}</td>
+
+                <td>
+                  <button
+                    className="light"
+                    type="button"
+                    onClick={() => {
+                      setSelectedEmployeeId(item.employeeId);
+                      setStatusFilter("ALL");
+                    }}
+                  >
+                    View Requests
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={8}>
+                No employee leave requests found.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
     <div className="table-wrap leave-request-table"><table><thead><tr>{canReview && <th>Employee / Manager</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Decision</th>{canReview && <th>Action</th>}</tr></thead><tbody>
       {loading && <tr><td colSpan={canReview ? 8 : 7}>Loading leave requests...</td></tr>}
       {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 8 : 7}>No leave requests found.</td></tr>}
@@ -2084,7 +2789,27 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
         {canReview && <td><b>{row.requester.name}</b><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
         <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}</td>
         <td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
-        <td>{row.status === "PENDING" ? "-" : <><b>{row.decidedBy?.name || "-"}</b>{row.status === "REJECTED" && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
+        <td>
+  {row.status === "PENDING" ? (
+    "-"
+  ) : (
+    <>
+      <b>{row.decidedBy?.name || "-"}</b>
+
+      <small className="leave-decision-date">
+        {row.decidedAt
+          ? displayDate(row.decidedAt)
+          : "-"}
+      </small>
+
+      {row.status === "REJECTED" && (
+        <small className="leave-rejection-text">
+          Reason: {row.rejectionReason}
+        </small>
+      )}
+    </>
+  )}
+</td>
         {canReview && <td>{row.status === "PENDING" ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : "Completed"}</td>}
       </tr>)}
     </tbody></table></div>

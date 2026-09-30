@@ -32,6 +32,12 @@ enum LeaveRequestStatus {
   REJECTED
 }
 
+enum HelpTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
 model Employee {
   id            String         @id @default(cuid())
   employeeCode  String?        @unique
@@ -66,6 +72,8 @@ model Employee {
   pushSubscriptions    PushSubscription[]
   branchTransfers      BranchTransfer[]
   employmentHistory    EmploymentHistory[]
+  helpTickets         HelpTicket[] @relation("HelpTicketOwner")
+  resolvedHelpTickets HelpTicket[] @relation("HelpTicketResolver")
 
   @@index([name])
   @@index([role])
@@ -295,4 +303,25 @@ model PermissionSetting {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model HelpTicket {
+  id           String           @id @default(cuid())
+  ticketNumber String           @unique
+  employeeId   String
+  category     String
+  subject      String
+  description  String           @db.Text
+  status       HelpTicketStatus @default(OPEN)
+  solution     String?          @db.Text
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  employee   Employee  @relation("HelpTicketOwner", fields: [employeeId], references: [id], onDelete: Cascade)
+  resolvedBy Employee? @relation("HelpTicketResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, createdAt])
+  @@index([status, createdAt])
 }

@@ -2445,3 +2445,199 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .hr-shell .leave-request-table .action-buttons{display:flex;flex-wrap:wrap;gap:5px;white-space:normal}
   .hr-shell .leave-request-table .action-buttons button{min-width:0;padding:7px 9px!important;font-size:10px}
 }
+/* Help Tickets + Employee Leave Summary */
+
+.help-ticket-title,
+.leave-summary-title{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:16px;
+}
+
+.help-ticket-title h1,
+.leave-summary-title h2{
+  margin-bottom:4px;
+}
+
+.help-open-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:36px;
+  padding:7px 13px;
+  border-radius:999px;
+  border:1px solid #b9def7;
+  background:#edf8ff;
+  color:#0b5fa5;
+  font-size:12px;
+  font-weight:900;
+}
+
+.help-ticket-form{
+  display:grid;
+  grid-template-columns:
+    minmax(180px,.65fr)
+    minmax(260px,1.35fr);
+  gap:12px;
+  margin-bottom:18px;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#f8fcff;
+}
+
+.help-ticket-form label{
+  margin-top:0;
+}
+
+.help-ticket-form .help-description,
+.help-ticket-form>.primary{
+  grid-column:1/-1;
+}
+
+.help-ticket-form>.primary{
+  justify-self:start;
+  min-width:160px;
+}
+
+.help-ticket-filters{
+  display:grid;
+  grid-template-columns:
+    minmax(250px,1fr)
+    minmax(160px,230px);
+  gap:10px;
+  margin:0 0 14px;
+}
+
+.help-ticket-table{
+  max-height:65vh;
+}
+
+.help-ticket-table table{
+  min-width:1150px;
+}
+
+.help-person-meta,
+.help-description-text,
+.help-resolution-meta,
+.help-solution-text,
+.leave-decision-date{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.35;
+}
+
+.help-description-text{
+  max-width:330px;
+  white-space:normal;
+}
+
+.help-solution-text{
+  max-width:350px;
+  white-space:normal;
+  color:#315e79;
+}
+
+.help-status{
+  display:inline-flex;
+  align-items:center;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+}
+
+.help-status.open{
+  color:#a35d00;
+  background:#fff3d9;
+}
+
+.help-status.in_progress{
+  color:#075f9e;
+  background:#e4f5ff;
+}
+
+.help-status.resolved{
+  color:#08783d;
+  background:#e4f8ed;
+}
+
+.help-ticket-modal{
+  width:min(600px,96vw);
+}
+
+.help-ticket-modal p{
+  color:var(--muted);
+}
+
+.help-ticket-modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+}
+
+.leave-employee-summary{
+  margin:10px 0 20px;
+  padding:15px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#f8fcff;
+}
+
+.leave-summary-table{
+  max-height:390px;
+}
+
+.leave-summary-table table{
+  min-width:950px;
+}
+
+@media(max-width:900px){
+
+  .help-ticket-form,
+  .help-ticket-filters{
+    grid-template-columns:1fr;
+  }
+
+  .help-ticket-form .help-description,
+  .help-ticket-form>.primary{
+    grid-column:auto;
+  }
+
+  .help-ticket-form>.primary{
+    width:100%;
+  }
+
+  .help-ticket-title,
+  .leave-summary-title{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .help-open-count{
+    align-self:flex-start;
+  }
+
+  .help-ticket-modal-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+
+  .mobile-bottom-nav{
+    overflow-x:auto;
+  }
+
+  .mobile-bottom-nav .mobile-nav-item{
+    min-width:58px;
+    flex:1 0 58px;
+  }
+
+  .mobile-bottom-nav .mobile-nav-item b{
+    font-size:9px;
+  }
+}
