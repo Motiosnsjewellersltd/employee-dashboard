@@ -2547,20 +2547,16 @@ const [showEmployeeSummary, setShowEmployeeSummary] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [msg, setMsg] = useState("");
 
-  async function load(showLoader = false) {
-  if (showLoader) {
-    setLoading(true);
-  }
+ async function load() {
+  setLoading(true);
 
   try {
     const data = await api("/api/leave-requests");
     setRows(data.requests || []);
-  } catch {
-    // Background refresh fail ho to existing data ko screen se remove mat karo.
+  } catch (error: any) {
+    setMsg(error.message || "Unable to load leave requests.");
   } finally {
-    if (showLoader) {
-      setLoading(false);
-    }
+    setLoading(false);
   }
 }
 
