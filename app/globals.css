@@ -2749,3 +2749,239 @@ html,body{width:100%;min-height:100%;max-width:100%;}
     flex-direction: column;
   }
 }
+
+
+/* Employee Reporting */
+
+.reporting-page{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.reporting-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+
+.reporting-head h1{
+  margin:0 0 4px;
+}
+
+.reporting-employee-selector{
+  display:grid;
+  grid-template-columns:
+    minmax(240px,1fr)
+    minmax(260px,1fr);
+  gap:10px 14px;
+  padding:15px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#f8fcff;
+}
+
+.reporting-employee-selector label{
+  align-self:end;
+}
+
+.reporting-status-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:14px 16px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#fff;
+}
+
+.reporting-status-card>div{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.reporting-status-card span{
+  color:var(--muted);
+  font-size:12px;
+}
+
+.reporting-toggle{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  padding:8px 12px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:#f8fcff;
+}
+
+.reporting-toggle input{
+  width:auto;
+}
+
+.report-upload-form{
+  display:grid;
+  grid-template-columns:
+    1.5fr 1fr 1fr 1.4fr;
+  gap:12px;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#f8fcff;
+}
+
+.report-upload-form h2{
+  grid-column:1/-1;
+  margin:0 0 2px;
+}
+
+.report-upload-form label{
+  margin-top:0;
+}
+
+.report-upload-form>.primary{
+  grid-column:1/-1;
+  justify-self:start;
+  min-width:170px;
+}
+
+.report-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.report-card{
+  display:grid;
+  grid-template-columns:
+    54px
+    minmax(0,1fr)
+    auto;
+  gap:14px;
+  align-items:center;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#fff;
+}
+
+.report-pdf-icon{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:48px;
+  height:48px;
+  border-radius:12px;
+  background:#eaf5ff;
+  color:#0b5fa5;
+  font-size:12px;
+  font-weight:900;
+}
+
+.report-card-main{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+
+.report-card-main h3{
+  margin:0;
+}
+
+.report-card-main span,
+.report-card-main small{
+  color:var(--muted);
+  font-size:12px;
+}
+
+.report-period{
+  color:#0b5fa5;
+}
+
+.report-card-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.reporting-edit-modal{
+  width:min(620px,96vw);
+}
+
+.report-edit-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+}
+
+@media(max-width:900px){
+
+  .reporting-head{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .reporting-employee-selector{
+    grid-template-columns:1fr;
+  }
+
+  .reporting-status-card{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .reporting-toggle{
+    justify-content:space-between;
+    border-radius:12px;
+  }
+
+  .report-upload-form{
+    grid-template-columns:1fr;
+  }
+
+  .report-upload-form h2,
+  .report-upload-form>.primary{
+    grid-column:auto;
+  }
+
+  .report-upload-form>.primary{
+    width:100%;
+  }
+
+  .report-card{
+    grid-template-columns:
+      46px
+      minmax(0,1fr);
+  }
+
+  .report-pdf-icon{
+    width:42px;
+    height:42px;
+  }
+
+  .report-card-actions{
+    grid-column:1/-1;
+    display:grid;
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+
+  .report-card-actions>*{
+    width:100%;
+    text-align:center;
+    justify-content:center;
+  }
+
+  .report-edit-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+}

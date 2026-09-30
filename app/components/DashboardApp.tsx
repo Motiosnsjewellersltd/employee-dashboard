@@ -20,6 +20,7 @@ type User = {
   createdAt?: string;
   updatedAt?: string;
   lastSeenAt?: string;
+reportingRequired?: boolean;
 };
 
 type LeaveInfo = {
@@ -36,6 +37,7 @@ type Section =
   | "leaves"
   | "leaveRequests"
   | "helpTickets"
+  | "reporting"
   | "reminder"
   | "notifications"
   | "chat"
@@ -56,6 +58,7 @@ function initialSection(user: User): Section {
   const common: Section[] = [
   "leaveRequests",
   "helpTickets",
+  "reporting",
   "notifications",
   "chat"
 ];
@@ -71,6 +74,7 @@ function hrSectionAllowed(section: Section, permissions: Record<string, string>)
     add: enabled("hrMenuAddUpload") && (enabled("hrCanAddEmployee") || enabled("hrCanUploadLeaves")),
     leaveRequests: enabled("hrMenuLeaveRequests"),
 helpTickets: enabled("hrMenuHelpTickets"),
+reporting: enabled("hrMenuReporting"),
     reminder: enabled("hrMenuReminder"),
     notifications: enabled("hrMenuNotifications"),
     chat: enabled("hrMenuChat"),
@@ -88,6 +92,7 @@ function firstHrSection(permissions: Record<string, string>): Section {
     "add",
     "leaveRequests",
     "helpTickets",
+"reporting",
     "reminder",
     "notifications",
     "chat",
@@ -238,12 +243,17 @@ export default function DashboardApp() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState("");
+const [
+  employeeReportingEnabled,
+  setEmployeeReportingEnabled
+] = useState(false);
   const [rolePermissions, setRolePermissions] = useState<any>({
     hrMenuDashboard: "true",
     hrMenuEmployees: "true",
     hrMenuAddUpload: "true",
     hrMenuLeaveRequests: "true",
 hrMenuHelpTickets: "true",
+hrMenuReporting: "true",
     hrMenuReminder: "true",
     hrMenuNotifications: "true",
     hrMenuChat: "true",
@@ -257,6 +267,7 @@ hrMenuHelpTickets: "true",
     hrCanUploadLeaves: "true",
     hrCanReviewLeaveRequests: "true",
 hrCanManageHelpTickets: "true",
+hrCanManageReports: "true",
     hrCanCreateNotifications: "true",
     hrCanViewLoginHistory: "true",
     hrCanExportData: "true",
@@ -369,6 +380,46 @@ hrCanManageHelpTickets: "true",
       }).catch(() => null);
     }
   }, [session]);
+
+useEffect(() => {
+  if (!session || session.role !== "EMPLOYEE") {
+    setEmployeeReportingEnabled(false);
+    return;
+  }
+
+  let cancelled = false;
+
+  async function checkReporting() {
+    try {
+      const data = await api("/api/employee-reports");
+
+      if (!cancelled) {
+        setEmployeeReportingEnabled(
+          Boolean(data.employee?.reportingRequired)
+        );
+      }
+    } catch {
+      if (!cancelled) {
+        setEmployeeReportingEnabled(false);
+      }
+    }
+  }
+
+  checkReporting();
+
+  const onFocus = () => {
+    checkReporting();
+  };
+
+  window.addEventListener("focus", onFocus);
+
+  return () => {
+    cancelled = true;
+    window.removeEventListener("focus", onFocus);
+  };
+}, [session?.id, session?.role]);
+
+
 
 
   useEffect(() => {
@@ -559,6 +610,18 @@ const canManageHelpTickets =
   const canViewLoginHistory = isSuperAdmin || rolePermissions.hrCanViewLoginHistory === "true";
   const canExportData = isSuperAdmin || rolePermissions.hrCanExportData === "true";
   const canManageRecycleBin = isSuperAdmin || rolePermissions.hrCanManageRecycleBin === "true";
+const showReporting =
+  session.role === "EMPLOYEE"
+    ? employeeReportingEnabled
+    : hrAllowed(
+        "hrMenuReporting"
+      );
+
+const canManageReports =
+  isSuperAdmin ||
+  rolePermissions
+    .hrCanManageReports ===
+    "true";
 
   // Admin user is only for system login/control. It should not be counted or shown as an employee.
   const employeeRows = employees.filter(e => e.role !== "ADMIN");
@@ -582,6 +645,9 @@ const canManageHelpTickets =
     dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders",
     notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login / Export",
     export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile",helpTickets: "Help Tickets",
+reporting: session.role === "EMPLOYEE"
+  ? "My Reports"
+  : "Reporting Management",
     leaveRequests: "Leave Requests"
   };
 
@@ -672,6 +738,19 @@ const canManageHelpTickets =
     mobileBottomDuplicate={isAdmin}
   />
 )}
+{isAdmin && showReporting && (
+  <MenuItem
+    label="Reporting Management"
+    icon="▤"
+    active={
+      section === "reporting"
+    }
+    onClick={() =>
+      goto("reporting")
+    }
+  />
+)}
+
         {isAdmin && showReminder && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
         {showNotifications && <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} mobileBottomDuplicate={isAdmin} />}
         {showChat && <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
@@ -679,6 +758,21 @@ const canManageHelpTickets =
         {isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <MenuItem label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
         {isSuperAdmin && <MenuItem label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
         {isAdmin && showRecycleBin && canManageRecycleBin && <MenuItem label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
+
+{session.role === "EMPLOYEE" &&
+  showReporting && (
+    <MenuItem
+      label="Reporting"
+      icon="▤"
+      active={
+        section === "reporting"
+      }
+      onClick={() =>
+        goto("reporting")
+      }
+    />
+  )}
+
         {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
         <MenuItem label="Logout" icon="ↄ" active={false} onClick={logout} />
       </nav>
@@ -727,6 +821,19 @@ const canManageHelpTickets =
     canManage={canManageHelpTickets}
   />
 )}
+
+{section === "reporting" && showReporting && (
+  <ReportingPanel
+    session={session}
+    employees={activeEmployeeRows}
+    canManage={canManageReports}
+    onReportingChanged={value =>
+      setEmployeeReportingEnabled(value)
+    }
+  />
+)}
+
+
       {section === "reminder" && isAdmin && showReminder && <Reminder employees={activeEmployeeRows} canCreateMessage={canCreateNotifications} />}
       {section === "notifications" && showNotifications && <Notifications session={session} employees={activeEmployeeRows} />}
       {section === "chat" && showChat && <Chat session={session} />}
@@ -751,7 +858,21 @@ const canManageHelpTickets =
     onClick={() => goto("helpTickets")}
   />
 )}
-      {showNotifications && <MobileNavItem label="Alerts" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} />}
+
+{!isAdmin &&
+  showReporting && (
+    <MobileNavItem
+      label="Reporting"
+      icon="▤"
+      active={
+        section === "reporting"
+      }
+      onClick={() =>
+        goto("reporting")
+      }
+    />
+  )}
+
       {!isAdmin && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
       {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
@@ -2014,6 +2135,7 @@ function PermissionsPanel({ session }: { session: User }) {
     ["hrMenuAddUpload", "Add / Upload"],
     ["hrMenuLeaveRequests", "Leave Requests"],
 ["hrMenuHelpTickets", "Help Tickets"],
+["hrMenuReporting", "Reporting Management"],
     ["hrMenuReminder", "Reminder"],
     ["hrMenuNotifications", "Notification Center"],
     ["hrMenuChat", "Chat"],
@@ -2029,6 +2151,10 @@ function PermissionsPanel({ session }: { session: User }) {
     ["hrCanUploadLeaves", "Upload, add, edit or delete leave records"],
     ["hrCanReviewLeaveRequests", "Approve or reject leave requests"],
 ["hrCanManageHelpTickets", "View, update and resolve Help Tickets"],
+ [
+    "hrCanManageReports",
+    "Upload, replace, edit and delete employee reports"
+  ],
     ["hrCanCreateNotifications", "Create messages / notifications"],
     ["hrCanViewLoginHistory", "View login history"],
     ["hrCanExportData", "Export system and employee data"],
@@ -2038,6 +2164,1192 @@ function PermissionsPanel({ session }: { session: User }) {
 
   return <section className="panel permission-panel"><h1>HR Permission Control</h1><p className="permission-help">Choose which menu options HR can see and which actions HR can perform.</p><div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save HR Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
 }
+
+function ReportingPanel({
+  session,
+  employees,
+  canManage,
+  onReportingChanged
+}: {
+  session: User;
+  employees: User[];
+  canManage: boolean;
+  onReportingChanged?: (
+    value: boolean
+  ) => void;
+}) {
+  const manager =
+    session.role === "ADMIN" ||
+    session.role === "HR";
+
+  const [selectedEmployeeId,
+    setSelectedEmployeeId] =
+    useState(
+      manager
+        ? ""
+        : session.id
+    );
+
+  const [employee,
+    setEmployee] =
+    useState<any>(null);
+
+  const [reports,
+    setReports] =
+    useState<any[]>([]);
+
+  const [loading,
+    setLoading] =
+    useState(false);
+
+  const [saving,
+    setSaving] =
+    useState(false);
+
+  const [msg,
+    setMsg] =
+    useState("");
+
+  const [search,
+    setSearch] =
+    useState("");
+
+  const [form,
+    setForm] =
+    useState({
+      title: "",
+      fromDate: "",
+      toDate: ""
+    });
+
+  const [file,
+    setFile] =
+    useState<File | null>(
+      null
+    );
+
+  const [editing,
+    setEditing] =
+    useState<any | null>(
+      null
+    );
+
+  const [editForm,
+    setEditForm] =
+    useState({
+      title: "",
+      fromDate: "",
+      toDate: ""
+    });
+
+  const [replacementFile,
+    setReplacementFile] =
+    useState<File | null>(
+      null
+    );
+
+  const fileRef =
+    useRef<HTMLInputElement>(
+      null
+    );
+
+  const replaceFileRef =
+    useRef<HTMLInputElement>(
+      null
+    );
+
+  function inputDate(
+    value?: string
+  ) {
+    if (!value) return "";
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return "";
+    }
+
+    return date
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  function displayDate(
+    value?: string
+  ) {
+    if (!value) return "-";
+
+    return new Date(
+      value
+    ).toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      }
+    );
+  }
+
+  function displayDateTime(
+    value?: string
+  ) {
+    if (!value) return "-";
+
+    return new Date(
+      value
+    ).toLocaleString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }
+    );
+  }
+
+  function fileSize(
+    bytes?: number
+  ) {
+    const size =
+      Number(bytes || 0);
+
+    if (
+      size <
+      1024 * 1024
+    ) {
+      return `${(
+        size / 1024
+      ).toFixed(0)} KB`;
+    }
+
+    return `${(
+      size /
+      1024 /
+      1024
+    ).toFixed(2)} MB`;
+  }
+
+  async function load(
+    id =
+      selectedEmployeeId
+  ) {
+    if (
+      manager &&
+      !id
+    ) {
+      setEmployee(null);
+      setReports([]);
+      return;
+    }
+
+    setLoading(true);
+    setMsg("");
+
+    try {
+      const url =
+        manager
+          ? `/api/employee-reports?employeeId=${encodeURIComponent(
+              id
+            )}`
+          : "/api/employee-reports";
+
+      const data =
+        await api(url);
+
+      setEmployee(
+        data.employee ||
+          null
+      );
+
+      setReports(
+        data.reports ||
+          []
+      );
+
+      if (!manager) {
+        onReportingChanged?.(
+          Boolean(
+            data.employee
+              ?.reportingRequired
+          )
+        );
+      }
+    } catch (
+      error: any
+    ) {
+      setMsg(
+        error.message
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!manager) {
+      load(session.id);
+    }
+  }, [session.id]);
+
+  async function toggleReporting(
+    value: boolean
+  ) {
+    if (
+      !selectedEmployeeId
+    ) {
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const data =
+        await api(
+          "/api/employee-reports",
+          {
+            method: "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify({
+                employeeId:
+                  selectedEmployeeId,
+
+                reportingRequired:
+                  value
+              })
+          }
+        );
+
+      setEmployee(
+        (current: any) => ({
+          ...(current || {}),
+          reportingRequired:
+            data.employee
+              .reportingRequired
+        })
+      );
+
+      showToast(
+        value
+          ? "Reporting enabled."
+          : "Reporting disabled.",
+        "success"
+      );
+    } catch (
+      error: any
+    ) {
+      setMsg(
+        error.message
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function upload(
+    event:
+      React.FormEvent
+  ) {
+    event.preventDefault();
+
+    if (
+      !selectedEmployeeId
+    ) {
+      setMsg(
+        "Select employee."
+      );
+      return;
+    }
+
+    if (
+      !form.title.trim()
+    ) {
+      setMsg(
+        "Report title is required."
+      );
+      return;
+    }
+
+    if (
+      !form.fromDate ||
+      !form.toDate
+    ) {
+      setMsg(
+        "From Date and To Date are required."
+      );
+      return;
+    }
+
+    if (
+      form.toDate <
+      form.fromDate
+    ) {
+      setMsg(
+        "To Date cannot be before From Date."
+      );
+      return;
+    }
+
+    if (!file) {
+      setMsg(
+        "Select PDF report."
+      );
+      return;
+    }
+
+    setSaving(true);
+    setMsg("");
+
+    try {
+      const data =
+        new FormData();
+
+      data.append(
+        "employeeId",
+        selectedEmployeeId
+      );
+
+      data.append(
+        "title",
+        form.title
+      );
+
+      data.append(
+        "fromDate",
+        form.fromDate
+      );
+
+      data.append(
+        "toDate",
+        form.toDate
+      );
+
+      data.append(
+        "file",
+        file
+      );
+
+      await api(
+        "/api/employee-reports",
+        {
+          method: "POST",
+          body: data
+        }
+      );
+
+      setForm({
+        title: "",
+        fromDate: "",
+        toDate: ""
+      });
+
+      setFile(null);
+
+      if (
+        fileRef.current
+      ) {
+        fileRef.current.value =
+          "";
+      }
+
+      showToast(
+        "Report uploaded successfully.",
+        "success"
+      );
+
+      await load(
+        selectedEmployeeId
+      );
+    } catch (
+      error: any
+    ) {
+      setMsg(
+        error.message
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startEdit(
+    report: any
+  ) {
+    setEditing(report);
+
+    setEditForm({
+      title:
+        report.title ||
+        "",
+
+      fromDate:
+        inputDate(
+          report.fromDate
+        ),
+
+      toDate:
+        inputDate(
+          report.toDate
+        )
+    });
+
+    setReplacementFile(
+      null
+    );
+
+    if (
+      replaceFileRef.current
+    ) {
+      replaceFileRef.current.value =
+        "";
+    }
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+
+    if (
+      !editForm.title.trim()
+    ) {
+      setMsg(
+        "Report title is required."
+      );
+      return;
+    }
+
+    if (
+      !editForm.fromDate ||
+      !editForm.toDate
+    ) {
+      setMsg(
+        "Report dates are required."
+      );
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const data =
+        new FormData();
+
+      data.append(
+        "title",
+        editForm.title
+      );
+
+      data.append(
+        "fromDate",
+        editForm.fromDate
+      );
+
+      data.append(
+        "toDate",
+        editForm.toDate
+      );
+
+      if (
+        replacementFile
+      ) {
+        data.append(
+          "file",
+          replacementFile
+        );
+      }
+
+      await api(
+        `/api/employee-reports/${editing.id}`,
+        {
+          method: "PATCH",
+          body: data
+        }
+      );
+
+      setEditing(null);
+      setReplacementFile(
+        null
+      );
+
+      showToast(
+        "Report updated successfully.",
+        "success"
+      );
+
+      await load(
+        selectedEmployeeId
+      );
+    } catch (
+      error: any
+    ) {
+      setMsg(
+        error.message
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteReport(
+    report: any
+  ) {
+    const confirmed =
+      await requestConfirm(
+        "Delete Report",
+        `Delete "${report.title}" permanently?`,
+        "Delete"
+      );
+
+    if (!confirmed) return;
+
+    setSaving(true);
+
+    try {
+      await api(
+        `/api/employee-reports/${report.id}`,
+        {
+          method: "DELETE"
+        }
+      );
+
+      showToast(
+        "Report deleted.",
+        "success"
+      );
+
+      await load(
+        selectedEmployeeId
+      );
+    } catch (
+      error: any
+    ) {
+      setMsg(
+        error.message
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const employeeOptions =
+    employees
+      .filter(
+        e =>
+          e.role !==
+          "ADMIN"
+      )
+      .filter(e => {
+        const q =
+          search
+            .trim()
+            .toLowerCase();
+
+        if (!q)
+          return true;
+
+        return `${e.employeeCode || ""} ${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""}`
+          .toLowerCase()
+          .includes(q);
+      });
+
+  return (
+    <section className="panel reporting-page">
+
+      <div className="reporting-head">
+
+        <div>
+          <h1>
+            {manager
+              ? "Reporting Management"
+              : "My Reports"}
+          </h1>
+
+          <p className="hint">
+            {manager
+              ? "Upload and manage employee PDF reports."
+              : "View and download your reports."}
+          </p>
+        </div>
+
+        <button
+          className="light"
+          type="button"
+          disabled={
+            loading
+          }
+          onClick={() =>
+            load(
+              selectedEmployeeId
+            )
+          }
+        >
+          Refresh
+        </button>
+
+      </div>
+
+      {manager && (
+        <>
+
+          <div className="reporting-employee-selector">
+
+            <label>
+              Search Employee
+            </label>
+
+            <input
+              placeholder="Employee ID, name, mobile..."
+              value={search}
+              onChange={
+                event =>
+                  setSearch(
+                    event.target
+                      .value
+                  )
+              }
+            />
+
+            <label>
+              Select Employee
+            </label>
+
+            <select
+              value={
+                selectedEmployeeId
+              }
+              onChange={
+                async event => {
+                  const id =
+                    event.target
+                      .value;
+
+                  setSelectedEmployeeId(
+                    id
+                  );
+
+                  setEmployee(
+                    null
+                  );
+
+                  setReports(
+                    []
+                  );
+
+                  if (id) {
+                    await load(id);
+                  }
+                }
+              }
+            >
+              <option value="">
+                Select employee
+              </option>
+
+              {employeeOptions.map(
+                item => (
+                  <option
+                    key={
+                      item.id
+                    }
+                    value={
+                      item.id
+                    }
+                  >
+                    {item.employeeCode
+                      ? `${item.employeeCode} - `
+                      : ""}
+                    {item.name}
+                  </option>
+                )
+              )}
+
+            </select>
+
+          </div>
+
+          {employee && (
+            <div className="reporting-status-card">
+
+              <div>
+                <b>
+                  {employee.name}
+                </b>
+
+                <span>
+                  ID:{" "}
+                  {employee.employeeCode ||
+                    "-"}
+                  {employee.designation
+                    ? ` · ${employee.designation}`
+                    : ""}
+                </span>
+              </div>
+
+              <label className="reporting-toggle">
+
+                <input
+                  type="checkbox"
+                  checked={
+                    Boolean(
+                      employee.reportingRequired
+                    )
+                  }
+                  disabled={
+                    saving ||
+                    !canManage
+                  }
+                  onChange={
+                    event =>
+                      toggleReporting(
+                        event.target
+                          .checked
+                      )
+                  }
+                />
+
+                <span>
+                  Reporting Required
+                </span>
+
+                <b>
+                  {employee.reportingRequired
+                    ? "YES"
+                    : "NO"}
+                </b>
+
+              </label>
+
+            </div>
+          )}
+
+          {employee &&
+            canManage && (
+              <form
+                className="report-upload-form"
+                onSubmit={
+                  upload
+                }
+              >
+
+                <h2>
+                  Upload New Report
+                </h2>
+
+                <div>
+                  <label>
+                    Report Title
+                  </label>
+
+                  <input
+                    placeholder="e.g. KRA / KPI Report"
+                    value={
+                      form.title
+                    }
+                    onChange={
+                      event =>
+                        setForm({
+                          ...form,
+                          title:
+                            event
+                              .target
+                              .value
+                        })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>
+                    From Date
+                  </label>
+
+                  <input
+                    type="date"
+                    value={
+                      form.fromDate
+                    }
+                    onChange={
+                      event =>
+                        setForm({
+                          ...form,
+                          fromDate:
+                            event
+                              .target
+                              .value
+                        })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>
+                    To Date
+                  </label>
+
+                  <input
+                    type="date"
+                    min={
+                      form.fromDate ||
+                      undefined
+                    }
+                    value={
+                      form.toDate
+                    }
+                    onChange={
+                      event =>
+                        setForm({
+                          ...form,
+                          toDate:
+                            event
+                              .target
+                              .value
+                        })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>
+                    PDF Report
+                  </label>
+
+                  <input
+                    ref={
+                      fileRef
+                    }
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={
+                      event =>
+                        setFile(
+                          event
+                            .target
+                            .files?.[0] ||
+                            null
+                        )
+                    }
+                  />
+
+                  <small className="hint">
+                    Maximum 4 MB PDF.
+                  </small>
+                </div>
+
+                <button
+                  className="primary"
+                  disabled={
+                    saving
+                  }
+                >
+                  {saving
+                    ? "Uploading..."
+                    : "Upload Report"}
+                </button>
+
+              </form>
+            )}
+
+        </>
+      )}
+
+      {msg && (
+        <div className="msg warn">
+          {msg}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="empty-state">
+          Loading reports...
+        </div>
+      ) : reports.length ? (
+        <div className="report-list">
+
+          {reports.map(
+            report => (
+              <article
+                className="report-card"
+                key={
+                  report.id
+                }
+              >
+
+                <div className="report-pdf-icon">
+                  PDF
+                </div>
+
+                <div className="report-card-main">
+
+                  <h3>
+                    {report.title}
+                  </h3>
+
+                  <b className="report-period">
+                    {displayDate(
+                      report.fromDate
+                    )}
+                    {" to "}
+                    {displayDate(
+                      report.toDate
+                    )}
+                  </b>
+
+                  <span>
+                    {report.fileName}
+                    {" · "}
+                    {fileSize(
+                      report.fileSize
+                    )}
+                  </span>
+
+                  <small>
+                    Uploaded:{" "}
+                    {displayDateTime(
+                      report.createdAt
+                    )}
+
+                    {report.uploadedBy
+                      ?.name
+                      ? ` · By ${report.uploadedBy.name}`
+                      : ""}
+                  </small>
+
+                </div>
+
+                <div className="report-card-actions">
+
+                  <a
+                    className="light button-link"
+                    href={`/api/employee-reports/${report.id}/file`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View
+                  </a>
+
+                  <a
+                    className="light button-link"
+                    href={`/api/employee-reports/${report.id}/file?download=1`}
+                  >
+                    Download
+                  </a>
+
+                  {manager &&
+                    canManage && (
+                      <>
+                        <button
+                          className="light"
+                          type="button"
+                          onClick={() =>
+                            startEdit(
+                              report
+                            )
+                          }
+                        >
+                          Edit / Replace
+                        </button>
+
+                        <button
+                          className="danger-btn"
+                          type="button"
+                          onClick={() =>
+                            deleteReport(
+                              report
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+
+                </div>
+
+              </article>
+            )
+          )}
+
+        </div>
+      ) : (
+        <div className="empty-state">
+          No reports uploaded yet.
+        </div>
+      )}
+
+      {editing && (
+        <div
+          className="modal"
+          onMouseDown={() =>
+            setEditing(
+              null
+            )
+          }
+        >
+
+          <div
+            className="modal-box reporting-edit-modal"
+            onMouseDown={
+              event =>
+                event.stopPropagation()
+            }
+          >
+
+            <button
+              className="close"
+              type="button"
+              onClick={() =>
+                setEditing(
+                  null
+                )
+              }
+            >
+              ×
+            </button>
+
+            <h2>
+              Edit / Replace Report
+            </h2>
+
+            <label>
+              Report Title
+            </label>
+
+            <input
+              value={
+                editForm.title
+              }
+              onChange={
+                event =>
+                  setEditForm({
+                    ...editForm,
+                    title:
+                      event.target
+                        .value
+                  })
+              }
+            />
+
+            <label>
+              From Date
+            </label>
+
+            <input
+              type="date"
+              value={
+                editForm.fromDate
+              }
+              onChange={
+                event =>
+                  setEditForm({
+                    ...editForm,
+                    fromDate:
+                      event.target
+                        .value
+                  })
+              }
+            />
+
+            <label>
+              To Date
+            </label>
+
+            <input
+              type="date"
+              min={
+                editForm.fromDate ||
+                undefined
+              }
+              value={
+                editForm.toDate
+              }
+              onChange={
+                event =>
+                  setEditForm({
+                    ...editForm,
+                    toDate:
+                      event.target
+                        .value
+                  })
+              }
+            />
+
+            <label>
+              Replace PDF
+            </label>
+
+            <input
+              ref={
+                replaceFileRef
+              }
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={
+                event =>
+                  setReplacementFile(
+                    event.target
+                      .files?.[0] ||
+                      null
+                  )
+              }
+            />
+
+            <small className="hint">
+              Leave blank if only title or dates need updating.
+            </small>
+
+            <div className="report-edit-actions">
+
+              <button
+                className="light"
+                type="button"
+                onClick={() =>
+                  setEditing(
+                    null
+                  )
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                className="primary"
+                type="button"
+                disabled={
+                  saving
+                }
+                onClick={
+                  saveEdit
+                }
+              >
+                {saving
+                  ? "Saving..."
+                  : "Save Changes"}
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+    </section>
+  );
+}
+
+
+
 
 function HelpTickets({
   session,

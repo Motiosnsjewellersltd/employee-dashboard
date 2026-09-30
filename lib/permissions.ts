@@ -6,6 +6,7 @@ export const permissionDefaults: Record<string, string> = {
   hrMenuAddUpload: "true",
   hrMenuLeaveRequests: "true",
   hrMenuHelpTickets: "true",
+  hrMenuReporting: "true",
   hrMenuReminder: "true",
   hrMenuNotifications: "true",
   hrMenuChat: "true",
@@ -20,6 +21,7 @@ export const permissionDefaults: Record<string, string> = {
   hrCanUploadLeaves: "true",
   hrCanReviewLeaveRequests: "true",
   hrCanManageHelpTickets: "true",
+  hrCanManageReports: "true",
   hrCanCreateNotifications: "true",
   hrCanViewLoginHistory: "true",
   hrCanExportData: "true",
@@ -28,7 +30,10 @@ export const permissionDefaults: Record<string, string> = {
 
 export async function getPermissionValues() {
   const rows = await (prisma as any).permissionSetting.findMany();
-  const values: Record<string, string> = { ...permissionDefaults };
+
+  const values: Record<string, string> = {
+    ...permissionDefaults
+  };
 
   for (const row of rows) {
     if (row.key in permissionDefaults) {

@@ -39,41 +39,44 @@ enum HelpTicketStatus {
 }
 
 model Employee {
-  id            String         @id @default(cuid())
-  employeeCode  String?        @unique
-  name          String
-  mobile        String         @unique
-  password      String
-  role          Role           @default(EMPLOYEE)
-  designation   String?
-  department    String?
-  branch        String?
-  dob           DateTime?
-  doj           DateTime?
-  exitDate      DateTime?
-  status        EmployeeStatus @default(ACTIVE)
-  photoUrl      String?        @db.Text
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  lastSeenAt    DateTime?
-  deletedAt     DateTime?
-  deletedById   String?
-  deletedByName String?
+  id                String         @id @default(cuid())
+  employeeCode      String?        @unique
+  name              String
+  mobile            String         @unique
+  password          String
+  role              Role           @default(EMPLOYEE)
+  designation       String?
+  department        String?
+  branch            String?
+  dob               DateTime?
+  doj               DateTime?
+  exitDate          DateTime?
+  status            EmployeeStatus @default(ACTIVE)
+  reportingRequired Boolean        @default(false)
+  photoUrl          String?        @db.Text
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  lastSeenAt        DateTime?
+  deletedAt         DateTime?
+  deletedById       String?
+  deletedByName     String?
 
-  leaves               LeaveRecord[]
-  comments             ManagementComment[]
-  performances         PerformanceRecord[]
-  sentMessages         ChatMessage[]       @relation("SentChatMessages")
-  chatParticipants     ChatParticipant[]
-  messageRecipients    MessageRecipient[]
-  createdNotifications NotificationBlast[] @relation("CreatedNotificationBlasts")
-  leaveRequests        LeaveRequest[]      @relation("LeaveRequestRequester")
-  decidedLeaveRequests LeaveRequest[]      @relation("LeaveRequestDecider")
-  pushSubscriptions    PushSubscription[]
-  branchTransfers      BranchTransfer[]
-  employmentHistory    EmploymentHistory[]
-  helpTickets         HelpTicket[] @relation("HelpTicketOwner")
-  resolvedHelpTickets HelpTicket[] @relation("HelpTicketResolver")
+  leaves                  LeaveRecord[]
+  comments                ManagementComment[]
+  performances            PerformanceRecord[]
+  sentMessages            ChatMessage[]       @relation("SentChatMessages")
+  chatParticipants        ChatParticipant[]
+  messageRecipients       MessageRecipient[]
+  createdNotifications    NotificationBlast[] @relation("CreatedNotificationBlasts")
+  leaveRequests           LeaveRequest[]      @relation("LeaveRequestRequester")
+  decidedLeaveRequests    LeaveRequest[]      @relation("LeaveRequestDecider")
+  pushSubscriptions       PushSubscription[]
+  branchTransfers         BranchTransfer[]
+  employmentHistory       EmploymentHistory[]
+  helpTickets             HelpTicket[]        @relation("HelpTicketOwner")
+  resolvedHelpTickets     HelpTicket[]        @relation("HelpTicketResolver")
+  employeeReports         EmployeeReport[]    @relation("EmployeeReportOwner")
+  uploadedEmployeeReports EmployeeReport[]    @relation("EmployeeReportUploader")
 
   @@index([name])
   @@index([role])
@@ -84,17 +87,16 @@ model Employee {
   @@index([deletedAt])
 }
 
-
 model EmploymentHistory {
-  id            String   @id @default(cuid())
-  employeeId    String
-  joiningDate   DateTime?
-  exitDate      DateTime?
-  designation   String?
-  department    String?
-  branch        String?
-  recordedAt    DateTime @default(now())
-  recordedById  String?
+  id             String    @id @default(cuid())
+  employeeId     String
+  joiningDate    DateTime?
+  exitDate       DateTime?
+  designation    String?
+  department     String?
+  branch         String?
+  recordedAt     DateTime  @default(now())
+  recordedById   String?
   recordedByName String?
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -324,4 +326,27 @@ model HelpTicket {
 
   @@index([employeeId, createdAt])
   @@index([status, createdAt])
+}
+
+model EmployeeReport {
+  id         String   @id @default(cuid())
+  employeeId String
+  title      String
+  fromDate   DateTime @db.Date
+  toDate     DateTime @db.Date
+
+  fileName String
+  fileType String @default("application/pdf")
+  fileSize Int
+  fileData Bytes
+
+  uploadedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employee   Employee @relation("EmployeeReportOwner", fields: [employeeId], references: [id], onDelete: Cascade)
+  uploadedBy Employee @relation("EmployeeReportUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, toDate])
+  @@index([employeeId, createdAt])
 }
