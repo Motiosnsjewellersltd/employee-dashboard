@@ -43,10 +43,10 @@ function ticketNumber() {
 
   const date = `${values.year}${values.month}${values.day}`;
 
-  return `TKT-${date}-${randomUUID()
-    .replace(/-/g, "")
-    .slice(0, 8)
-    .toUpperCase()}`;
+  return `T${date.slice(2)}-${randomUUID()
+  .replace(/-/g, "")
+  .slice(0, 4)
+  .toUpperCase()}`;
 }
 
 export async function GET() {

@@ -365,6 +365,24 @@ hrCanManageHelpTickets: "true",
     }
   }, [session]);
 
+
+useEffect(() => {
+  if (!session) return;
+
+  if (
+    section !== "dashboard" &&
+    section !== "employees"
+  ) {
+    return;
+  }
+
+  const timer = window.setInterval(() => {
+    loadEmployees().catch(() => null);
+  }, 15000);
+
+  return () => window.clearInterval(timer);
+}, [session?.id, section]);
+
   useEffect(() => {
     if (!session) return;
     const inactivityMs = 30 * 60 * 1000;
@@ -1576,7 +1594,17 @@ function ImportPreview({ title, data }: { title: string; data: any }) {
 }
 
 function MyProfile({ user, leaves, loading, loadLeaves }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void> }) {
-  useEffect(() => { loadLeaves(user); }, [user.id]);
+
+useEffect(() => {
+  loadLeaves(user);
+
+  const timer = window.setInterval(() => {
+    loadLeaves(user);
+  }, 15000);
+
+  return () => window.clearInterval(timer);
+}, [user.id]);  
+
   return <section className="panel"><ProfileContent user={user} leaves={leaves} loading={loading} /></section>;
 }
 
@@ -2075,9 +2103,15 @@ const canManage =
     }
   }
 
-  useEffect(() => {
+ useEffect(() => {
+  load();
+
+  const timer = window.setInterval(() => {
     load();
-  }, []);
+  }, 10000);
+
+  return () => window.clearInterval(timer);
+}, []);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -2546,13 +2580,27 @@ const [showEmployeeSummary, setShowEmployeeSummary] = useState(false);
     }
   }
 
-  useEffect(() => {
+
+useEffect(() => {
+  load();
+
+  const tomorrow = new Date();
+  tomorrow.setHours(12, 0, 0, 0);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  setMinimumLeaveDate(
+    `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`
+  );
+
+  const timer = window.setInterval(() => {
     load();
-    const tomorrow = new Date();
-    tomorrow.setHours(12, 0, 0, 0);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setMinimumLeaveDate(`${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`);
-  }, []);
+  }, 10000);
+
+  return () => window.clearInterval(timer);
+}, []);
+
+
+
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -2912,7 +2960,7 @@ function NotificationBell({ onOpen }: { onOpen: () => void }) {
 
   useEffect(() => {
     refresh();
-    const timer = setInterval(refresh, 30000);
+    const timer = setInterval(refresh, 10000);
     return () => clearInterval(timer);
   }, []);
 
@@ -2950,7 +2998,15 @@ function Notifications({ session, employees }: { session: User; employees: User[
     }
   }
 
-  useEffect(() => { load(); }, [filters, mode]);
+ useEffect(() => {
+  load();
+
+  const timer = window.setInterval(() => {
+    load();
+  }, 10000);
+
+  return () => window.clearInterval(timer);
+}, [filters, mode]);
 
   async function markRead(id?: string) {
     try {
