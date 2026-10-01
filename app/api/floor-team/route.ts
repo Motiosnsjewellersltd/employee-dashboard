@@ -16,6 +16,7 @@ export async function GET() {
         employeeCode: true,
         name: true,
         role: true,
+        branch: true,
         floor: true,
         isFloorManager: true,
         status: true
@@ -35,6 +36,12 @@ export async function GET() {
       );
     }
 
+    if (!manager.branch) {
+      throw new Error(
+        "Branch is not assigned to this Floor Manager."
+      );
+    }
+
     if (!manager.floor) {
       throw new Error(
         "Floor is not assigned to this Floor Manager."
@@ -43,6 +50,7 @@ export async function GET() {
 
     const employees = await prisma.employee.findMany({
       where: {
+        branch: manager.branch,
         floor: manager.floor,
         deletedAt: null,
         role: {
@@ -73,12 +81,14 @@ export async function GET() {
     });
 
     return ok({
+      branch: manager.branch,
       floor: manager.floor,
 
       manager: {
         id: manager.id,
         employeeCode: manager.employeeCode,
         name: manager.name,
+        branch: manager.branch,
         floor: manager.floor
       },
 

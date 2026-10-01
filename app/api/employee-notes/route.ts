@@ -10,6 +10,7 @@ const noteInclude = {
       id: true,
       employeeCode: true,
       name: true,
+      branch: true,
       floor: true
     }
   },
@@ -20,6 +21,7 @@ const noteInclude = {
       employeeCode: true,
       name: true,
       role: true,
+      branch: true,
       floor: true,
       isFloorManager: true
     }
@@ -39,16 +41,12 @@ async function getCurrentEmployee(
       id: true,
       name: true,
       role: true,
+      branch: true,
       floor: true,
       isFloorManager: true
     }
   });
 }
-
-
-/* =========================================================
-   GET NOTES
-   ========================================================= */
 
 export async function GET(
   req: NextRequest
@@ -79,10 +77,6 @@ export async function GET(
 
     let where: any = {};
 
-    /*
-      ADMIN / HR
-      Can view all employee notes.
-    */
     if (
       session.role === "ADMIN" ||
       session.role === "HR"
@@ -93,17 +87,14 @@ export async function GET(
       }
     }
 
-    /*
-      FLOOR MANAGER
-      Can view notes only for employees
-      belonging to the same floor.
-    */
     else if (
       actor.role === "EMPLOYEE" &&
       actor.isFloorManager &&
+      actor.branch &&
       actor.floor
     ) {
       where.employee = {
+        branch: actor.branch,
         floor: actor.floor,
         deletedAt: null
       };
@@ -118,6 +109,7 @@ export async function GET(
 
             select: {
               id: true,
+              branch: true,
               floor: true
             }
           });
@@ -129,11 +121,11 @@ export async function GET(
         }
 
         if (
-          employee.floor !==
-          actor.floor
+          employee.branch !== actor.branch ||
+          employee.floor !== actor.floor
         ) {
           throw new Error(
-            "You can only view notes for employees on your own floor."
+            "You can only view notes for employees in your own branch and floor."
           );
         }
 
@@ -142,10 +134,6 @@ export async function GET(
       }
     }
 
-    /*
-      NORMAL EMPLOYEE
-      Can see only own notes.
-    */
     else {
       where.employeeId =
         session.id;
@@ -154,13 +142,10 @@ export async function GET(
     const notes =
       await prisma.employeeNote.findMany({
         where,
-
         include: noteInclude,
-
         orderBy: {
           createdAt: "desc"
         },
-
         take: 2000
       });
 
@@ -172,11 +157,6 @@ export async function GET(
     return fail(error, 401);
   }
 }
-
-
-/* =========================================================
-   CREATE NOTE
-   ========================================================= */
 
 export async function POST(
   req: NextRequest
@@ -238,6 +218,7 @@ export async function POST(
           id: true,
           employeeCode: true,
           name: true,
+          branch: true,
           floor: true
         }
       });
@@ -256,14 +237,6 @@ export async function POST(
       actor.role === "EMPLOYEE" &&
       actor.isFloorManager === true;
 
-    /*
-      Only:
-      ADMIN
-      HR
-      Floor Manager
-
-      can create notes.
-    */
     if (
       !isAdminOrHr &&
       !isFloorManager
@@ -273,14 +246,16 @@ export async function POST(
       );
     }
 
-    /*
-      Floor Manager can only add notes
-      to employees on the same floor.
-    */
     if (
       isFloorManager &&
       !isAdminOrHr
     ) {
+      if (!actor.branch) {
+        throw new Error(
+          "Branch is not assigned to this Floor Manager."
+        );
+      }
+
       if (!actor.floor) {
         throw new Error(
           "Floor is not assigned to this Floor Manager."
@@ -288,10 +263,11 @@ export async function POST(
       }
 
       if (
+        target.branch !== actor.branch ||
         target.floor !== actor.floor
       ) {
         throw new Error(
-          "Floor Manager can only add notes for employees on the same floor."
+          "Floor Manager can only add notes for employees in the same branch and floor."
         );
       }
     }
@@ -300,15 +276,11 @@ export async function POST(
       await prisma.employeeNote.create({
         data: {
           employeeId,
-
           note,
-
           createdById:
             session.id,
-
           createdByName:
             session.name,
-
           createdByRole:
             session.role
         },
@@ -339,6 +311,9 @@ export async function POST(
         employeeName:
           target.name,
 
+        branch:
+          target.branch,
+
         floor:
           target.floor,
 
@@ -356,11 +331,6 @@ export async function POST(
   }
 }
 
-
-/* =========================================================
-   DELETE NOTE
-   ========================================================= */
-
 export async function DELETE(
   req: NextRequest
 ) {
@@ -368,12 +338,6 @@ export async function DELETE(
     const session =
       await requireSession();
 
-    /*
-      Floor Manager cannot delete.
-      Employee cannot delete.
-
-      Only ADMIN / HR.
-    */
     if (
       session.role !== "ADMIN" &&
       session.role !== "HR"
