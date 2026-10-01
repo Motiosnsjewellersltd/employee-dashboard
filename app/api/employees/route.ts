@@ -25,6 +25,28 @@ function cleanEmployeeCode(value: unknown) {
   return employeeCode;
 }
 
+function cleanFloor(value: unknown) {
+  const floor = String(value || "").trim();
+
+  if (!floor) return null;
+
+  const allowedFloors = [
+    "Diamond",
+    "Gold",
+    "Silver",
+    "Support / Non-Floor"
+  ];
+
+  if (!allowedFloors.includes(floor)) {
+    throw new Error(
+      "Floor must be Diamond, Gold, Silver or Support / Non-Floor."
+    );
+  }
+
+  return floor;
+}
+
+
 export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
@@ -66,6 +88,8 @@ export async function POST(req: NextRequest) {
     }
     const exitDate = parseDate(data.exitDate);
     const branch = cleanBranch(data.branch);
+const floor = cleanFloor(data.floor);
+const isFloorManager = Boolean(data.isFloorManager);
     const status = exitDate ? "INACTIVE" : (data.status || "ACTIVE");
     const employeeData = {
         employeeCode,
@@ -74,6 +98,8 @@ export async function POST(req: NextRequest) {
         designation: data.designation || "",
         department: data.department || "",
         branch,
+floor,
+isFloorManager,
         dob: parseDate(data.dob),
         doj: parseDate(data.doj),
         exitDate,
@@ -91,7 +117,16 @@ export async function POST(req: NextRequest) {
       }
       return saved;
     });
-    await addAuditLog({ actorId: session.id, actorName: session.name, action: existing ? "UPDATE_EMPLOYEE" : "ADD_EMPLOYEE", target: employee.name, details: { employeeCode: employee.employeeCode, mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status } });
+    await addAuditLog({ actorId: session.id, actorName: session.name, action: existing ? "UPDATE_EMPLOYEE" : "ADD_EMPLOYEE", target: employee.name, details: {
+  employeeCode: employee.employeeCode,
+  mobile: employee.mobile,
+  designation: employee.designation,
+  department: employee.department,
+  branch: employee.branch,
+  floor: employee.floor,
+  isFloorManager: employee.isFloorManager,
+  status: employee.status
+} });
     if (!existing) {
       await addSystemNotification({
         actorId: session.id,

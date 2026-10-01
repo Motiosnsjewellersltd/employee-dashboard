@@ -23,6 +23,8 @@ export type SessionUser = {
   designation?: string | null;
   department?: string | null;
   branch?: string | null;
+floor?: string | null;
+isFloorManager?: boolean;
   photoUrl?: string | null;
 };
 
@@ -82,6 +84,8 @@ export function publicUser(user: any): SessionUser {
     designation: user.designation,
     department: user.department,
     branch: user.branch,
+floor: user.floor,
+isFloorManager: Boolean(user.isFloorManager),
     photoUrl: user.photoUrl
   };
 }

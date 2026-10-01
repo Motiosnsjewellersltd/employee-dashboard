@@ -21,6 +21,27 @@ function cleanEmployeeCode(value: unknown) {
   return employeeCode;
 }
 
+function cleanFloor(value: unknown) {
+  const floor = String(value || "").trim();
+
+  if (!floor) return null;
+
+  const allowedFloors = [
+    "Diamond",
+    "Gold",
+    "Silver",
+    "Support / Non-Floor"
+  ];
+
+  if (!allowedFloors.includes(floor)) {
+    throw new Error(
+      "Floor must be Diamond, Gold, Silver or Support / Non-Floor."
+    );
+  }
+
+  return floor;
+}
+
 export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireSession();
@@ -47,7 +68,19 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     }
     await requireHrPermission(session.role, "hrCanEditEmployee", "HR is not allowed to edit employees.");
     if (data.password) await requireHrPermission(session.role, "hrCanResetPassword", "HR is not allowed to reset passwords.");
-    const before = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { status: true, branch: true, doj: true, exitDate: true, designation: true, department: true } });
+    const before = await prisma.employee.findFirst({
+  where: { id, deletedAt: null },
+  select: {
+    status: true,
+    branch: true,
+    floor: true,
+    isFloorManager: true,
+    doj: true,
+    exitDate: true,
+    designation: true,
+    department: true
+  }
+});
     if (!before) throw new Error("Employee not found.");
     const employeeCode = cleanEmployeeCode(data.employeeCode);
     if (employeeCode) {
@@ -57,21 +90,25 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
         throw new Error(`Employee ID ${employeeCode} is already assigned to ${codeOwner.name}.`);
       }
     }
-    const exitDate = parseDate(data.exitDate);
-    const branch = cleanBranch(data.branch);
+const exitDate = parseDate(data.exitDate);
+const branch = cleanBranch(data.branch);
+const floor = cleanFloor(data.floor);
+const isFloorManager = Boolean(data.isFloorManager);
     const update: any = {
-      employeeCode,
-      name: String(data.name || "").trim(),
-      mobile: String(data.mobile || "").trim(),
-      role: data.role || "EMPLOYEE",
-      designation: data.designation || "",
-      department: data.department || "",
-      branch,
-      dob: parseDate(data.dob),
-      doj: parseDate(data.doj),
-      exitDate,
-      status: exitDate ? "INACTIVE" : (data.status || "ACTIVE")
-    };
+  employeeCode,
+  name: String(data.name || "").trim(),
+  mobile: String(data.mobile || "").trim(),
+  role: data.role || "EMPLOYEE",
+  designation: data.designation || "",
+  department: data.department || "",
+  branch,
+  floor,
+  isFloorManager,
+  dob: parseDate(data.dob),
+  doj: parseDate(data.doj),
+  exitDate,
+  status: exitDate ? "INACTIVE" : (data.status || "ACTIVE")
+};
     if (data.password) update.password = await bcrypt.hash(String(data.password), 10);
     const isRejoin = data.rejoin === true;
     if (isRejoin) {
@@ -105,7 +142,27 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       }
       return saved;
     });
-    await addAuditLog({ actorId: session.id, actorName: session.name, action: isRejoin ? "REJOIN_EMPLOYEE" : (data.password ? "RESET_PASSWORD_OR_UPDATE_EMPLOYEE" : "UPDATE_EMPLOYEE"), target: employee.name, details: { employeeCode: employee.employeeCode, mobile: employee.mobile, designation: employee.designation, department: employee.department, branch: employee.branch, status: employee.status, rejoin: isRejoin || undefined } });
+    await addAuditLog({
+  actorId: session.id,
+  actorName: session.name,
+  action: isRejoin
+    ? "REJOIN_EMPLOYEE"
+    : (data.password
+        ? "RESET_PASSWORD_OR_UPDATE_EMPLOYEE"
+        : "UPDATE_EMPLOYEE"),
+  target: employee.name,
+  details: {
+    employeeCode: employee.employeeCode,
+    mobile: employee.mobile,
+    designation: employee.designation,
+    department: employee.department,
+    branch: employee.branch,
+    floor: employee.floor,
+    isFloorManager: employee.isFloorManager,
+    status: employee.status,
+    rejoin: isRejoin || undefined
+  }
+});
     if (isRejoin) {
       await addSystemNotification({
         actorId: session.id,

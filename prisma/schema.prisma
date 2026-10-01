@@ -53,6 +53,8 @@ model Employee {
   exitDate          DateTime?
   status            EmployeeStatus @default(ACTIVE)
   reportingRequired Boolean        @default(false)
+  floor             String?
+  isFloorManager    Boolean        @default(false)
   photoUrl          String?        @db.Text
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -77,6 +79,8 @@ model Employee {
   resolvedHelpTickets     HelpTicket[]        @relation("HelpTicketResolver")
   employeeReports         EmployeeReport[]    @relation("EmployeeReportOwner")
   uploadedEmployeeReports EmployeeReport[]    @relation("EmployeeReportUploader")
+  notesReceived           EmployeeNote[]      @relation("EmployeeNoteRecipient")
+  notesCreated            EmployeeNote[]      @relation("EmployeeNoteCreator")
 
   @@index([name])
   @@index([role])
@@ -85,6 +89,8 @@ model Employee {
   @@index([branch])
   @@index([status])
   @@index([deletedAt])
+  @@index([floor])
+  @@index([isFloorManager])
 }
 
 model EmploymentHistory {
@@ -349,4 +355,22 @@ model EmployeeReport {
 
   @@index([employeeId, toDate])
   @@index([employeeId, createdAt])
+}
+
+model EmployeeNote {
+  id         String @id @default(cuid())
+  employeeId String
+  note       String @db.Text
+
+  createdById   String?
+  createdByName String
+  createdByRole Role
+
+  createdAt DateTime @default(now())
+
+  employee  Employee  @relation("EmployeeNoteRecipient", fields: [employeeId], references: [id], onDelete: Cascade)
+  createdBy Employee? @relation("EmployeeNoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, createdAt])
+  @@index([createdById, createdAt])
 }

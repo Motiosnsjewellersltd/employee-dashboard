@@ -12,6 +12,8 @@ type User = {
   designation?: string;
   department?: string;
   branch?: "MT" | "JB" | "VN";
+  floor?: string;
+  isFloorManager?: boolean;
   dob?: string;
   doj?: string;
   exitDate?: string;
@@ -20,7 +22,7 @@ type User = {
   createdAt?: string;
   updatedAt?: string;
   lastSeenAt?: string;
-reportingRequired?: boolean;
+  reportingRequired?: boolean;
 };
 
 type LeaveInfo = {
@@ -38,6 +40,7 @@ type Section =
   | "leaveRequests"
   | "helpTickets"
   | "reporting"
+| "floorTeam"
   | "reminder"
   | "notifications"
   | "chat"
@@ -585,6 +588,9 @@ useEffect(() => {
   const isAdmin = session.role === "ADMIN" || session.role === "HR";
   const isSuperAdmin = session.role === "ADMIN";
   const isHr = session.role === "HR";
+const isFloorManager =
+  session.role === "EMPLOYEE" &&
+  Boolean(session.isFloorManager);
   const hrAllowed = (key: string) => isSuperAdmin || rolePermissions[key] === "true";
   const showDashboard = hrAllowed("hrMenuDashboard");
   const showEmployees = hrAllowed("hrMenuEmployees");
@@ -648,6 +654,7 @@ const canManageReports =
 reporting: session.role === "EMPLOYEE"
   ? "My Reports"
   : "Reporting Management",
+floorTeam: "My Floor Team",
     leaveRequests: "Leave Requests"
   };
 
@@ -773,6 +780,15 @@ reporting: session.role === "EMPLOYEE"
     />
   )}
 
+{isFloorManager && (
+  <MenuItem
+    label="My Floor Team"
+    icon="☷"
+    active={section === "floorTeam"}
+    onClick={() => goto("floorTeam")}
+  />
+)}
+
         {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
         <MenuItem label="Logout" icon="ↄ" active={false} onClick={logout} />
       </nav>
@@ -832,6 +848,9 @@ reporting: session.role === "EMPLOYEE"
     }
   />
 )}
+{section === "floorTeam" && isFloorManager && (
+  <FloorTeamPanel session={session} />
+)}
 
 
       {section === "reminder" && isAdmin && showReminder && <Reminder employees={activeEmployeeRows} canCreateMessage={canCreateNotifications} />}
@@ -859,6 +878,15 @@ reporting: session.role === "EMPLOYEE"
   />
 )}
 
+{isFloorManager && (
+  <MobileNavItem
+    label="Team"
+    icon="☷"
+    active={section === "floorTeam"}
+    onClick={() => goto("floorTeam")}
+  />
+)}
+
 {!isAdmin &&
   showReporting && (
     <MobileNavItem
@@ -877,7 +905,21 @@ reporting: session.role === "EMPLOYEE"
       {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
-    {profileUser && section !== "profile" && <ProfileModal user={profileUser} leaves={profileLeaves} loading={profileLoading} onClose={() => setProfileUser(null)} employees={employeeRows} onSwitch={openProfile} canDeleteBranchHistory={isSuperAdmin} onBranchHistoryDeleted={() => loadProfileLeaves(profileUser)} />}
+    {profileUser && section !== "profile" && (
+  <ProfileModal
+    user={profileUser}
+    session={session}
+    leaves={profileLeaves}
+    loading={profileLoading}
+    onClose={() => setProfileUser(null)}
+    employees={employeeRows}
+    onSwitch={openProfile}
+    canDeleteBranchHistory={isSuperAdmin}
+    onBranchHistoryDeleted={() =>
+      loadProfileLeaves(profileUser)
+    }
+  />
+)}
     <ToastHost />
     <ConfirmHost />
     <PushNotificationSetup employeeId={session.id} />
@@ -1277,6 +1319,8 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
     designation: user.designation || "",
     department: user.department || "",
     branch: user.branch || "",
+floor: user.floor || "",
+isFloorManager: Boolean(user.isFloorManager),
     doj: toDateInputValue(user.doj),
     exitDate: toDateInputValue(user.exitDate),
     status: user.status || "ACTIVE"
@@ -1364,6 +1408,44 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
         {field("designation", "Designation")}
         {field("department", "Department")}
         <div><label>Branch</label><select value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })}><option value="">Select Branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select></div>
+<div>
+  <label>Floor</label>
+  <select
+    value={form.floor || ""}
+    onChange={e =>
+      setForm({
+        ...form,
+        floor: e.target.value
+      })
+    }
+  >
+    <option value="">Select Floor</option>
+    <option value="Diamond">Diamond</option>
+    <option value="Gold">Gold</option>
+    <option value="Silver">Silver</option>
+    <option value="Support / Non-Floor">
+      Support / Non-Floor
+    </option>
+  </select>
+</div>
+
+<div>
+  <label>Floor Manager</label>
+  <select
+    value={form.isFloorManager ? "YES" : "NO"}
+    onChange={e =>
+      setForm({
+        ...form,
+        isFloorManager: e.target.value === "YES"
+      })
+    }
+  >
+    <option value="NO">No</option>
+    <option value="YES">Yes</option>
+  </select>
+</div>
+
+
         {field("doj", "Date of Joining", "date")}
         <div><label>Exit / Leave Date</label><input type="date" value={form.exitDate || ""} onChange={e => setForm({ ...form, exitDate: e.target.value, status: e.target.value ? "INACTIVE" : form.status })} /></div>
         <div><label>Status</label><select value={form.status} disabled={Boolean(form.exitDate)} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select>{form.exitDate && <small>Exit/Leave Date automatically sets status to INACTIVE.</small>}</div>
@@ -1408,7 +1490,14 @@ function AddUploadCenter({ canAddEmployee, canUploadLeaves, onEmployeeSaved }: {
 }
 
 function EmployeeForm({ onSaved }: { onSaved: () => void }) {
-  const [form, setForm] = useState<any>({ role: "EMPLOYEE", status: "ACTIVE", password: "1234", branch: "" });
+  const [form, setForm] = useState<any>({
+  role: "EMPLOYEE",
+  status: "ACTIVE",
+  password: "1234",
+  branch: "",
+  floor: "",
+  isFloorManager: false
+});
   const [file, setFile] = useState<File | null>(null);
   const [bulk, setBulk] = useState<File | null>(null);
   const [preview, setPreview] = useState<any>(null);
@@ -1468,7 +1557,62 @@ function EmployeeForm({ onSaved }: { onSaved: () => void }) {
       <div><label>Employee ID (Unique Number)</label><input inputMode="numeric" pattern="[0-9]*" value={form.employeeCode || ""} onChange={e => setForm({ ...form, employeeCode: e.target.value.replace(/\D/g, "") })} /></div>
       {field("name", "Name")}{field("mobile", "Username / Mobile")}{field("password", "Password")}{field("dob", "Date of Birth", "date")}
       <div><label>Role</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option>EMPLOYEE</option><option>HR</option><option>ADMIN</option></select></div>
-      {field("designation", "Designation")}{field("department", "Department")}<div><label>Branch</label><select value={form.branch} onChange={e => setForm({ ...form, branch: e.target.value })}><option value="">Select Branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select></div>{field("doj", "Date of Joining", "date")}
+      {field("designation", "Designation")}{field("department", "Department")}
+<div>
+  <label>Branch</label>
+  <select
+    value={form.branch}
+    onChange={e =>
+      setForm({
+        ...form,
+        branch: e.target.value
+      })
+    }
+  >
+    <option value="">Select Branch</option>
+    <option value="MT">MT</option>
+    <option value="JB">JB</option>
+    <option value="VN">VN</option>
+  </select>
+</div>
+
+<div>
+  <label>Floor</label>
+  <select
+    value={form.floor || ""}
+    onChange={e =>
+      setForm({
+        ...form,
+        floor: e.target.value
+      })
+    }
+  >
+    <option value="">Select Floor</option>
+    <option value="Diamond">Diamond</option>
+    <option value="Gold">Gold</option>
+    <option value="Silver">Silver</option>
+    <option value="Support / Non-Floor">
+      Support / Non-Floor
+    </option>
+  </select>
+</div>
+
+<div>
+  <label>Floor Manager</label>
+  <select
+    value={form.isFloorManager ? "YES" : "NO"}
+    onChange={e =>
+      setForm({
+        ...form,
+        isFloorManager: e.target.value === "YES"
+      })
+    }
+  >
+    <option value="NO">No</option>
+    <option value="YES">Yes</option>
+  </select>
+</div>
+{field("doj", "Date of Joining", "date")}
       <div><label>Exit / Leave Date</label><input type="date" value={form.exitDate || ""} onChange={e => setForm({ ...form, exitDate: e.target.value, status: e.target.value ? "INACTIVE" : form.status })} /></div>
       <div><label>Status</label><select value={form.status} disabled={Boolean(form.exitDate)} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select>{form.exitDate && <small>Exit/Leave Date automatically sets status to INACTIVE.</small>}</div>
       <div><label>Photo</label><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
@@ -1708,7 +1852,16 @@ useEffect(() => {
   loadLeaves(user);
 }, [user.id]); 
 
-  return <section className="panel"><ProfileContent user={user} leaves={leaves} loading={loading} /></section>;
+  return (
+  <section className="panel">
+    <ProfileContent
+      user={user}
+      viewer={user}
+      leaves={leaves}
+      loading={loading}
+    />
+  </section>
+);
 }
 
 
@@ -1805,7 +1958,27 @@ function ResetPassword({ employees }: { employees: User[] }) {
   </div>{msg && <div className="msg warn">{msg}</div>}</section>;
 }
 
-function ProfileModal({ user, leaves, loading, onClose, employees, onSwitch, canDeleteBranchHistory, onBranchHistoryDeleted }: { user: User; leaves: LeaveInfo | null; loading: boolean; onClose: () => void; employees: User[]; onSwitch: (u: User) => void; canDeleteBranchHistory: boolean; onBranchHistoryDeleted: () => void | Promise<void> }) {
+function ProfileModal({
+  user,
+  session,
+  leaves,
+  loading,
+  onClose,
+  employees,
+  onSwitch,
+  canDeleteBranchHistory,
+  onBranchHistoryDeleted
+}: {
+  user: User;
+  session: User;
+  leaves: LeaveInfo | null;
+  loading: boolean;
+  onClose: () => void;
+  employees: User[];
+  onSwitch: (u: User) => void;
+  canDeleteBranchHistory: boolean;
+  onBranchHistoryDeleted: () => void | Promise<void>;
+}) {
   useEffect(() => {
     const escClose = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", escClose);
@@ -1821,12 +1994,33 @@ function ProfileModal({ user, leaves, loading, onClose, employees, onSwitch, can
     <div className="modal-box" onMouseDown={e => e.stopPropagation()}>
       <button className="close" type="button" aria-label="Close profile" onClick={onClose}>×</button>
       <div className="profile-switcher print-exclude"><button className="light" disabled={!previous} onClick={() => previous && onSwitch(previous)}>← Previous</button><select value={user.id} onChange={event => { const selected = ordered.find(e => e.id === event.target.value); if (selected) onSwitch(selected); }}>{ordered.map(employee => <option key={employee.id} value={employee.id}>{employee.employeeCode ? `${employee.employeeCode} — ` : ""}{employee.name} — {employee.mobile}</option>)}</select><button className="light" disabled={!next} onClick={() => next && onSwitch(next)}>Next →</button></div>
-      <ProfileContent user={user} leaves={leaves} loading={loading} canDeleteBranchHistory={canDeleteBranchHistory} onBranchHistoryDeleted={onBranchHistoryDeleted} />
+      <ProfileContent
+  user={user}
+  viewer={session}
+  leaves={leaves}
+  loading={loading}
+  canDeleteBranchHistory={canDeleteBranchHistory}
+  onBranchHistoryDeleted={onBranchHistoryDeleted}
+/>
     </div>
   </div>;
 }
 
-function ProfileContent({ user, leaves, loading, canDeleteBranchHistory = false, onBranchHistoryDeleted }: { user: User; leaves: LeaveInfo | null; loading: boolean; canDeleteBranchHistory?: boolean; onBranchHistoryDeleted?: () => void | Promise<void> }) {
+function ProfileContent({
+  user,
+  viewer,
+  leaves,
+  loading,
+  canDeleteBranchHistory = false,
+  onBranchHistoryDeleted
+}: {
+  user: User;
+  viewer: User;
+  leaves: LeaveInfo | null;
+  loading: boolean;
+  canDeleteBranchHistory?: boolean;
+  onBranchHistoryDeleted?: () => void | Promise<void>;
+}) {
   const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
 
   useEffect(() => {
@@ -1853,7 +2047,17 @@ function ProfileContent({ user, leaves, loading, canDeleteBranchHistory = false,
     <div className="profile-grid">
       <Info label="Employee ID" value={user.employeeCode || "-"} /><Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} />
       <Info label="Working Period" value={totalWorkingPeriod(employmentHistory, user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
+<Info label="Floor" value={user.floor || "-"} />
+<Info
+  label="Floor Manager"
+  value={user.isFloorManager ? "Yes" : "No"}
+/>
     </div>
+<EmployeeNotes
+  employee={user}
+  viewer={viewer}
+/>
+
     {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null}
     {user.role !== "ADMIN" && <>
       <h2>Leave Balance</h2>
@@ -3348,6 +3552,633 @@ function ReportingPanel({
   );
 }
 
+function EmployeeNotes({
+  employee,
+  viewer
+}: {
+  employee: User;
+  viewer: User;
+}) {
+  const [notes, setNotes] =
+    useState<any[]>([]);
+
+  const [noteText, setNoteText] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [msg, setMsg] =
+    useState("");
+
+  const isAdminOrHr =
+    viewer.role === "ADMIN" ||
+    viewer.role === "HR";
+
+  const isFloorManager =
+    viewer.role === "EMPLOYEE" &&
+    Boolean(viewer.isFloorManager);
+
+  const sameFloor =
+    Boolean(viewer.floor) &&
+    viewer.floor === employee.floor;
+
+  const canAdd =
+    isAdminOrHr ||
+    (isFloorManager && sameFloor);
+
+  const canDelete =
+    isAdminOrHr;
+
+  async function loadNotes() {
+    setLoading(true);
+    setMsg("");
+
+    try {
+      const data = await api(
+        `/api/employee-notes?employeeId=${encodeURIComponent(
+          employee.id
+        )}`
+      );
+
+      setNotes(
+        data.notes || []
+      );
+    } catch (e: any) {
+      setNotes([]);
+      setMsg(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadNotes();
+  }, [employee.id]);
+
+  async function addNote(
+    event: React.FormEvent
+  ) {
+    event.preventDefault();
+
+    const cleanNote =
+      noteText.trim();
+
+    if (!cleanNote) {
+      setMsg(
+        "Write a note first."
+      );
+      return;
+    }
+
+    setSaving(true);
+    setMsg("");
+
+    try {
+      await api(
+        "/api/employee-notes",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              employeeId:
+                employee.id,
+              note: cleanNote
+            })
+        }
+      );
+
+      setNoteText("");
+
+      showToast(
+        "Employee note added.",
+        "success"
+      );
+
+      await loadNotes();
+    } catch (e: any) {
+      setMsg(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteNote(
+    note: any
+  ) {
+    const confirmed =
+      await requestConfirm(
+        "Delete Employee Note",
+        "Delete this employee note permanently?",
+        "Delete"
+      );
+
+    if (!confirmed) return;
+
+    setSaving(true);
+
+    try {
+      await api(
+        `/api/employee-notes?id=${encodeURIComponent(
+          note.id
+        )}`,
+        {
+          method: "DELETE"
+        }
+      );
+
+      showToast(
+        "Employee note deleted.",
+        "success"
+      );
+
+      await loadNotes();
+    } catch (e: any) {
+      setMsg(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function noteDate(
+    value?: string
+  ) {
+    if (!value) return "-";
+
+    return new Date(
+      value
+    ).toLocaleString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }
+    );
+  }
+
+  return (
+    <div className="employee-notes-section">
+
+      <div className="employee-notes-head">
+
+        <div>
+          <h2>
+            Employee Notes
+          </h2>
+
+          <p className="hint">
+            Work observations and remarks.
+          </p>
+        </div>
+
+        <span className="pill">
+          {notes.length} Note
+          {notes.length === 1
+            ? ""
+            : "s"}
+        </span>
+
+      </div>
+
+      {canAdd && (
+        <form
+          className="employee-note-form"
+          onSubmit={addNote}
+        >
+
+          <label>
+            Add Note
+          </label>
+
+          <textarea
+            rows={3}
+            maxLength={3000}
+            placeholder={
+              isFloorManager &&
+              !isAdminOrHr
+                ? "Write note for your floor employee..."
+                : "Write employee note..."
+            }
+            value={noteText}
+            onChange={e =>
+              setNoteText(
+                e.target.value
+              )
+            }
+          />
+
+          <div className="employee-note-form-actions">
+
+            <small className="hint">
+              Once submitted by a Floor Manager, the note cannot be edited or deleted by the Floor Manager.
+            </small>
+
+            <button
+              className="primary"
+              type="submit"
+              disabled={
+                saving ||
+                !noteText.trim()
+              }
+            >
+              {saving
+                ? "Saving..."
+                : "Submit Note"}
+            </button>
+
+          </div>
+
+        </form>
+      )}
+
+      {msg && (
+        <div className="msg warn">
+          {msg}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="empty-state">
+          Loading notes...
+        </div>
+      ) : notes.length ? (
+
+        <div className="employee-note-list">
+
+          {notes.map(note => (
+
+            <article
+              className="employee-note-card"
+              key={note.id}
+            >
+
+              <div className="employee-note-meta">
+
+                <div>
+                  <b>
+                    {note.createdByName ||
+                      note.createdBy?.name ||
+                      "-"}
+                  </b>
+
+                  <span>
+                    {note.createdByRole ===
+                    "ADMIN"
+                      ? "Admin"
+                      : note.createdByRole ===
+                        "HR"
+                      ? "HR"
+                      : "Floor Manager"}
+                  </span>
+                </div>
+
+                <time>
+                  {noteDate(
+                    note.createdAt
+                  )}
+                </time>
+
+              </div>
+
+              <p>
+                {note.note}
+              </p>
+
+              {canDelete && (
+                <div className="employee-note-actions">
+
+                  <button
+                    className="danger-btn small"
+                    type="button"
+                    disabled={saving}
+                    onClick={() =>
+                      deleteNote(note)
+                    }
+                  >
+                    Delete
+                  </button>
+
+                </div>
+              )}
+
+            </article>
+
+          ))}
+
+        </div>
+
+      ) : (
+        <div className="empty-state">
+          No notes added yet.
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+
+function FloorTeamPanel({
+  session
+}: {
+  session: User;
+}) {
+  const [employees, setEmployees] = useState<User[]>([]);
+  const [floor, setFloor] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState("");
+  const [selectedEmployee, setSelectedEmployee] =
+    useState<User | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setMsg("");
+
+    try {
+      const data = await api("/api/floor-team");
+
+      setEmployees(data.employees || []);
+      setFloor(data.floor || "");
+    } catch (e: any) {
+      setEmployees([]);
+      setMsg(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, [session.id]);
+
+  return (
+    <section className="panel floor-team-panel">
+      <div className="floor-team-head">
+        <div>
+          <h1>My Floor Team</h1>
+          <p className="hint">
+            Floor: <b>{floor || "-"}</b>
+          </p>
+        </div>
+
+        <button
+          className="light"
+          type="button"
+          onClick={load}
+          disabled={loading}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {msg && <div className="msg warn">{msg}</div>}
+
+      {loading ? (
+        <div className="empty-state">
+          Loading floor team...
+        </div>
+      ) : employees.length ? (
+        <>
+          <div className="table-wrap floor-team-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee ID</th>
+                  <th>Name</th>
+                  <th>Mobile</th>
+                  <th>Designation</th>
+                  <th>Department</th>
+                  <th>Branch</th>
+                  <th>Floor</th>
+                  <th>Status</th>
+                  <th>View</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {employees.map(employee => (
+                  <tr key={employee.id}>
+                    <td>
+                      {employee.employeeCode || "-"}
+                    </td>
+
+                    <td>
+                      <b>{employee.name}</b>
+                    </td>
+
+                    <td>{employee.mobile || "-"}</td>
+
+                    <td>
+                      {employee.designation || "-"}
+                    </td>
+
+                    <td>
+                      {employee.department || "-"}
+                    </td>
+
+                    <td>
+                      {employee.branch || "-"}
+                    </td>
+
+                    <td>
+                      {employee.floor || "-"}
+                    </td>
+
+                    <td>
+                      <span
+                        className={
+                          employee.status === "ACTIVE"
+                            ? "pill ok"
+                            : "pill danger"
+                        }
+                      >
+                        {employee.status || "-"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <button
+                        className="light"
+                        type="button"
+                        onClick={() =>
+                          setSelectedEmployee(employee)
+                        }
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="employee-mobile-list floor-team-mobile-list">
+            {employees.map(employee => (
+              <div
+                className="employee-mobile-card"
+                key={`floor-${employee.id}`}
+              >
+                {avatar(employee)}
+
+                <div className="employee-mobile-main">
+                  <b>{employee.name}</b>
+
+                  <span>
+                    ID: {employee.employeeCode || "-"}
+                    {employee.designation
+                      ? ` · ${employee.designation}`
+                      : ""}
+                  </span>
+
+                  <small>
+                    {employee.department || "-"}
+                    {employee.branch
+                      ? ` · ${employee.branch}`
+                      : ""}
+                  </small>
+                </div>
+
+                <span
+                  className={
+                    employee.status === "ACTIVE"
+                      ? "pill ok"
+                      : "pill danger"
+                  }
+                >
+                  {employee.status}
+                </span>
+
+                <div className="employee-mobile-actions">
+                  <button
+                    className="light"
+                    type="button"
+                    onClick={() =>
+                      setSelectedEmployee(employee)
+                    }
+                  >
+                    View
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="empty-state">
+          No employees found on your floor.
+        </div>
+      )}
+
+      {selectedEmployee && (
+        <div
+          className="modal"
+          onMouseDown={() =>
+            setSelectedEmployee(null)
+          }
+        >
+          <div
+            className="modal-box"
+            onMouseDown={e =>
+              e.stopPropagation()
+            }
+          >
+            <button
+              className="close"
+              type="button"
+              onClick={() =>
+                setSelectedEmployee(null)
+              }
+            >
+              ×
+            </button>
+
+            <div className="profile-head">
+              {avatar(selectedEmployee, true)}
+
+              <div>
+                <h1>
+                  {selectedEmployee.name}
+                </h1>
+
+                <p>
+                  {selectedEmployee.designation || "-"}
+                  {" | "}
+                  {selectedEmployee.department || "-"}
+                </p>
+              </div>
+            </div>
+
+            <div className="profile-grid">
+              <Info
+                label="Employee ID"
+                value={
+                  selectedEmployee.employeeCode || "-"
+                }
+              />
+
+              <Info
+                label="Mobile"
+                value={selectedEmployee.mobile}
+              />
+
+              <Info
+                label="Designation"
+                value={
+                  selectedEmployee.designation
+                }
+              />
+
+              <Info
+                label="Department"
+                value={
+                  selectedEmployee.department
+                }
+              />
+
+              <Info
+                label="Branch"
+                value={
+                  selectedEmployee.branch || "-"
+                }
+              />
+
+              <Info
+                label="Floor"
+                value={
+                  selectedEmployee.floor || "-"
+                }
+              />
+
+              <Info
+                label="Status"
+                value={
+                  selectedEmployee.status || "-"
+                }
+              />
+            </div>
+<EmployeeNotes
+  employee={selectedEmployee}
+  viewer={session}
+/>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 
 
