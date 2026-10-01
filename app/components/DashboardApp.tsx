@@ -2793,7 +2793,7 @@ function ReportingPanel({
 
     if (!file) {
       setMsg(
-        "Select PDF report."
+        "Select report file."
       );
       return;
     }
@@ -3065,8 +3065,8 @@ function ReportingPanel({
 
           <p className="hint">
             {manager
-              ? "Upload and manage employee PDF reports."
-              : "View and download your reports."}
+              ? "Upload and manage employee report files."
+: "View and download your reports."}
           </p>
         </div>
 
@@ -3309,15 +3309,15 @@ function ReportingPanel({
 
                 <div>
                   <label>
-                    PDF Report
-                  </label>
+  Report File
+</label>
 
                   <input
                     ref={
                       fileRef
                     }
                     type="file"
-                    accept="application/pdf,.pdf"
+                    accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
                     onChange={
                       event =>
                         setFile(
@@ -3330,7 +3330,7 @@ function ReportingPanel({
                   />
 
                   <small className="hint">
-                    Maximum 4 MB PDF.
+                   PDF, JPG, JPEG, PNG or WEBP · Maximum 4 MB.
                   </small>
                 </div>
 
@@ -3374,8 +3374,12 @@ function ReportingPanel({
               >
 
                 <div className="report-pdf-icon">
-                  PDF
-                </div>
+  {String(
+    report.fileType || ""
+  ).startsWith("image/")
+    ? "IMG"
+    : "PDF"}
+</div>
 
                 <div className="report-card-main">
 
@@ -3573,7 +3577,7 @@ function ReportingPanel({
             />
 
             <label>
-              Replace PDF
+              Replace Report File
             </label>
 
             <input
@@ -3581,7 +3585,7 @@ function ReportingPanel({
                 replaceFileRef
               }
               type="file"
-              accept="application/pdf,.pdf"
+              accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
               onChange={
                 event =>
                   setReplacementFile(
@@ -3593,8 +3597,9 @@ function ReportingPanel({
             />
 
             <small className="hint">
-              Leave blank if only title or dates need updating.
-            </small>
+  PDF, JPG, JPEG, PNG or WEBP · Maximum 4 MB.
+  Leave blank if only title or dates need updating.
+</small>
 
             <div className="report-edit-actions">
 

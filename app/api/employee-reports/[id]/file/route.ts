@@ -104,10 +104,10 @@ export async function GET(
       ) === "1";
 
     const fileName =
-      safeFileName(
-        report.fileName ||
-          "report.pdf"
-      );
+  safeFileName(
+    report.fileName ||
+      "report"
+  );
 
     return new Response(
       report.fileData,

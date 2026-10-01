@@ -177,58 +177,109 @@ export async function PATCH(
         toDate
       };
 
-      const file =
-        form.get("file");
+     const file =
+  form.get("file");
 
-      if (
-        file instanceof File &&
-        file.size > 0
-      ) {
-        const fileName =
-          String(
-            file.name ||
-              "report.pdf"
-          );
+if (
+  file instanceof File &&
+  file.size > 0
+) {
+  const fileName =
+    String(
+      file.name ||
+        "report"
+    );
 
-        const isPdf =
-          file.type ===
-            "application/pdf" ||
-          fileName
-            .toLowerCase()
-            .endsWith(".pdf");
+  const lowerFileName =
+    fileName.toLowerCase();
 
-        if (!isPdf) {
-          throw new Error(
-            "Only PDF files are allowed."
-          );
-        }
+  let fileType =
+    String(
+      file.type || ""
+    ).toLowerCase();
 
-        const maxSize =
-          4 * 1024 * 1024;
+  const isPdf =
+    fileType ===
+      "application/pdf" ||
+    lowerFileName.endsWith(
+      ".pdf"
+    );
 
-        if (
-          file.size >
-          maxSize
-        ) {
-          throw new Error(
-            "PDF must be 4 MB or smaller."
-          );
-        }
+  const isJpeg =
+    fileType ===
+      "image/jpeg" ||
+    lowerFileName.endsWith(
+      ".jpg"
+    ) ||
+    lowerFileName.endsWith(
+      ".jpeg"
+    );
 
-        data.fileName =
-          fileName;
+  const isPng =
+    fileType ===
+      "image/png" ||
+    lowerFileName.endsWith(
+      ".png"
+    );
 
-        data.fileType =
-          "application/pdf";
+  const isWebp =
+    fileType ===
+      "image/webp" ||
+    lowerFileName.endsWith(
+      ".webp"
+    );
 
-        data.fileSize =
-          file.size;
+  if (
+    !isPdf &&
+    !isJpeg &&
+    !isPng &&
+    !isWebp
+  ) {
+    throw new Error(
+      "Only PDF, JPG, JPEG, PNG or WEBP files are allowed."
+    );
+  }
 
-        data.fileData =
-          Buffer.from(
-            await file.arrayBuffer()
-          );
-      }
+  if (isPdf) {
+    fileType =
+      "application/pdf";
+  } else if (isJpeg) {
+    fileType =
+      "image/jpeg";
+  } else if (isPng) {
+    fileType =
+      "image/png";
+  } else if (isWebp) {
+    fileType =
+      "image/webp";
+  }
+
+  const maxSize =
+    4 * 1024 * 1024;
+
+  if (
+    file.size >
+    maxSize
+  ) {
+    throw new Error(
+      "Report file must be 4 MB or smaller."
+    );
+  }
+
+  data.fileName =
+    fileName;
+
+  data.fileType =
+    fileType;
+
+  data.fileSize =
+    file.size;
+
+  data.fileData =
+    Buffer.from(
+      await file.arrayBuffer()
+    );
+}        
     } else {
       const body =
         await req.json();

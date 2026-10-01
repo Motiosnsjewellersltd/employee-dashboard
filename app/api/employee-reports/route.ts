@@ -295,41 +295,73 @@ export async function POST(
       );
     }
 
-    if (
-      !(file instanceof File)
-    ) {
-      throw new Error(
-        "Select PDF report."
-      );
-    }
+   if (
+  !(file instanceof File)
+) {
+  throw new Error(
+    "Select report file."
+  );
+}
 
-    const fileName =
-      String(
-        file.name || "report.pdf"
-      );
+const fileName =
+  String(
+    file.name || "report"
+  );
 
-    const isPdf =
-      file.type ===
-        "application/pdf" ||
-      fileName
-        .toLowerCase()
-        .endsWith(".pdf");
+const lowerFileName =
+  fileName.toLowerCase();
 
-    if (!isPdf) {
-      throw new Error(
-        "Only PDF files are allowed."
-      );
-    }
+let fileType =
+  String(file.type || "")
+    .toLowerCase();
 
-    const maxSize =
-      4 * 1024 * 1024;
+const isPdf =
+  fileType === "application/pdf" ||
+  lowerFileName.endsWith(".pdf");
 
-    if (file.size > maxSize) {
-      throw new Error(
-        "PDF must be 4 MB or smaller."
-      );
-    }
+const isJpeg =
+  fileType === "image/jpeg" ||
+  lowerFileName.endsWith(".jpg") ||
+  lowerFileName.endsWith(".jpeg");
 
+const isPng =
+  fileType === "image/png" ||
+  lowerFileName.endsWith(".png");
+
+const isWebp =
+  fileType === "image/webp" ||
+  lowerFileName.endsWith(".webp");
+
+if (
+  !isPdf &&
+  !isJpeg &&
+  !isPng &&
+  !isWebp
+) {
+  throw new Error(
+    "Only PDF, JPG, JPEG, PNG or WEBP files are allowed."
+  );
+}
+
+/* Save a reliable MIME type */
+if (isPdf) {
+  fileType = "application/pdf";
+} else if (isJpeg) {
+  fileType = "image/jpeg";
+} else if (isPng) {
+  fileType = "image/png";
+} else if (isWebp) {
+  fileType = "image/webp";
+}
+
+const maxSize =
+  4 * 1024 * 1024;
+
+if (file.size > maxSize) {
+  throw new Error(
+    "Report file must be 4 MB or smaller."
+  );
+}
     const employee =
       await prisma.employee.findUnique({
         where: {
@@ -374,12 +406,11 @@ export async function POST(
               toDate,
 
               fileName,
-              fileType:
-                "application/pdf",
-              fileSize:
-                file.size,
-              fileData:
-                bytes,
+fileType,
+fileSize:
+  file.size,
+fileData:
+  bytes,
 
               uploadedById:
                 session.id
