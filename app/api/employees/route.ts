@@ -46,6 +46,25 @@ function cleanFloor(value: unknown) {
   return floor;
 }
 
+function cleanManagerScope(value: unknown) {
+  const scope = String(value || "").trim().toUpperCase();
+
+  if (!scope) return null;
+
+  const allowedScopes = [
+    "FLOOR",
+    "BRANCH",
+    "DEPARTMENT"
+  ];
+
+  if (!allowedScopes.includes(scope)) {
+    throw new Error(
+      "Manager Scope must be FLOOR, BRANCH or DEPARTMENT."
+    );
+  }
+
+  return scope;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -90,6 +109,36 @@ export async function POST(req: NextRequest) {
     const branch = cleanBranch(data.branch);
 const floor = cleanFloor(data.floor);
 const isFloorManager = Boolean(data.isFloorManager);
+const managerScope = isFloorManager
+  ? cleanManagerScope(data.managerScope)
+  : null;
+
+if (isFloorManager && !managerScope) {
+  throw new Error(
+    "Manager Scope is required for a Manager / Head."
+  );
+}
+
+if (
+  isFloorManager &&
+  managerScope === "FLOOR" &&
+  !floor
+) {
+  throw new Error(
+    "Floor is required for Specific Floor Manager."
+  );
+}
+
+if (
+  isFloorManager &&
+  managerScope === "DEPARTMENT" &&
+  !String(data.department || "").trim()
+) {
+  throw new Error(
+    "Department is required for Department / Function Head."
+  );
+}
+
     const status = exitDate ? "INACTIVE" : (data.status || "ACTIVE");
     const employeeData = {
         employeeCode,
@@ -100,6 +149,7 @@ const isFloorManager = Boolean(data.isFloorManager);
         branch,
 floor,
 isFloorManager,
+managerScope,
         dob: parseDate(data.dob),
         doj: parseDate(data.doj),
         exitDate,
@@ -125,6 +175,7 @@ isFloorManager,
   branch: employee.branch,
   floor: employee.floor,
   isFloorManager: employee.isFloorManager,
+managerScope: employee.managerScope,
   status: employee.status
 } });
     if (!existing) {

@@ -11,7 +11,8 @@ const noteInclude = {
       employeeCode: true,
       name: true,
       branch: true,
-      floor: true
+      floor: true,
+      department: true
     }
   },
 
@@ -23,7 +24,9 @@ const noteInclude = {
       role: true,
       branch: true,
       floor: true,
-      isFloorManager: true
+      department: true,
+      isFloorManager: true,
+      managerScope: true
     }
   }
 };
@@ -43,10 +46,143 @@ async function getCurrentEmployee(
       role: true,
       branch: true,
       floor: true,
-      isFloorManager: true
+      department: true,
+      isFloorManager: true,
+      managerScope: true
     }
   });
 }
+
+function managerEmployeeAllowed(
+  manager: {
+    branch?: string | null;
+    floor?: string | null;
+    department?: string | null;
+    managerScope?: string | null;
+  },
+  employee: {
+    branch?: string | null;
+    floor?: string | null;
+    department?: string | null;
+  }
+) {
+  if (
+    manager.managerScope === "FLOOR"
+  ) {
+    return (
+      Boolean(manager.branch) &&
+      Boolean(manager.floor) &&
+      employee.branch === manager.branch &&
+      employee.floor === manager.floor
+    );
+  }
+
+  if (
+    manager.managerScope === "BRANCH"
+  ) {
+    return (
+      Boolean(manager.branch) &&
+      employee.branch === manager.branch &&
+      [
+        "Diamond",
+        "Gold",
+        "Silver"
+      ].includes(
+        String(employee.floor || "")
+      )
+    );
+  }
+
+  if (
+    manager.managerScope === "DEPARTMENT"
+  ) {
+    return (
+      Boolean(manager.department) &&
+      employee.department ===
+        manager.department
+    );
+  }
+
+  return false;
+}
+
+function managerEmployeeWhere(
+  manager: {
+    branch?: string | null;
+    floor?: string | null;
+    department?: string | null;
+    managerScope?: string | null;
+  }
+) {
+  if (
+    manager.managerScope === "FLOOR"
+  ) {
+    if (
+      !manager.branch ||
+      !manager.floor
+    ) {
+      throw new Error(
+        "Branch and Floor are required for Specific Floor Manager."
+      );
+    }
+
+    return {
+      branch: manager.branch,
+      floor: manager.floor,
+      deletedAt: null
+    };
+  }
+
+  if (
+    manager.managerScope === "BRANCH"
+  ) {
+    if (!manager.branch) {
+      throw new Error(
+        "Branch is required for Whole Branch Manager."
+      );
+    }
+
+    return {
+      branch: manager.branch,
+
+      floor: {
+        in: [
+          "Diamond",
+          "Gold",
+          "Silver"
+        ]
+      },
+
+      deletedAt: null
+    };
+  }
+
+  if (
+    manager.managerScope === "DEPARTMENT"
+  ) {
+    if (!manager.department) {
+      throw new Error(
+        "Department is required for Department / Function Head."
+      );
+    }
+
+    return {
+      department:
+        manager.department,
+
+      deletedAt: null
+    };
+  }
+
+  throw new Error(
+    "Invalid Manager Scope."
+  );
+}
+
+
+/* =========================================================
+   GET
+   ========================================================= */
 
 export async function GET(
   req: NextRequest
@@ -77,6 +213,9 @@ export async function GET(
 
     let where: any = {};
 
+    /*
+      ADMIN / HR
+    */
     if (
       session.role === "ADMIN" ||
       session.role === "HR"
@@ -87,17 +226,15 @@ export async function GET(
       }
     }
 
+    /*
+      MANAGER / HEAD
+    */
     else if (
       actor.role === "EMPLOYEE" &&
-      actor.isFloorManager &&
-      actor.branch &&
-      actor.floor
+      actor.isFloorManager
     ) {
-      where.employee = {
-        branch: actor.branch,
-        floor: actor.floor,
-        deletedAt: null
-      };
+      where.employee =
+        managerEmployeeWhere(actor);
 
       if (requestedEmployeeId) {
         const employee =
@@ -110,7 +247,8 @@ export async function GET(
             select: {
               id: true,
               branch: true,
-              floor: true
+              floor: true,
+              department: true
             }
           });
 
@@ -121,11 +259,13 @@ export async function GET(
         }
 
         if (
-          employee.branch !== actor.branch ||
-          employee.floor !== actor.floor
+          !managerEmployeeAllowed(
+            actor,
+            employee
+          )
         ) {
           throw new Error(
-            "You can only view notes for employees in your own branch and floor."
+            "You can only view notes for employees within your assigned manager scope."
           );
         }
 
@@ -134,6 +274,9 @@ export async function GET(
       }
     }
 
+    /*
+      NORMAL EMPLOYEE
+    */
     else {
       where.employeeId =
         session.id;
@@ -142,10 +285,13 @@ export async function GET(
     const notes =
       await prisma.employeeNote.findMany({
         where,
+
         include: noteInclude,
+
         orderBy: {
           createdAt: "desc"
         },
+
         take: 2000
       });
 
@@ -157,6 +303,11 @@ export async function GET(
     return fail(error, 401);
   }
 }
+
+
+/* =========================================================
+   POST
+   ========================================================= */
 
 export async function POST(
   req: NextRequest
@@ -201,7 +352,9 @@ export async function POST(
       );
     }
 
-    if (note.length > 3000) {
+    if (
+      note.length > 3000
+    ) {
       throw new Error(
         "Note must be 3000 characters or less."
       );
@@ -219,7 +372,8 @@ export async function POST(
           employeeCode: true,
           name: true,
           branch: true,
-          floor: true
+          floor: true,
+          department: true
         }
       });
 
@@ -233,13 +387,13 @@ export async function POST(
       session.role === "ADMIN" ||
       session.role === "HR";
 
-    const isFloorManager =
+    const isManager =
       actor.role === "EMPLOYEE" &&
       actor.isFloorManager === true;
 
     if (
       !isAdminOrHr &&
-      !isFloorManager
+      !isManager
     ) {
       throw new Error(
         "You are not allowed to add employee notes."
@@ -247,27 +401,17 @@ export async function POST(
     }
 
     if (
-      isFloorManager &&
+      isManager &&
       !isAdminOrHr
     ) {
-      if (!actor.branch) {
-        throw new Error(
-          "Branch is not assigned to this Floor Manager."
-        );
-      }
-
-      if (!actor.floor) {
-        throw new Error(
-          "Floor is not assigned to this Floor Manager."
-        );
-      }
-
       if (
-        target.branch !== actor.branch ||
-        target.floor !== actor.floor
+        !managerEmployeeAllowed(
+          actor,
+          target
+        )
       ) {
         throw new Error(
-          "Floor Manager can only add notes for employees in the same branch and floor."
+          "You can only add notes for employees within your assigned manager scope."
         );
       }
     }
@@ -276,11 +420,15 @@ export async function POST(
       await prisma.employeeNote.create({
         data: {
           employeeId,
+
           note,
+
           createdById:
             session.id,
+
           createdByName:
             session.name,
+
           createdByRole:
             session.role
         },
@@ -317,6 +465,12 @@ export async function POST(
         floor:
           target.floor,
 
+        department:
+          target.department,
+
+        managerScope:
+          actor.managerScope,
+
         noteId:
           created.id
       }
@@ -330,6 +484,11 @@ export async function POST(
     return fail(error);
   }
 }
+
+
+/* =========================================================
+   DELETE
+   ========================================================= */
 
 export async function DELETE(
   req: NextRequest

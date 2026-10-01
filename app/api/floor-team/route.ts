@@ -11,6 +11,7 @@ export async function GET() {
         id: session.id,
         deletedAt: null
       },
+
       select: {
         id: true,
         employeeCode: true,
@@ -18,7 +19,9 @@ export async function GET() {
         role: true,
         branch: true,
         floor: true,
+        department: true,
         isFloorManager: true,
+        managerScope: true,
         status: true
       }
     });
@@ -32,68 +35,157 @@ export async function GET() {
       !manager.isFloorManager
     ) {
       throw new Error(
-        "Floor Team is only available for Floor Managers."
+        "Team is only available for Managers / Heads."
       );
     }
 
-    if (!manager.branch) {
+    if (!manager.managerScope) {
       throw new Error(
-        "Branch is not assigned to this Floor Manager."
+        "Manager Scope is not assigned."
       );
     }
 
-    if (!manager.floor) {
-      throw new Error(
-        "Floor is not assigned to this Floor Manager."
-      );
-    }
-
-    const employees = await prisma.employee.findMany({
-      where: {
-        branch: manager.branch,
-        floor: manager.floor,
-        deletedAt: null,
-        role: {
-          not: "ADMIN"
-        }
+    const commonWhere = {
+      id: {
+        not: manager.id
       },
 
-      select: {
-        id: true,
-        employeeCode: true,
-        name: true,
-        mobile: true,
-        role: true,
-        designation: true,
-        department: true,
-        branch: true,
-        floor: true,
-        isFloorManager: true,
-        status: true,
-        photoUrl: true,
-        doj: true,
-        updatedAt: true
-      },
+      status: "ACTIVE" as const,
 
-      orderBy: {
-        name: "asc"
+      exitDate: null,
+
+      deletedAt: null,
+
+      role: {
+        not: "ADMIN" as const
       }
-    });
+    };
+
+    let teamWhere: any = {
+      ...commonWhere
+    };
+
+    if (manager.managerScope === "FLOOR") {
+      if (!manager.branch) {
+        throw new Error(
+          "Branch is not assigned to this Manager."
+        );
+      }
+
+      if (!manager.floor) {
+        throw new Error(
+          "Floor is not assigned to this Manager."
+        );
+      }
+
+      teamWhere = {
+        ...commonWhere,
+        branch: manager.branch,
+        floor: manager.floor
+      };
+    }
+
+    else if (manager.managerScope === "BRANCH") {
+      if (!manager.branch) {
+        throw new Error(
+          "Branch is not assigned to this Manager."
+        );
+      }
+
+      teamWhere = {
+        ...commonWhere,
+        branch: manager.branch,
+
+        floor: {
+          in: [
+            "Diamond",
+            "Gold",
+            "Silver"
+          ]
+        }
+      };
+    }
+
+    else if (
+      manager.managerScope === "DEPARTMENT"
+    ) {
+      if (!manager.department) {
+        throw new Error(
+          "Department is not assigned to this Manager / Head."
+        );
+      }
+
+      teamWhere = {
+        ...commonWhere,
+        department: manager.department
+      };
+    }
+
+    else {
+      throw new Error(
+        "Invalid Manager Scope."
+      );
+    }
+
+    const employees =
+      await prisma.employee.findMany({
+        where: teamWhere,
+
+        select: {
+          id: true,
+          employeeCode: true,
+          name: true,
+          mobile: true,
+          role: true,
+          designation: true,
+          department: true,
+          branch: true,
+          floor: true,
+          isFloorManager: true,
+          managerScope: true,
+          status: true,
+          photoUrl: true,
+          doj: true,
+          updatedAt: true
+        },
+
+        orderBy: {
+          name: "asc"
+        }
+      });
 
     return ok({
-      branch: manager.branch,
-      floor: manager.floor,
+      managerScope:
+        manager.managerScope,
+
+      branch:
+        manager.branch || "",
+
+      floor:
+        manager.floor || "",
+
+      department:
+        manager.department || "",
 
       manager: {
         id: manager.id,
-        employeeCode: manager.employeeCode,
-        name: manager.name,
-        branch: manager.branch,
-        floor: manager.floor
+        employeeCode:
+          manager.employeeCode,
+        name:
+          manager.name,
+        branch:
+          manager.branch,
+        floor:
+          manager.floor,
+        department:
+          manager.department,
+        managerScope:
+          manager.managerScope
       },
 
       employees
     });
+
   } catch (error) {
     return fail(error, 401);
   }

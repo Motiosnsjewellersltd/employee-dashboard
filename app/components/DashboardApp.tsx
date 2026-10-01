@@ -14,6 +14,7 @@ type User = {
   branch?: "MT" | "JB" | "VN";
   floor?: string;
   isFloorManager?: boolean;
+managerScope?: "FLOOR" | "BRANCH" | "DEPARTMENT";
   dob?: string;
   doj?: string;
   exitDate?: string;
@@ -654,7 +655,7 @@ const canManageReports =
 reporting: session.role === "EMPLOYEE"
   ? "My Reports"
   : "Reporting Management",
-floorTeam: "My Floor Team",
+floorTeam: "My Team",
     leaveRequests: "Leave Requests"
   };
 
@@ -782,7 +783,7 @@ floorTeam: "My Floor Team",
 
 {isFloorManager && (
   <MenuItem
-    label="My Floor Team"
+    label="My Team"
     icon="☷"
     active={section === "floorTeam"}
     onClick={() => goto("floorTeam")}
@@ -1321,6 +1322,7 @@ function EditEmployeeModal({ user, onClose, onSaved }: { user: User; onClose: ()
     branch: user.branch || "",
 floor: user.floor || "",
 isFloorManager: Boolean(user.isFloorManager),
+managerScope: user.managerScope || "",
     doj: toDateInputValue(user.doj),
     exitDate: toDateInputValue(user.exitDate),
     status: user.status || "ACTIVE"
@@ -1431,19 +1433,58 @@ isFloorManager: Boolean(user.isFloorManager),
 
 <div>
   <label>Floor Manager</label>
+
   <select
     value={form.isFloorManager ? "YES" : "NO"}
-    onChange={e =>
+    onChange={e => {
+      const yes =
+        e.target.value === "YES";
+
       setForm({
         ...form,
-        isFloorManager: e.target.value === "YES"
-      })
-    }
+        isFloorManager: yes,
+        managerScope: yes
+          ? form.managerScope
+          : ""
+      });
+    }}
   >
     <option value="NO">No</option>
     <option value="YES">Yes</option>
   </select>
 </div>
+
+{form.isFloorManager && (
+  <div>
+    <label>Manager Scope</label>
+
+    <select
+      value={form.managerScope || ""}
+      onChange={e =>
+        setForm({
+          ...form,
+          managerScope: e.target.value
+        })
+      }
+    >
+      <option value="">
+        Select Manager Scope
+      </option>
+
+      <option value="FLOOR">
+        Specific Floor
+      </option>
+
+      <option value="BRANCH">
+        Whole Branch
+      </option>
+
+      <option value="DEPARTMENT">
+        Department / Function
+      </option>
+    </select>
+  </div>
+)}
 
 
         {field("doj", "Date of Joining", "date")}
@@ -1496,7 +1537,8 @@ function EmployeeForm({ onSaved }: { onSaved: () => void }) {
   password: "1234",
   branch: "",
   floor: "",
-  isFloorManager: false
+  isFloorManager: false,
+managerScope: ""
 });
   const [file, setFile] = useState<File | null>(null);
   const [bulk, setBulk] = useState<File | null>(null);
@@ -1599,19 +1641,59 @@ function EmployeeForm({ onSaved }: { onSaved: () => void }) {
 
 <div>
   <label>Floor Manager</label>
+
   <select
     value={form.isFloorManager ? "YES" : "NO"}
-    onChange={e =>
+    onChange={e => {
+      const yes =
+        e.target.value === "YES";
+
       setForm({
         ...form,
-        isFloorManager: e.target.value === "YES"
-      })
-    }
+        isFloorManager: yes,
+        managerScope: yes
+          ? form.managerScope
+          : ""
+      });
+    }}
   >
     <option value="NO">No</option>
     <option value="YES">Yes</option>
   </select>
 </div>
+
+{form.isFloorManager && (
+  <div>
+    <label>Manager Scope</label>
+
+    <select
+      value={form.managerScope || ""}
+      onChange={e =>
+        setForm({
+          ...form,
+          managerScope: e.target.value
+        })
+      }
+    >
+      <option value="">
+        Select Manager Scope
+      </option>
+
+      <option value="FLOOR">
+        Specific Floor
+      </option>
+
+      <option value="BRANCH">
+        Whole Branch
+      </option>
+
+      <option value="DEPARTMENT">
+        Department / Function
+      </option>
+    </select>
+  </div>
+)}
+
 {field("doj", "Date of Joining", "date")}
       <div><label>Exit / Leave Date</label><input type="date" value={form.exitDate || ""} onChange={e => setForm({ ...form, exitDate: e.target.value, status: e.target.value ? "INACTIVE" : form.status })} /></div>
       <div><label>Status</label><select value={form.status} disabled={Boolean(form.exitDate)} onChange={e => setForm({ ...form, status: e.target.value })}><option>ACTIVE</option><option>INACTIVE</option></select>{form.exitDate && <small>Exit/Leave Date automatically sets status to INACTIVE.</small>}</div>
@@ -3842,7 +3924,7 @@ function EmployeeNotes({
                       : note.createdByRole ===
                         "HR"
                       ? "HR"
-                      : "Floor Manager"}
+                      : "Manager / Head"}
                   </span>
                 </div>
 
@@ -3898,7 +3980,10 @@ function FloorTeamPanel({
   session: User;
 }) {
   const [employees, setEmployees] = useState<User[]>([]);
-  const [floor, setFloor] = useState("");
+const [floor, setFloor] = useState("");
+const [branch, setBranch] = useState("");
+const [department, setDepartment] = useState("");
+const [managerScope, setManagerScope] = useState("");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
   const [selectedEmployee, setSelectedEmployee] =
@@ -3912,7 +3997,10 @@ function FloorTeamPanel({
       const data = await api("/api/floor-team");
 
       setEmployees(data.employees || []);
-      setFloor(data.floor || "");
+setFloor(data.floor || "");
+setBranch(data.branch || "");
+setDepartment(data.department || "");
+setManagerScope(data.managerScope || "");
     } catch (e: any) {
       setEmployees([]);
       setMsg(e.message);
@@ -3929,10 +4017,33 @@ function FloorTeamPanel({
     <section className="panel floor-team-panel">
       <div className="floor-team-head">
         <div>
-          <h1>My Floor Team</h1>
-          <p className="hint">
-            Floor: <b>{floor || "-"}</b>
-          </p>
+         <h1>My Team</h1>
+
+<p className="hint">
+  {managerScope === "FLOOR" && (
+    <>
+      Branch: <b>{branch || "-"}</b>
+      {" · "}
+      Floor: <b>{floor || "-"}</b>
+    </>
+  )}
+
+  {managerScope === "BRANCH" && (
+    <>
+      Branch: <b>{branch || "-"}</b>
+      {" · "}
+      Scope: <b>Whole Branch</b>
+    </>
+  )}
+
+  {managerScope === "DEPARTMENT" && (
+    <>
+      Department: <b>{department || "-"}</b>
+      {" · "}
+      Scope: <b>Department / Function</b>
+    </>
+  )}
+</p>
         </div>
 
         <button

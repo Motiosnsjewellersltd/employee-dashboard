@@ -55,6 +55,7 @@ model Employee {
   reportingRequired Boolean        @default(false)
   floor             String?
   isFloorManager    Boolean        @default(false)
+  managerScope      String?
   photoUrl          String?        @db.Text
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -91,6 +92,7 @@ model Employee {
   @@index([deletedAt])
   @@index([floor])
   @@index([isFloorManager])
+  @@index([managerScope])
 }
 
 model EmploymentHistory {

@@ -24,6 +24,7 @@ export type SessionUser = {
   department?: string | null;
   branch?: string | null;
 floor?: string | null;
+managerScope?: string | null;
 isFloorManager?: boolean;
   photoUrl?: string | null;
 };
@@ -86,6 +87,7 @@ export function publicUser(user: any): SessionUser {
     branch: user.branch,
 floor: user.floor,
 isFloorManager: Boolean(user.isFloorManager),
+managerScope: user.managerScope,
     photoUrl: user.photoUrl
   };
 }
