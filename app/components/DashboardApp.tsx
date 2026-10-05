@@ -86,6 +86,14 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bExport Data\b/g, "डेटा एक्सपोर्ट"],
   [/\bLeave Reports\b/g, "अवकाश रिपोर्ट"],
   [/\bReporting Management\b/g, "रिपोर्टिंग प्रबंधन"],
+  [/Review and approve\/reject leave requests from your team\./g, "अपनी टीम के अवकाश अनुरोध देखें और स्वीकृत या अस्वीकृत करें।"],
+  [/\bEmployee Leave Requests\b/g, "कर्मचारी अवकाश अनुरोध"],
+  [/\bMy Leave Requests\b/g, "मेरे अवकाश अनुरोध"],
+  [/\bTotal Team Requests\b/g, "टीम के कुल अनुरोध"],
+  [/\bPending Manager Action\b/g, "मैनेजर की कार्रवाई लंबित"],
+  [/\bShow All Employee Requests\b/g, "सभी कर्मचारी अनुरोध दिखाएँ"],
+  [/\bAll Leave Requests\b/g, "सभी अवकाश अनुरोध"],
+  [/\bNot Required\b/g, "आवश्यक नहीं"],
   [/\bLeave Requests\b/g, "अवकाश अनुरोध"],
   [/\bLeave Request\b/g, "अवकाश अनुरोध"],
   [/\bHelp Tickets\b/g, "सहायता टिकट"],
@@ -429,7 +437,29 @@ function avatar(u?: User | null, big = false) {
       ? u.photoUrl
       : `${u.photoUrl}?v=${u.updatedAt || ""}`;
 
-    return <div className={`${cls} avatar-wrap`}><img src={src} alt={u.name} onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span>{initial}</span></div>;
+    return <div className={`${cls} avatar-wrap`}><img src={src} alt={u.name} className="profile-photo-preview-trigger" onClick={event => {
+      if (typeof window === "undefined") return;
+      const previewEvent = new CustomEvent("motisons-profile-photo-preview", {
+        detail: { user: u, src, name: u.name },
+        cancelable: true
+      });
+      const previewOpened = !window.dispatchEvent(previewEvent);
+      if (previewOpened) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }} onKeyDown={event => {
+      if ((event.key !== "Enter" && event.key !== " ") || typeof window === "undefined") return;
+      const previewEvent = new CustomEvent("motisons-profile-photo-preview", {
+        detail: { user: u, src, name: u.name },
+        cancelable: true
+      });
+      const previewOpened = !window.dispatchEvent(previewEvent);
+      if (previewOpened) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }} tabIndex={0} role="button" aria-label={`View ${u.name} profile photo`} onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span>{initial}</span></div>;
   }
 
   return <div className={cls}>{initial}</div>;
@@ -511,6 +541,7 @@ function DashboardAppInner() {
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [filters, setFilters] = useState({ q: "", status: "All", designation: "All", department: "All", branch: "All" });
   const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<{ src: string; name: string } | null>(null);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [profileLeaves, setProfileLeaves] = useState<LeaveInfo | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -694,6 +725,47 @@ useEffect(() => {
 
 
 
+
+  useEffect(() => {
+    if (!session || session.mustChangePassword) {
+      setProfilePhotoPreview(null);
+      return;
+    }
+
+    const activeSession = session;
+
+    function canPreviewProfilePhoto(target?: User | null) {
+      if (!target) return false;
+      if (activeSession.role === "ADMIN" || activeSession.role === "HR") return true;
+      if (target.id === activeSession.id || target.mobile === activeSession.mobile) return true;
+      if (!activeSession.isFloorManager || target.role !== "EMPLOYEE") return false;
+
+      const scope = activeSession.managerScope || "FLOOR";
+      if (scope === "BRANCH") return Boolean(activeSession.branch && target.branch === activeSession.branch);
+      if (scope === "DEPARTMENT") return Boolean(activeSession.department && target.department === activeSession.department);
+      return Boolean(activeSession.branch && activeSession.floor && target.branch === activeSession.branch && target.floor === activeSession.floor);
+    }
+
+    function onProfilePhotoPreview(event: Event) {
+      const customEvent = event as CustomEvent<{ user?: User; src?: string; name?: string }>;
+      const target = customEvent.detail?.user;
+      const src = customEvent.detail?.src;
+      if (!src || !canPreviewProfilePhoto(target)) return;
+      customEvent.preventDefault();
+      setProfilePhotoPreview({ src, name: customEvent.detail?.name || target?.name || "Profile photo" });
+    }
+
+    function onEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setProfilePhotoPreview(null);
+    }
+
+    window.addEventListener("motisons-profile-photo-preview", onProfilePhotoPreview as EventListener);
+    window.addEventListener("keydown", onEscape);
+    return () => {
+      window.removeEventListener("motisons-profile-photo-preview", onProfilePhotoPreview as EventListener);
+      window.removeEventListener("keydown", onEscape);
+    };
+  }, [session]);
 
   useEffect(() => {
     if (!session) return;
@@ -1196,6 +1268,14 @@ floorTeam: "My Team",
     }
   />
 )}
+    {profilePhotoPreview && (
+      <div className="profile-photo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${profilePhotoPreview.name} profile photo`} onClick={() => setProfilePhotoPreview(null)}>
+        <div className="profile-photo-preview-dialog" onClick={event => event.stopPropagation()}>
+          <button className="profile-photo-preview-close" type="button" aria-label="Close profile photo" onClick={() => setProfilePhotoPreview(null)}>×</button>
+          <img src={profilePhotoPreview.src} alt={`${profilePhotoPreview.name} profile`} />
+        </div>
+      </div>
+    )}
     <ToastHost />
     <ConfirmHost />
     <PushNotificationSetup employeeId={session.id} />
@@ -4426,6 +4506,20 @@ setManagerScope(data.managerScope || "");
     load();
   }, [session.id]);
 
+  useEffect(() => {
+    if (!selectedEmployee) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedEmployee(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [selectedEmployee]);
+
   return (
     <section className="panel floor-team-panel">
       <div className="floor-team-head">
@@ -4610,7 +4704,7 @@ setManagerScope(data.managerScope || "");
 
       {selectedEmployee && (
         <div
-          className="modal"
+          className="modal floor-team-detail-modal"
           onMouseDown={() =>
             setSelectedEmployee(null)
           }
@@ -5206,47 +5300,39 @@ useEffect(() => {
 function LeaveRequests({ session, canReview: allowedToReview = false }: { session: User; canReview?: boolean }) {
   const canHrReview = session.role === "ADMIN" || (session.role === "HR" && allowedToReview);
   const canManagerReview = session.role === "EMPLOYEE" && Boolean(session.isFloorManager);
-  const canReview = canHrReview || canManagerReview;
+  const [managerEmployeeReviewMode, setManagerEmployeeReviewMode] = useState(false);
+  const reviewMode = canHrReview || (canManagerReview && managerEmployeeReviewMode);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [minimumLeaveDate, setMinimumLeaveDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
-const [showEmployeeSummary, setShowEmployeeSummary] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [showEmployeeSummary, setShowEmployeeSummary] = useState(false);
   const [form, setForm] = useState({ fromDate: "", toDate: "", fromDayType: "FULL", toDayType: "FULL", reason: "" });
   const [rejecting, setRejecting] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [msg, setMsg] = useState("");
 
- async function load() {
-  setLoading(true);
-
-  try {
-    const data = await api("/api/leave-requests");
-    setRows(data.requests || []);
-  } catch (error: any) {
-    setMsg(error.message || "Unable to load leave requests.");
-  } finally {
-    setLoading(false);
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await api("/api/leave-requests");
+      setRows(data.requests || []);
+    } catch (error: any) {
+      setMsg(error.message || "Unable to load leave requests.");
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
-
-useEffect(() => {
-  load();
-
-  const tomorrow = new Date();
-  tomorrow.setHours(12, 0, 0, 0);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  setMinimumLeaveDate(
-    `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`
-  );
-}, []);
-
-
-
+  useEffect(() => {
+    load();
+    const tomorrow = new Date();
+    tomorrow.setHours(12, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setMinimumLeaveDate(`${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`);
+  }, []);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -5261,11 +5347,7 @@ useEffect(() => {
     setSaving(true);
     setMsg("");
     try {
-      await api("/api/leave-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
-      });
+      await api("/api/leave-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       setForm({ fromDate: "", toDate: "", fromDayType: "FULL", toDayType: "FULL", reason: "" });
       setMsg("Leave request submitted successfully.");
       showToast("Leave request submitted successfully.", "success");
@@ -5285,17 +5367,11 @@ useEffect(() => {
     setSaving(true);
     setMsg("");
     try {
-      const data = await api("/api/leave-requests", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: row.id, status, rejectionReason: reason })
-      });
+      const data = await api("/api/leave-requests", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: row.id, status, rejectionReason: reason }) });
       setRejecting(null);
       setRejectionReason("");
       const resultText = status === "APPROVED" ? "approved" : "rejected";
-      const addedText = status === "APPROVED" && data.monthlyLeaveAdded?.length
-        ? ` ${data.monthlyLeaveAdded.map((item: any) => `${item.leave} day(s) added in ${item.monthYear}`).join(", ")}.`
-        : "";
+      const addedText = status === "APPROVED" && data.monthlyLeaveAdded?.length ? ` ${data.monthlyLeaveAdded.map((item: any) => `${item.leave} day(s) added in ${item.monthYear}`).join(", ")}.` : "";
       setMsg(`Leave request ${resultText}.${addedText} Notification sent to ${row.requester.name}.`);
       showToast(`Leave request ${resultText}.`, "success");
       await load();
@@ -5308,12 +5384,13 @@ useEffect(() => {
 
   function rowCanAct(row: any) {
     if (row.status !== "PENDING") return false;
-    if (canManagerReview) return row.requester?.id !== session.id && row.managerStatus === "PENDING";
+    if (canManagerReview && managerEmployeeReviewMode) return row.requester?.id !== session.id && row.managerStatus === "PENDING";
     if (canHrReview) return row.managerStatus === "APPROVED" || Boolean(row.requester?.isFloorManager);
     return false;
   }
 
   function managerStageLabel(row: any) {
+    if (canManagerReview && row.requester?.id === session.id) return "Not Required";
     if (row.managerStatus === "APPROVED") return `Approved${row.managerDecidedBy?.name ? ` by ${row.managerDecidedBy.name}` : ""}`;
     if (row.managerStatus === "REJECTED") return `Rejected${row.managerDecidedBy?.name ? ` by ${row.managerDecidedBy.name}` : ""}`;
     return "Pending";
@@ -5337,78 +5414,50 @@ useEffect(() => {
     return calendarDays - (fromDayType === "HALF" ? 0.5 : 0) - (toDayType === "HALF" ? 0.5 : 0);
   }
 
-  const employeeSummary = canReview
-  ? Array.from(
-      rows.reduce((map: Map<string, any>, row: any) => {
-        const employeeId = row.requester?.id;
+  const managerTeamRows = canManagerReview ? rows.filter(row => row.requester?.id !== session.id) : rows;
+  const ownRows = canManagerReview ? rows.filter(row => row.requester?.id === session.id) : rows;
+  const activeRows = canManagerReview ? (managerEmployeeReviewMode ? managerTeamRows : ownRows) : rows;
+  const employeeSummary = reviewMode ? Array.from((canManagerReview ? managerTeamRows : rows).reduce((map: Map<string, any>, row: any) => {
+    const employeeId = row.requester?.id;
+    if (!employeeId) return map;
+    const existing = map.get(employeeId) || { employeeId, employee: row.requester, total: 0, pending: 0, approved: 0, rejected: 0, requestedDays: 0, approvedDays: 0 };
+    const days = leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType);
+    existing.total += 1;
+    existing.requestedDays += days;
+    if (row.status === "PENDING") existing.pending += 1;
+    if (row.status === "APPROVED") { existing.approved += 1; existing.approvedDays += days; }
+    if (row.status === "REJECTED") existing.rejected += 1;
+    map.set(employeeId, existing);
+    return map;
+  }, new Map<string, any>())).map(([, value]: any) => value) : [];
 
-        if (!employeeId) return map;
-
-        const existing =
-          map.get(employeeId) || {
-            employeeId,
-            employee: row.requester,
-            total: 0,
-            pending: 0,
-            approved: 0,
-            rejected: 0,
-            requestedDays: 0,
-            approvedDays: 0
-          };
-
-        const days = leaveDayCount(
-          row.fromDate,
-          row.toDate,
-          row.fromDayType,
-          row.toDayType
-        );
-
-        existing.total += 1;
-        existing.requestedDays += days;
-
-        if (row.status === "PENDING") {
-          existing.pending += 1;
-        }
-
-        if (row.status === "APPROVED") {
-          existing.approved += 1;
-          existing.approvedDays += days;
-        }
-
-        if (row.status === "REJECTED") {
-          existing.rejected += 1;
-        }
-
-        map.set(employeeId, existing);
-
-        return map;
-      }, new Map<string, any>())
-    ).map(([, value]: any) => value)
-  : [];
-
-const visibleRows = rows.filter(row => {
-  if (
-    statusFilter !== "ALL" &&
-    row.status !== statusFilter
-  ) {
-    return false;
-  }
-
-  if (
-    selectedEmployeeId &&
-    row.requester?.id !== selectedEmployeeId
-  ) {
-    return false;
-  }
-
-  return true;
-});
+  const visibleRows = activeRows.filter(row => {
+    if (statusFilter !== "ALL" && row.status !== statusFilter) return false;
+    if (selectedEmployeeId && row.requester?.id !== selectedEmployeeId) return false;
+    return true;
+  });
   const formDays = leaveDayCount(form.fromDate, form.toDate, form.fromDayType, form.toDayType);
+  const teamPendingCount = managerTeamRows.filter(row => row.status === "PENDING" && row.managerStatus === "PENDING").length;
+  const currentSelectedEmployee = selectedEmployeeId ? (canManagerReview ? managerTeamRows : rows).find(row => row.requester?.id === selectedEmployeeId)?.requester : null;
+
+  function switchManagerLeaveView(employeeMode: boolean) {
+    setManagerEmployeeReviewMode(employeeMode);
+    setSelectedEmployeeId("");
+    setStatusFilter("ALL");
+    setShowEmployeeSummary(false);
+    setMsg("");
+  }
 
   return <section className="panel leave-request-panel">
-    <div className="leave-request-title"><div><h1>Leave Requests</h1></div>{canReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}</div>
+    <div className="leave-request-title">
+      <div><h1>{canManagerReview ? (managerEmployeeReviewMode ? "Employee Leave Requests" : "My Leave Requests") : "Leave Requests"}</h1>{canManagerReview && managerEmployeeReviewMode && <p className="hint">Review and approve/reject leave requests from your team.</p>}</div>
+      <div className="manager-leave-title-actions">
+        {canManagerReview && <button className={managerEmployeeReviewMode ? "light" : "primary"} type="button" onClick={() => switchManagerLeaveView(!managerEmployeeReviewMode)}>{managerEmployeeReviewMode ? "My Leave Requests" : `Employee Leave Requests${teamPendingCount ? ` (${teamPendingCount})` : ""}`}</button>}
+        {reviewMode && !canManagerReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}
+      </div>
+    </div>
 
-    {session.role === "EMPLOYEE" && <form className="leave-request-form" onSubmit={submit}>
+    {session.role === "EMPLOYEE" && (!canManagerReview || !managerEmployeeReviewMode) && <form className="leave-request-form" onSubmit={submit}>
       <div className="leave-date-block"><label>From Date</label><input type="date" min={minimumLeaveDate || undefined} value={form.fromDate} onChange={event => { const fromDate = event.target.value; const toDate = form.toDate && form.toDate < fromDate ? fromDate : form.toDate; setForm({ ...form, fromDate, toDate, toDayType: toDate && toDate === fromDate ? form.fromDayType : form.toDayType }); }} required /><small>From Day Type</small><select value={form.fromDayType} onChange={event => { const fromDayType = event.target.value; setForm({ ...form, fromDayType, toDayType: form.toDate && form.toDate === form.fromDate ? fromDayType : form.toDayType }); }}><option value="FULL">Full Day</option><option value="HALF">Half Day</option></select></div>
       <div className="leave-date-block"><label>To Date</label><input type="date" min={form.fromDate || minimumLeaveDate || undefined} value={form.toDate} onChange={event => { const toDate = event.target.value; setForm({ ...form, toDate, toDayType: toDate === form.fromDate ? form.fromDayType : form.toDayType }); }} required /><small>To Day Type</small><select value={form.toDate && form.toDate === form.fromDate ? form.fromDayType : form.toDayType} disabled={!form.toDate || form.toDate === form.fromDate} onChange={event => setForm({ ...form, toDayType: event.target.value })}><option value="FULL">Full Day</option><option value="HALF">Half Day</option></select></div>
       <div className="leave-days-preview"><span>Total Leave Days</span><b>{formDays || "-"}</b></div>
@@ -5416,187 +5465,32 @@ const visibleRows = rows.filter(row => {
       <div className="leave-request-submit"><button className="primary" disabled={saving}>{saving ? "Submitting..." : "Submit Leave Request"}</button></div>
     </form>}
 
-    {canReview && (
-  <div className="leave-request-toolbar">
-    <div className="leave-request-filters">
-      <button
-        className={statusFilter === "ALL" ? "light active" : "light"}
-        onClick={() => setStatusFilter("ALL")}
-      >
-        All
-      </button>
-
-      <button
-        className={statusFilter === "PENDING" ? "light active" : "light"}
-        onClick={() => setStatusFilter("PENDING")}
-      >
-        Pending
-      </button>
-
-      <button
-        className={statusFilter === "APPROVED" ? "light active" : "light"}
-        onClick={() => setStatusFilter("APPROVED")}
-      >
-        Approved
-      </button>
-
-      <button
-        className={statusFilter === "REJECTED" ? "light active" : "light"}
-        onClick={() => setStatusFilter("REJECTED")}
-      >
-        Rejected
-      </button>
+    <div className="leave-request-toolbar">
+      <div className="leave-request-filters">{[["ALL", "All"], ["PENDING", "Pending"], ["APPROVED", "Approved"], ["REJECTED", "Rejected"]].map(([value, label]) => <button key={value} type="button" className={statusFilter === value ? "light active" : "light"} onClick={() => setStatusFilter(value)}>{label}</button>)}</div>
+      {reviewMode && <button className="primary leave-summary-open-btn" type="button" onClick={() => setShowEmployeeSummary(true)}>Employee Summary</button>}
     </div>
 
-    <button
-      className="primary leave-summary-open-btn"
-      type="button"
-      onClick={() => setShowEmployeeSummary(true)}
-    >
-      Employee Summary
-    </button>
-  </div>
-)}
     {msg && <div className="msg warn">{msg}</div>}
 
-{canReview && showEmployeeSummary && (
-  <div
-    className="modal"
-    onMouseDown={() => setShowEmployeeSummary(false)}
-  >
-    <div
-      className="modal-box wide leave-summary-modal"
-      onMouseDown={event => event.stopPropagation()}
-    >
-      <button
-        className="close"
-        type="button"
-        onClick={() => setShowEmployeeSummary(false)}
-      >
-        ×
-      </button>
+    {reviewMode && showEmployeeSummary && <div className="modal" onMouseDown={() => setShowEmployeeSummary(false)}><div className="modal-box wide leave-summary-modal" onMouseDown={event => event.stopPropagation()}><button className="close" type="button" onClick={() => setShowEmployeeSummary(false)}>×</button><div className="leave-summary-title"><div><h2>Employee Summary</h2><p className="hint">Employee-wise leave request history and totals.</p></div></div><div className="table-wrap leave-summary-table"><table><thead><tr><th>Employee</th><th>Total Requests</th><th>Pending</th><th>Approved</th><th>Rejected</th><th>Requested Days</th><th>Approved Days</th><th>Action</th></tr></thead><tbody>{employeeSummary.length ? employeeSummary.map((item: any) => <tr key={item.employeeId}><td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(item.employeeId); setStatusFilter("ALL"); setShowEmployeeSummary(false); }}><b>{item.employee.name}</b></button><small className="leave-request-person-meta">{item.employee.designation || "Employee"}{item.employee.department ? ` · ${item.employee.department}` : ""}</small></td><td>{item.total}</td><td>{item.pending}</td><td>{item.approved}</td><td>{item.rejected}</td><td>{item.requestedDays}</td><td>{item.approvedDays}</td><td><button className="light" type="button" onClick={() => { setSelectedEmployeeId(item.employeeId); setStatusFilter("ALL"); setShowEmployeeSummary(false); }}>View Requests</button></td></tr>) : <tr><td colSpan={8}>No employee leave requests found.</td></tr>}</tbody></table></div></div></div>}
 
-      <div className="leave-summary-title">
-        <div>
-          <h2>Employee Summary</h2>
-          <p className="hint">
-            Employee-wise leave request history and totals.
-          </p>
-        </div>
-      </div>
+    {reviewMode && selectedEmployeeId && <div className="selected-leave-employee-bar"><b>{currentSelectedEmployee?.name ? `${currentSelectedEmployee.name} - All Leave Requests` : "Selected Employee - All Leave Requests"}</b><button className="light" type="button" onClick={() => setSelectedEmployeeId("")}>Show All Employee Requests</button></div>}
 
-      <div className="table-wrap leave-summary-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Employee</th>
-              <th>Total Requests</th>
-              <th>Pending</th>
-              <th>Approved</th>
-              <th>Rejected</th>
-              <th>Requested Days</th>
-              <th>Approved Days</th>
-              <th>Action</th>
-            </tr>
-          </thead>
+    {canManagerReview && managerEmployeeReviewMode && <div className="manager-team-request-count"><b>Total Team Requests: {managerTeamRows.length}</b><span>Pending Manager Action: {teamPendingCount}</span></div>}
 
-          <tbody>
-            {employeeSummary.length ? (
-              employeeSummary.map((item: any) => (
-                <tr key={item.employeeId}>
-                  <td>
-                    <b>{item.employee.name}</b>
-
-                    <small className="leave-request-person-meta">
-                      {item.employee.designation || "Employee"}
-                      {item.employee.department
-                        ? ` · ${item.employee.department}`
-                        : ""}
-                    </small>
-                  </td>
-
-                  <td>{item.total}</td>
-                  <td>{item.pending}</td>
-                  <td>{item.approved}</td>
-                  <td>{item.rejected}</td>
-                  <td>{item.requestedDays}</td>
-                  <td>{item.approvedDays}</td>
-
-                  <td>
-                    <button
-                      className="light"
-                      type="button"
-                      onClick={() => {
-                        setSelectedEmployeeId(item.employeeId);
-                        setStatusFilter("ALL");
-                        setShowEmployeeSummary(false);
-                      }}
-                    >
-                      View Requests
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={8}>
-                  No employee leave requests found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-)}
-
-{canReview && selectedEmployeeId && (
-  <div className="selected-leave-employee-bar">
-    <b>
-      Showing selected employee&apos;s leave requests
-    </b>
-
-    <button
-      className="light"
-      type="button"
-      onClick={() => setSelectedEmployeeId("")}
-    >
-      Show All Requests
-    </button>
-  </div>
-)}
-
-
-
-    <div className="table-wrap leave-request-table"><table><thead><tr>{canReview && <th>Employee</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Manager Approval</th><th>HR Decision</th>{canReview && <th>Action</th>}</tr></thead><tbody>
-      {loading && <tr><td colSpan={canReview ? 9 : 8}>Loading leave requests...</td></tr>}
-      {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 9 : 8}>No leave requests found.</td></tr>}
+    <div className="table-wrap leave-request-table"><table><thead><tr>{reviewMode && <th>Employee</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Manager Approval</th><th>HR Decision</th>{reviewMode && <th>Action</th>}</tr></thead><tbody>
+      {loading && <tr><td colSpan={reviewMode ? 9 : 8}>Loading leave requests...</td></tr>}
+      {!loading && visibleRows.length === 0 && <tr><td colSpan={reviewMode ? 9 : 8}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
-        {canReview && <td><b>{row.requester.name}</b><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
-        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}</td>
-        <td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
-        <td>
-          <b>{managerStageLabel(row)}</b>
-          {row.managerDecidedAt && <small className="leave-decision-date">{displayDate(row.managerDecidedAt)}</small>}
-          {row.managerStatus === "REJECTED" && row.managerRejectionReason && <small className="leave-rejection-text">Reason: {row.managerRejectionReason}</small>}
-        </td>
-        <td>
-          {row.status === "PENDING" ? (
-            <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : "Waiting for Manager"}</small>
-          ) : (
-            <>
-              <b>{row.decidedBy?.name || "-"}</b>
-              <small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>
-              {row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}
-            </>
-          )}
-        </td>
-        {canReview && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? "Waiting for Manager" : canManagerReview && row.requester?.id === session.id ? "-" : "Pending"}</td>}
+        {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
+        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
+        <td><b>{managerStageLabel(row)}</b>{row.managerDecidedAt && !(canManagerReview && row.requester?.id === session.id) && <small className="leave-decision-date">{displayDate(row.managerDecidedAt)}</small>}{row.managerStatus === "REJECTED" && row.managerRejectionReason && <small className="leave-rejection-text">Reason: {row.managerRejectionReason}</small>}</td>
+        <td>{row.status === "PENDING" ? <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : "Waiting for Manager"}</small> : <><b>{row.decidedBy?.name || "-"}</b><small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>{row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
+        {reviewMode && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? "Waiting for Manager" : "Pending"}</td>}
       </tr>)}
     </tbody></table></div>
 
-    {rejecting && <div className="modal"><div className="modal-box leave-reject-modal"><h2>Reject Leave Request</h2><p><b>{rejecting.requester.name}</b> · {displayDate(rejecting.fromDate)} to {displayDate(rejecting.toDate)} · {leaveDayCount(rejecting.fromDate, rejecting.toDate, rejecting.fromDayType, rejecting.toDayType)} day(s)</p><label>Rejection Reason</label><textarea rows={4} autoFocus placeholder="Enter reason for rejection" value={rejectionReason} onChange={event => setRejectionReason(event.target.value)} /><div className="leave-reject-actions"><button className="light" disabled={saving} onClick={() => { setRejecting(null); setRejectionReason(""); }}>Cancel</button><button className="danger-btn" disabled={saving || !rejectionReason.trim()} onClick={() => decide(rejecting, "REJECTED", rejectionReason)}>{saving ? "Rejecting..." : "Reject & Notify"}</button></div></div></div>}
+{rejecting && <div className="modal"><div className="modal-box leave-reject-modal"><h2>Reject Leave Request</h2><p><b>{rejecting.requester.name}</b> · {displayDate(rejecting.fromDate)} to {displayDate(rejecting.toDate)} · {leaveDayCount(rejecting.fromDate, rejecting.toDate, rejecting.fromDayType, rejecting.toDayType)} day(s)</p><label>Rejection Reason</label><textarea rows={4} autoFocus placeholder="Enter reason for rejection" value={rejectionReason} onChange={event => setRejectionReason(event.target.value)} /><div className="leave-reject-actions"><button className="light" disabled={saving} onClick={() => { setRejecting(null); setRejectionReason(""); }}>Cancel</button><button className="danger-btn" disabled={saving || !rejectionReason.trim()} onClick={() => decide(rejecting, "REJECTED", rejectionReason)}>{saving ? "Rejecting..." : "Reject & Notify"}</button></div></div></div>}
   </section>;
 }
 

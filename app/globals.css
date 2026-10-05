@@ -3588,3 +3588,116 @@ html,body{width:100%;min-height:100%;max-width:100%;}
     min-width:96px;
   }
 }
+
+/* Profile photo preview: applies to every employee avatar without changing page layouts. */
+.profile-photo-preview-trigger{
+  cursor:zoom-in;
+}
+.profile-photo-preview-trigger:focus-visible{
+  outline:3px solid rgba(11,95,165,.35);
+  outline-offset:2px;
+}
+.profile-photo-preview-overlay{
+  position:fixed;
+  inset:0;
+  z-index:30000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(4,18,32,.78);
+  backdrop-filter:blur(3px);
+}
+.profile-photo-preview-dialog{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  max-width:92vw;
+  max-height:90vh;
+}
+.profile-photo-preview-dialog > img{
+  display:block;
+  max-width:min(820px,92vw);
+  max-height:86vh;
+  width:auto;
+  height:auto;
+  object-fit:contain;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 18px 60px rgba(0,0,0,.35);
+}
+.profile-photo-preview-close{
+  position:absolute;
+  top:10px;
+  right:10px;
+  z-index:2;
+  width:42px;
+  height:42px;
+  min-width:42px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.72);
+  color:#fff;
+  font-size:30px;
+  line-height:1;
+  cursor:pointer;
+}
+@media(max-width:900px){
+  .profile-photo-preview-overlay{
+    padding:14px;
+  }
+  .profile-photo-preview-dialog > img{
+    max-width:94vw;
+    max-height:82vh;
+    border-radius:14px;
+  }
+  .profile-photo-preview-close{
+    top:8px;
+    right:8px;
+    width:40px;
+    height:40px;
+    min-width:40px;
+    font-size:28px;
+  }
+}
+
+/* =========================================================
+   Manager team detail scroll + leave review separation
+   ========================================================= */
+.floor-team-detail-modal{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  max-height:100dvh!important;
+  overflow:hidden!important;
+  overscroll-behavior:contain;
+  align-items:center!important;
+  justify-content:center!important;
+}
+.floor-team-detail-modal .modal-box{
+  width:min(900px,96vw)!important;
+  max-height:calc(100dvh - 28px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  margin:0!important;
+}
+.manager-leave-title-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.manager-leave-title-actions button{white-space:nowrap}
+.manager-team-request-count{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#f1f9ff;color:#31546b}
+.manager-team-request-count b{color:var(--blue)}
+.leave-employee-name-btn{appearance:none;border:0;background:transparent;color:var(--blue);padding:0;margin:0;font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+@media(max-width:900px){
+  .floor-team-detail-modal{padding:7px 7px calc(82px + env(safe-area-inset-bottom))!important;align-items:flex-start!important}
+  .floor-team-detail-modal .modal-box,.floor-team-detail-modal .modal-box.wide{width:100%!important;max-width:100%!important;height:auto!important;max-height:calc(100dvh - 96px - env(safe-area-inset-bottom))!important;overflow-y:auto!important;overflow-x:hidden!important;margin:0!important}
+  .manager-leave-title-actions{width:auto;flex:0 0 auto}
+  .manager-leave-title-actions button{max-width:210px;padding:8px 10px!important;font-size:10px!important;white-space:normal;line-height:1.2}
+  .manager-team-request-count{align-items:flex-start;flex-direction:column;gap:3px;padding:9px 11px;font-size:11px}
+}
