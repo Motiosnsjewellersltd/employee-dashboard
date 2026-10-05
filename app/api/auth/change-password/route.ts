@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const confirmPassword = String(body.confirmPassword || "");
 
     if (!currentPassword) throw new Error("Current password is required.");
-    if (newPassword.length < 8) throw new Error("New password must be at least 8 characters.");
+    if (newPassword.length !== 6) throw new Error("New password must be exactly 6 characters.");
     if (newPassword === "1234") throw new Error("1234 cannot be used as your permanent password.");
     if (newPassword !== confirmPassword) throw new Error("New password and confirm password do not match.");
     if (currentPassword === newPassword) throw new Error("New password must be different from your current password.");

@@ -63,7 +63,7 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bYour temporary password must be changed before you can continue\./g, "आगे बढ़ने से पहले आपको अपना अस्थायी पासवर्ड बदलना होगा।"],
   [/\bUse your current password and choose a new permanent password\./g, "अपना वर्तमान पासवर्ड दर्ज करें और नया स्थायी पासवर्ड चुनें।"],
   [/\bCurrent password is required\./g, "वर्तमान पासवर्ड दर्ज करना आवश्यक है।"],
-  [/\bNew password must be at least 8 characters\./g, "नया पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।"],
+  [/\bNew password must be at least 8 characters\./g, "नया पासवर्ड ठीक 6 अक्षरों का होना चाहिए।"],
   [/\b1234 cannot be used as your permanent password\./g, "1234 को स्थायी पासवर्ड के रूप में उपयोग नहीं किया जा सकता।"],
   [/\bNew password and confirm password do not match\./g, "नया पासवर्ड और पुष्टि वाला पासवर्ड मेल नहीं खाते।"],
   [/\bPassword changed successfully\./g, "पासवर्ड सफलतापूर्वक बदल दिया गया।"],
@@ -72,7 +72,7 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bConfirm New Password\b/g, "नए पासवर्ड की पुष्टि करें"],
   [/\bNew Password\b/g, "नया पासवर्ड"],
   [/\bShow passwords\b/g, "पासवर्ड दिखाएँ"],
-  [/\bMinimum 8 characters\b/g, "कम से कम 8 अक्षर"],
+  [/\bExactly 6 characters\b/g, "ठीक 6 अक्षर"],
   [/\bEnter new password\b/g, "नया पासवर्ड दर्ज करें"],
   [/\bChange Password\b/g, "पासवर्ड बदलें"],
   [/\bReset Password\b/g, "पासवर्ड रीसेट करें"],
@@ -2323,7 +2323,7 @@ function PasswordChangePanel({
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
     if (!currentPassword) return setMsg("Current password is required.");
-    if (newPassword.length < 8) return setMsg("New password must be at least 8 characters.");
+    if (newPassword.length !== 6) return setMsg("New password must be exactly 6 characters.");
     if (newPassword === "1234") return setMsg("1234 cannot be used as your permanent password.");
     if (newPassword !== confirmPassword) return setMsg("New password and confirm password do not match.");
 
@@ -2349,7 +2349,7 @@ function PasswordChangePanel({
 
   const form = <form className={forced ? "employee-form password-change-form forced-password-form" : "employee-form password-change-form"} onSubmit={changePassword}>
     <div><label>Current Password</label><input type={showPasswords ? "text" : "password"} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoFocus={forced} /></div>
-    <div><label>New Password</label><input type={showPasswords ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Minimum 8 characters" /></div>
+    <div><label>New Password</label><input type={showPasswords ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Exactly 6 characters" /></div>
     <div><label>Confirm New Password</label><input type={showPasswords ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></div>
     <label className="show-passwords-row"><input type="checkbox" checked={showPasswords} onChange={e => setShowPasswords(e.target.checked)} /> Show passwords</label>
     {forced ? (
