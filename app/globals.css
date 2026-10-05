@@ -3701,3 +3701,12 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .manager-leave-title-actions button{max-width:210px;padding:8px 10px!important;font-size:10px!important;white-space:normal;line-height:1.2}
   .manager-team-request-count{align-items:flex-start;flex-direction:column;gap:3px;padding:9px 11px;font-size:11px}
 }
+
+/* =========================================================
+   Manager team View Details: prevent sticky profile header overlap while scrolling
+   ========================================================= */
+.floor-team-detail-modal .profile-head{
+  position:static!important;
+  top:auto!important;
+  z-index:auto!important;
+}
