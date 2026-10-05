@@ -154,7 +154,8 @@ managerScope,
         doj: parseDate(data.doj),
         exitDate,
         status,
-        password
+        password,
+        mustChangePassword: true
       } as const;
     const employee = await prisma.$transaction(async tx => {
       const saved = existing

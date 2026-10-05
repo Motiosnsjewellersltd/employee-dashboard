@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { employeeEarnsLeaveInMonth, fail, getFinancialYear, monthEarned, ok } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
+import { canManagerAccessEmployee } from "@/lib/teamScope";
 
 function getFyMonths() {
   const now = new Date();
@@ -24,7 +25,10 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
   try {
     const session = await requireSession();
     const { id } = await ctx.params;
-    if (session.role === "EMPLOYEE" && session.id !== id) throw new Error("Unauthorized");
+    if (session.role === "EMPLOYEE" && session.id !== id) {
+      const allowed = session.isFloorManager && await canManagerAccessEmployee(session.id, id);
+      if (!allowed) throw new Error("Unauthorized");
+    }
     const employee = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { doj: true, exitDate: true, status: true, updatedAt: true } });
     if (!employee) throw new Error("Employee not found.");
     const records = await prisma.leaveRecord.findMany({ where: { employeeId: id, deletedAt: null }, orderBy: { monthYear: "asc" } });

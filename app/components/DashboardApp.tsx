@@ -24,6 +24,7 @@ managerScope?: "FLOOR" | "BRANCH" | "DEPARTMENT";
   updatedAt?: string;
   lastSeenAt?: string;
   reportingRequired?: boolean;
+  mustChangePassword?: boolean;
 };
 
 type LeaveInfo = {
@@ -53,7 +54,128 @@ type Section =
   | "permissions"
   | "recycle"
   | "systemHealth"
-  | "profile";
+  | "profile"
+  | "changePassword";
+
+
+const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bMotisons Employee System\b/g, "मोतिसन्स कर्मचारी सिस्टम"],
+  [/\bLogin\b/g, "लॉगिन"], [/\bLogout\b/g, "लॉगआउट"],
+  [/\bUsername \/ Mobile\b/g, "यूज़रनेम / मोबाइल"], [/\bPassword\b/g, "पासवर्ड"],
+  [/\bDashboard\b/g, "डैशबोर्ड"], [/\bEmployees\b/g, "कर्मचारी"], [/\bEmployee\b/g, "कर्मचारी"],
+  [/\bMy Profile\b/g, "मेरी प्रोफ़ाइल"], [/\bMy Details\b/g, "मेरी जानकारी"], [/\bMy Team\b/g, "मेरी टीम"],
+  [/\bTeam\b/g, "टीम"], [/\bHome\b/g, "होम"], [/\bTools\b/g, "टूल्स"],
+  [/\bLeave Requests\b/g, "अवकाश अनुरोध"], [/\bLeave Request\b/g, "अवकाश अनुरोध"], [/\bLeave\b/g, "अवकाश"],
+  [/\bHelp Tickets\b/g, "सहायता टिकट"], [/\bHelp\b/g, "सहायता"], [/\bReporting Management\b/g, "रिपोर्टिंग प्रबंधन"],
+  [/\bMy Reports\b/g, "मेरी रिपोर्ट"], [/\bReporting\b/g, "रिपोर्टिंग"], [/\bNotifications\b/g, "सूचनाएँ"],
+  [/\bChat\b/g, "चैट"], [/\bChange Password\b/g, "पासवर्ड बदलें"], [/\bReset Password\b/g, "पासवर्ड रीसेट"],
+  [/\bLogin \/ Export\b/g, "लॉगिन / एक्सपोर्ट"], [/\bExport Data\b/g, "डेटा एक्सपोर्ट"], [/\bLeave Reports\b/g, "अवकाश रिपोर्ट"],
+  [/\bPermissions\b/g, "अनुमतियाँ"], [/\bRecycle Bin\b/g, "रीसायकल बिन"], [/\bSystem Health\b/g, "सिस्टम स्वास्थ्य"],
+  [/\bAdd Employee\b/g, "कर्मचारी जोड़ें"], [/\bUpload\b/g, "अपलोड"], [/\bSearch\b/g, "खोजें"],
+  [/\bRefresh\b/g, "रिफ्रेश"], [/\bSave\b/g, "सेव करें"], [/\bCancel\b/g, "रद्द करें"], [/\bClose\b/g, "बंद करें"],
+  [/\bEdit\b/g, "संपादित करें"], [/\bDelete\b/g, "हटाएँ"], [/\bView\b/g, "देखें"], [/\bAction\b/g, "कार्रवाई"],
+  [/\bStatus\b/g, "स्थिति"], [/\bActive\b/g, "सक्रिय"], [/\bInactive\b/g, "निष्क्रिय"],
+  [/\bName\b/g, "नाम"], [/\bMobile\b/g, "मोबाइल"], [/\bDesignation\b/g, "पद"], [/\bDepartment\b/g, "विभाग"],
+  [/\bBranch\b/g, "शाखा"], [/\bFloor\b/g, "फ्लोर"], [/\bScope\b/g, "दायरा"], [/\bWhole Branch\b/g, "पूरी शाखा"],
+  [/\bDepartment \/ Function\b/g, "विभाग / कार्य"], [/\bEmployee ID\b/g, "कर्मचारी आईडी"],
+  [/\bFrom Date\b/g, "आरंभ तिथि"], [/\bTo Date\b/g, "अंतिम तिथि"], [/\bFrom\b/g, "से"], [/\bTo\b/g, "तक"],
+  [/\bFull Day\b/g, "पूरा दिन"], [/\bHalf Day\b/g, "आधा दिन"], [/\bTotal Leave Days\b/g, "कुल अवकाश दिन"],
+  [/\bLeave Reason\b/g, "अवकाश का कारण"], [/\bEnter reason for leave\b/g, "अवकाश का कारण दर्ज करें"],
+  [/\bSubmit Leave Request\b/g, "अवकाश अनुरोध भेजें"], [/\bSubmitting\.\.\.\b/g, "भेजा जा रहा है..."],
+  [/\bAll\b/g, "सभी"], [/\bPending\b/g, "लंबित"], [/\bApproved\b/g, "स्वीकृत"], [/\bRejected\b/g, "अस्वीकृत"],
+  [/\bApprove\b/g, "स्वीकृत करें"], [/\bReject\b/g, "अस्वीकृत करें"], [/\bCompleted\b/g, "पूर्ण"],
+  [/\bDecision\b/g, "निर्णय"], [/\bReason\b/g, "कारण"], [/\bDays\b/g, "दिन"], [/\bDay\b/g, "दिन"],
+  [/\bManager Approval\b/g, "मैनेजर स्वीकृति"], [/\bManager\b/g, "मैनेजर"], [/\bHR Approval\b/g, "HR स्वीकृति"],
+  [/\bWaiting for Manager\b/g, "मैनेजर की स्वीकृति लंबित"], [/\bWaiting for HR\b/g, "HR की स्वीकृति लंबित"],
+  [/\bEmployee Summary\b/g, "कर्मचारी सारांश"], [/\bTotal Requests\b/g, "कुल अनुरोध"], [/\bRequested Days\b/g, "मांगे गए दिन"],
+  [/\bApproved Days\b/g, "स्वीकृत दिन"], [/\bView Requests\b/g, "अनुरोध देखें"], [/\bShow All Requests\b/g, "सभी अनुरोध दिखाएँ"],
+  [/\bCurrent FY Leave\b/g, "वर्तमान वित्तीय वर्ष का अवकाश"], [/\bFinancial Year\b/g, "वित्तीय वर्ष"],
+  [/\bEarned\b/g, "अर्जित"], [/\bUsed\b/g, "उपयोग"], [/\bBalance\b/g, "शेष"], [/\bCurrent Balance\b/g, "वर्तमान शेष"],
+  [/\bLoading\b/g, "लोड हो रहा है"], [/\bNo employees found\b/g, "कोई कर्मचारी नहीं मिला"],
+  [/\bNo leave requests found\b/g, "कोई अवकाश अनुरोध नहीं मिला"], [/\bNo employee leave requests found\b/g, "किसी कर्मचारी का अवकाश अनुरोध नहीं मिला"],
+  [/\bRejection Reason\b/g, "अस्वीकृति का कारण"], [/\bEnter reason for rejection\b/g, "अस्वीकृति का कारण दर्ज करें"],
+  [/\bReject & Notify\b/g, "अस्वीकृत करें और सूचित करें"], [/\bRejecting\.\.\.\b/g, "अस्वीकृत किया जा रहा है..."],
+  [/\bDate\b/g, "तिथि"], [/\bMonth\b/g, "माह"], [/\bYear\b/g, "वर्ष"], [/\bHistory\b/g, "इतिहास"],
+  [/\bProfile\b/g, "प्रोफ़ाइल"], [/\bDetails\b/g, "विवरण"], [/\bNotes\b/g, "नोट्स"], [/\bAdd Note\b/g, "नोट जोड़ें"],
+  [/\bMessage\b/g, "संदेश"], [/\bSend\b/g, "भेजें"], [/\bFilter\b/g, "फ़िल्टर"], [/\bClear\b/g, "साफ़ करें"],
+  [/\bDownload\b/g, "डाउनलोड"], [/\bPrint\b/g, "प्रिंट"], [/\bYes\b/g, "हाँ"], [/\bNo\b/g, "नहीं"]
+];
+
+function translateUiText(value: string) {
+  let output = value;
+  for (const [pattern, replacement] of HINDI_UI_REPLACEMENTS) output = output.replace(pattern, replacement);
+  return output;
+}
+
+function LanguageSwitch() {
+  const [language, setLanguage] = useState<"en" | "hi">(() => {
+    if (typeof window === "undefined") return "en";
+    return window.localStorage.getItem("motisons-language") === "hi" ? "hi" : "en";
+  });
+  const originalText = useRef(new WeakMap<Text, string>());
+  const originalAttributes = useRef(new WeakMap<Element, Record<string, string>>());
+
+  useEffect(() => {
+    window.localStorage.setItem("motisons-language", language);
+    document.documentElement.lang = language === "hi" ? "hi" : "en";
+
+    const applyToElement = (root: ParentNode) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node: Node | null = walker.nextNode();
+      while (node) {
+        const textNode = node as Text;
+        const parent = textNode.parentElement;
+        if (parent && !parent.closest("[data-no-translate]") && !["SCRIPT", "STYLE"].includes(parent.tagName)) {
+          const current = textNode.nodeValue || "";
+          if (!originalText.current.has(textNode)) originalText.current.set(textNode, current);
+          const english = originalText.current.get(textNode) || current;
+          textNode.nodeValue = language === "hi" ? translateUiText(english) : english;
+        }
+        node = walker.nextNode();
+      }
+
+      const elements = root instanceof Element ? [root, ...Array.from(root.querySelectorAll("*"))] : Array.from(root.querySelectorAll("*"));
+      for (const element of elements) {
+        if (element.closest("[data-no-translate]")) continue;
+        const attrs = ["placeholder", "title", "aria-label"];
+        let originals = originalAttributes.current.get(element);
+        if (!originals) {
+          originals = {};
+          originalAttributes.current.set(element, originals);
+        }
+        for (const attr of attrs) {
+          if (!element.hasAttribute(attr)) continue;
+          if (!(attr in originals)) originals[attr] = element.getAttribute(attr) || "";
+          element.setAttribute(attr, language === "hi" ? translateUiText(originals[attr]) : originals[attr]);
+        }
+      }
+    };
+
+    applyToElement(document.body);
+    const observer = new MutationObserver(mutations => {
+      for (const mutation of mutations) {
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (node instanceof Element || node instanceof DocumentFragment) applyToElement(node);
+          else if (node.nodeType === Node.TEXT_NODE && node.parentElement) applyToElement(node.parentElement);
+        }
+        if (mutation.type === "characterData" && mutation.target.parentElement) {
+          const textNode = mutation.target as Text;
+          const value = textNode.nodeValue || "";
+          if (language === "hi" && value && !originalText.current.has(textNode)) originalText.current.set(textNode, value);
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [language]);
+
+  return (
+    <div data-no-translate style={{ position: "fixed", right: 16, top: 10, zIndex: 10000, display: "flex", gap: 4, padding: 4, borderRadius: 10, background: "rgba(255,255,255,.96)", boxShadow: "0 2px 10px rgba(0,0,0,.12)" }}>
+      <button type="button" className={language === "en" ? "primary small" : "light small"} onClick={() => setLanguage("en")}>English</button>
+      <button type="button" className={language === "hi" ? "primary small" : "light small"} onClick={() => setLanguage("hi")}>हिंदी</button>
+    </div>
+  );
+}
 
 function initialSection(user: User): Section {
   const fallback: Section = user.role === "EMPLOYEE" ? "profile" : "dashboard";
@@ -375,7 +497,7 @@ hrCanManageReports: "true",
   }, [menuOpen]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || session.mustChangePassword) return;
     loadEmployees().catch(e => setNotice(e.message));
     if (session.role === "ADMIN" || session.role === "HR") {
       api("/api/permissions").then(d => {
@@ -544,7 +666,7 @@ useEffect(() => {
   }, [notice]);
 
   if (!session) {
-    return <div className="login-page"><form className="login-card" onSubmit={submitLogin}>
+    return <><LanguageSwitch /><div className="login-page"><form className="login-card" onSubmit={submitLogin}>
       <div className="logo-box">MS</div>
       <h1>Login</h1>
       <label>Username / Mobile</label><input value={login.username} onChange={e => setLogin({ ...login, username: e.target.value })} autoFocus />
@@ -583,7 +705,11 @@ useEffect(() => {
       </div>
       <button className="primary">Login</button>
       {loginErr && <div className={loginErr.includes("Logging in") ? "msg warn" : "msg error"}>{loginErr}</div>}
-    </form>{isOffline && <OfflineNotice onRetry={retryConnection} />}</div>;
+    </form>{isOffline && <OfflineNotice onRetry={retryConnection} />}</div></>;
+  }
+
+  if (session.mustChangePassword) {
+    return <><LanguageSwitch /><PasswordChangePanel session={session} forced onChanged={setSession} onLogout={logout} /></>;
   }
 
   const isAdmin = session.role === "ADMIN" || session.role === "HR";
@@ -651,7 +777,7 @@ const canManageReports =
   const sectionTitles: Record<Section, string> = {
     dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders",
     notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login / Export",
-    export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile",helpTickets: "Help Tickets",
+    export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile", changePassword: "Change Password",helpTickets: "Help Tickets",
 reporting: session.role === "EMPLOYEE"
   ? "My Reports"
   : "Reporting Management",
@@ -720,7 +846,7 @@ floorTeam: "My Team",
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
 
-  return <div className={isHr ? "app-shell admin-shell hr-shell" : isAdmin ? "app-shell admin-shell" : "app-shell employee-shell"}>
+  return <><LanguageSwitch /><div className={isHr ? "app-shell admin-shell hr-shell" : isAdmin ? "app-shell admin-shell" : "app-shell employee-shell"}>
     <button className="mobile-menu" onClick={() => setMenuOpen(true)}>☰</button>
     <aside className={`${menuOpen ? "sidebar open" : "sidebar"}${isAdmin ? " admin-mobile-tools" : ""}`}>
       <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div><button className="mobile-tools-close" type="button" aria-label="Close tools" onClick={() => setMenuOpen(false)}>×</button></div>
@@ -791,6 +917,7 @@ floorTeam: "My Team",
 )}
 
         {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
+        <MenuItem label="Change Password" icon="🔒" active={section === "changePassword"} onClick={() => goto("changePassword")} />
         <MenuItem label="Logout" icon="ↄ" active={false} onClick={logout} />
       </nav>
     </aside>
@@ -862,6 +989,7 @@ floorTeam: "My Team",
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} />}
+      {section === "changePassword" && <PasswordChangePanel session={session} onChanged={setSession} />}
     </main>
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
       {isAdmin ? <>
@@ -925,7 +1053,7 @@ floorTeam: "My Team",
     <ConfirmHost />
     <PushNotificationSetup employeeId={session.id} />
     {isOffline && <OfflineNotice onRetry={retryConnection} />}
-  </div>;
+  </div></>;
 }
 
 function OfflineNotice({ onRetry }: { onRetry: () => void | Promise<void> }) {
@@ -1946,6 +2074,73 @@ useEffect(() => {
 );
 }
 
+
+function PasswordChangePanel({
+  session,
+  forced = false,
+  onChanged,
+  onLogout
+}: {
+  session: User;
+  forced?: boolean;
+  onChanged: (user: User) => void;
+  onLogout?: () => void | Promise<void>;
+}) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentPassword) return setMsg("Current password is required.");
+    if (newPassword.length < 8) return setMsg("New password must be at least 8 characters.");
+    if (newPassword === "1234") return setMsg("1234 cannot be used as your permanent password.");
+    if (newPassword !== confirmPassword) return setMsg("New password and confirm password do not match.");
+
+    setSaving(true);
+    setMsg("Updating password...");
+    try {
+      const data = await api("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setMsg("Password changed successfully.");
+      onChanged(data.user);
+    } catch (e: any) {
+      setMsg(e.message || "Unable to change password.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const form = <form className="employee-form" onSubmit={changePassword}>
+    <div><label>Current Password</label><input type={showPasswords ? "text" : "password"} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoFocus={forced} /></div>
+    <div><label>New Password</label><input type={showPasswords ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Minimum 8 characters" /></div>
+    <div><label>Confirm New Password</label><input type={showPasswords ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></div>
+    <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={showPasswords} onChange={e => setShowPasswords(e.target.checked)} style={{ width: "auto" }} /> Show passwords</label>
+    <button className="primary" type="submit" disabled={saving}>{saving ? "Updating..." : "Change Password"}</button>
+    {msg && <div className={msg.includes("successfully") ? "msg success" : "msg warn"}>{msg}</div>}
+  </form>;
+
+  if (forced) {
+    return <div className="login-page"><div className="login-card">
+      <div className="logo-box">MS</div>
+      <h1>Change Password</h1>
+      <p>Your temporary password must be changed before you can continue.</p>
+      {form}
+      {onLogout && <button className="light" type="button" onClick={() => onLogout()}>Logout</button>}
+    </div></div>;
+  }
+
+  return <section className="panel"><h1>Change Password</h1><p>Use your current password and choose a new permanent password.</p>{form}</section>;
+}
 
 function ResetPassword({ employees }: { employees: User[] }) {
   const [employeeId, setEmployeeId] = useState("");
@@ -3979,6 +4174,70 @@ function EmployeeNotes({
 }
 
 
+
+function TeamCurrentFyLeave({ employeeId }: { employeeId: string }) {
+  const [info, setInfo] = useState<LeaveInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    api(`/api/employees/${employeeId}/leaves`)
+      .then(data => {
+        if (!cancelled) setInfo(data);
+      })
+      .catch((e: any) => {
+        if (!cancelled) setError(e.message || "Unable to load current FY leave.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [employeeId]);
+
+  if (loading) return <div className="empty-state">Loading current FY leave...</div>;
+  if (error) return <div className="msg warn">{error}</div>;
+  if (!info) return null;
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <h2>Current FY Leave</h2>
+      <p className="hint">
+        Financial Year: <b>{info.balance.financialYear}</b>
+        {" · "}Earned: <b>{info.balance.earned}</b>
+        {" · "}Used: <b>{info.balance.used}</b>
+        {" · "}Current Balance: <b>{info.balance.currentBalance}</b>
+      </p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Earned</th>
+              <th>Used</th>
+              <th>Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {info.balance.rows.map(row => (
+              <tr key={row.monthYear}>
+                <td>{row.monthYear}</td>
+                <td>{row.earned}</td>
+                <td>{row.used}</td>
+                <td>{row.balance}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function FloorTeamPanel({
   session
 }: {
@@ -4287,6 +4546,7 @@ setManagerScope(data.managerScope || "");
                 }
               />
             </div>
+<TeamCurrentFyLeave employeeId={selectedEmployee.id} />
 <EmployeeNotes
   employee={selectedEmployee}
   viewer={session}
@@ -4795,7 +5055,9 @@ useEffect(() => {
 }
 
 function LeaveRequests({ session, canReview: allowedToReview = false }: { session: User; canReview?: boolean }) {
-  const canReview = session.role === "ADMIN" || (session.role === "HR" && allowedToReview);
+  const canHrReview = session.role === "ADMIN" || (session.role === "HR" && allowedToReview);
+  const canManagerReview = session.role === "EMPLOYEE" && Boolean(session.isFloorManager);
+  const canReview = canHrReview || canManagerReview;
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -4895,6 +5157,19 @@ useEffect(() => {
     }
   }
 
+  function rowCanAct(row: any) {
+    if (row.status !== "PENDING") return false;
+    if (canManagerReview) return row.requester?.id !== session.id && row.managerStatus === "PENDING";
+    if (canHrReview) return row.managerStatus === "APPROVED";
+    return false;
+  }
+
+  function managerStageLabel(row: any) {
+    if (row.managerStatus === "APPROVED") return `Approved${row.managerDecidedBy?.name ? ` by ${row.managerDecidedBy.name}` : ""}`;
+    if (row.managerStatus === "REJECTED") return `Rejected${row.managerDecidedBy?.name ? ` by ${row.managerDecidedBy.name}` : ""}`;
+    return "Pending";
+  }
+
   function displayDate(value: string) {
     if (!value) return "-";
     const date = new Date(value);
@@ -4984,7 +5259,7 @@ const visibleRows = rows.filter(row => {
   return <section className="panel leave-request-panel">
     <div className="leave-request-title"><div><h1>Leave Requests</h1></div>{canReview && <span className="leave-pending-count">{rows.filter(row => row.status === "PENDING").length} Pending</span>}</div>
 
-    {!canReview && <form className="leave-request-form" onSubmit={submit}>
+    {session.role === "EMPLOYEE" && <form className="leave-request-form" onSubmit={submit}>
       <div className="leave-date-block"><label>From Date</label><input type="date" min={minimumLeaveDate || undefined} value={form.fromDate} onChange={event => { const fromDate = event.target.value; const toDate = form.toDate && form.toDate < fromDate ? fromDate : form.toDate; setForm({ ...form, fromDate, toDate, toDayType: toDate && toDate === fromDate ? form.fromDayType : form.toDayType }); }} required /><small>From Day Type</small><select value={form.fromDayType} onChange={event => { const fromDayType = event.target.value; setForm({ ...form, fromDayType, toDayType: form.toDate && form.toDate === form.fromDate ? fromDayType : form.toDayType }); }}><option value="FULL">Full Day</option><option value="HALF">Half Day</option></select></div>
       <div className="leave-date-block"><label>To Date</label><input type="date" min={form.fromDate || minimumLeaveDate || undefined} value={form.toDate} onChange={event => { const toDate = event.target.value; setForm({ ...form, toDate, toDayType: toDate === form.fromDate ? form.fromDayType : form.toDayType }); }} required /><small>To Day Type</small><select value={form.toDate && form.toDate === form.fromDate ? form.fromDayType : form.toDayType} disabled={!form.toDate || form.toDate === form.fromDate} onChange={event => setForm({ ...form, toDayType: event.target.value })}><option value="FULL">Full Day</option><option value="HALF">Half Day</option></select></div>
       <div className="leave-days-preview"><span>Total Leave Days</span><b>{formDays || "-"}</b></div>
@@ -5145,35 +5420,30 @@ const visibleRows = rows.filter(row => {
 
 
 
-    <div className="table-wrap leave-request-table"><table><thead><tr>{canReview && <th>Employee / Manager</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Decision</th>{canReview && <th>Action</th>}</tr></thead><tbody>
-      {loading && <tr><td colSpan={canReview ? 8 : 7}>Loading leave requests...</td></tr>}
-      {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 8 : 7}>No leave requests found.</td></tr>}
+    <div className="table-wrap leave-request-table"><table><thead><tr>{canReview && <th>Employee</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Manager Approval</th><th>HR Decision</th>{canReview && <th>Action</th>}</tr></thead><tbody>
+      {loading && <tr><td colSpan={canReview ? 9 : 8}>Loading leave requests...</td></tr>}
+      {!loading && visibleRows.length === 0 && <tr><td colSpan={canReview ? 9 : 8}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
         {canReview && <td><b>{row.requester.name}</b><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
         <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}</td>
         <td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
         <td>
-  {row.status === "PENDING" ? (
-    "-"
-  ) : (
-    <>
-      <b>{row.decidedBy?.name || "-"}</b>
-
-      <small className="leave-decision-date">
-        {row.decidedAt
-          ? displayDate(row.decidedAt)
-          : "-"}
-      </small>
-
-      {row.status === "REJECTED" && (
-        <small className="leave-rejection-text">
-          Reason: {row.rejectionReason}
-        </small>
-      )}
-    </>
-  )}
-</td>
-        {canReview && <td>{row.status === "PENDING" ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : "Completed"}</td>}
+          <b>{managerStageLabel(row)}</b>
+          {row.managerDecidedAt && <small className="leave-decision-date">{displayDate(row.managerDecidedAt)}</small>}
+          {row.managerStatus === "REJECTED" && row.managerRejectionReason && <small className="leave-rejection-text">Reason: {row.managerRejectionReason}</small>}
+        </td>
+        <td>
+          {row.status === "PENDING" ? (
+            <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : "Waiting for Manager"}</small>
+          ) : (
+            <>
+              <b>{row.decidedBy?.name || "-"}</b>
+              <small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>
+              {row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}
+            </>
+          )}
+        </td>
+        {canReview && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? "Waiting for Manager" : canManagerReview && row.requester?.id === session.id ? "-" : "Pending"}</td>}
       </tr>)}
     </tbody></table></div>
 

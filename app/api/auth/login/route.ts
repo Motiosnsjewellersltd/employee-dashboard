@@ -46,7 +46,13 @@ export async function POST(req: NextRequest) {
       await prisma.employee.update({ where: { id: matchedUser.id }, data: { password: await bcrypt.hash(password, 10) } });
     }
 
-    await prisma.employee.update({ where: { id: matchedUser.id }, data: { lastSeenAt: new Date() } });
+    matchedUser = await prisma.employee.update({
+      where: { id: matchedUser.id },
+      data: {
+        lastSeenAt: new Date(),
+        ...(password === "1234" ? { mustChangePassword: true } : {})
+      }
+    });
     const sessionUser = publicUser(matchedUser);
     await setAuthCookie(await createToken(sessionUser));
     await writeLoginAttempt({

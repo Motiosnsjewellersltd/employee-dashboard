@@ -44,6 +44,7 @@ model Employee {
   name              String
   mobile            String         @unique
   password          String
+  mustChangePassword Boolean        @default(true)
   role              Role           @default(EMPLOYEE)
   designation       String?
   department        String?
@@ -73,6 +74,7 @@ model Employee {
   createdNotifications    NotificationBlast[] @relation("CreatedNotificationBlasts")
   leaveRequests           LeaveRequest[]      @relation("LeaveRequestRequester")
   decidedLeaveRequests    LeaveRequest[]      @relation("LeaveRequestDecider")
+  managerDecidedLeaveRequests LeaveRequest[]   @relation("LeaveRequestManagerDecider")
   pushSubscriptions       PushSubscription[]
   branchTransfers         BranchTransfer[]
   employmentHistory       EmploymentHistory[]
@@ -169,18 +171,24 @@ model LeaveRequest {
   fromDayType     String             @default("FULL")
   toDayType       String             @default("FULL")
   reason          String             @db.Text
-  status          LeaveRequestStatus @default(PENDING)
-  rejectionReason String?            @db.Text
-  decidedById     String?
-  decidedAt       DateTime?
+  status                  LeaveRequestStatus @default(PENDING)
+  rejectionReason         String?            @db.Text
+  decidedById             String?
+  decidedAt               DateTime?
+  managerStatus           String             @default("PENDING")
+  managerRejectionReason  String?            @db.Text
+  managerDecidedById      String?
+  managerDecidedAt        DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
-  requester Employee  @relation("LeaveRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  decidedBy Employee? @relation("LeaveRequestDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  requester        Employee  @relation("LeaveRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  decidedBy         Employee? @relation("LeaveRequestDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  managerDecidedBy  Employee? @relation("LeaveRequestManagerDecider", fields: [managerDecidedById], references: [id], onDelete: SetNull)
 
   @@index([requesterId, createdAt])
   @@index([status, createdAt])
+  @@index([managerStatus, createdAt])
 }
 
 model ManagementComment {

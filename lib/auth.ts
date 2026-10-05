@@ -27,6 +27,7 @@ floor?: string | null;
 managerScope?: string | null;
 isFloorManager?: boolean;
   photoUrl?: string | null;
+  mustChangePassword?: boolean;
 };
 
 export async function createToken(user: SessionUser) {
@@ -49,9 +50,10 @@ export async function getSession(): Promise<SessionUser | null> {
   }
 }
 
-export async function requireSession() {
+export async function requireSession(options?: { allowPasswordChange?: boolean }) {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
+  if (session.mustChangePassword && !options?.allowPasswordChange) throw new Error("Password change required.");
   const active = await prisma.employee.findFirst({ where: { id: session.id, deletedAt: null, status: "ACTIVE", exitDate: null }, select: { id: true } });
   if (!active) throw new Error("Unauthorized");
   await prisma.employee.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } }).catch(() => null);
@@ -88,6 +90,7 @@ export function publicUser(user: any): SessionUser {
 floor: user.floor,
 isFloorManager: Boolean(user.isFloorManager),
 managerScope: user.managerScope,
-    photoUrl: user.photoUrl
+    photoUrl: user.photoUrl,
+    mustChangePassword: Boolean(user.mustChangePassword)
   };
 }

@@ -82,7 +82,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (data.passwordOnly) {
       await requireHrPermission(session.role, "hrCanResetPassword", "HR is not allowed to reset passwords.");
       if (!String(data.password || "").trim()) throw new Error("New password is required.");
-      const employee = await prisma.employee.update({ where: { id }, data: { password: await bcrypt.hash(String(data.password), 10) } });
+      const employee = await prisma.employee.update({ where: { id }, data: { password: await bcrypt.hash(String(data.password), 10), mustChangePassword: true } });
       await addAuditLog({ actorId: session.id, actorName: session.name, action: "RESET_PASSWORD", target: employee.name, details: { id } });
       return ok({ employee: employeeSelect(employee) });
     }
@@ -162,7 +162,10 @@ managerScope,
   exitDate,
   status: exitDate ? "INACTIVE" : (data.status || "ACTIVE")
 };
-    if (data.password) update.password = await bcrypt.hash(String(data.password), 10);
+    if (data.password) {
+      update.password = await bcrypt.hash(String(data.password), 10);
+      update.mustChangePassword = true;
+    }
     const isRejoin = data.rejoin === true;
     if (isRejoin) {
       if (before.status !== "INACTIVE" || !before.exitDate) throw new Error("Only an exited/inactive employee can be rejoined.");

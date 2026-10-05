@@ -6,6 +6,7 @@ import { fail, ok } from "@/lib/utils";
 import { addSystemNotification } from "@/lib/systemNotification";
 import { sendPushToEmployees } from "@/lib/webPush";
 import { requireHrPermission } from "@/lib/permissions";
+import { findManagersForEmployee, getManagerRecord, getManagerTeamEmployeeIds } from "@/lib/teamScope";
 
 function parseDateOnly(value: unknown) {
   const text = String(value || "").trim();
@@ -64,18 +65,29 @@ function todayInIndia() {
 }
 
 const includePeople = {
-  requester: { select: { id: true, name: true, mobile: true, designation: true, department: true } },
-  decidedBy: { select: { id: true, name: true } }
+  requester: { select: { id: true, name: true, mobile: true, designation: true, department: true, branch: true, floor: true } },
+  decidedBy: { select: { id: true, name: true } },
+  managerDecidedBy: { select: { id: true, name: true } }
 };
 
 export async function GET() {
   try {
     const session = await requireSession();
     const canReview = session.role === "ADMIN" || session.role === "HR";
+    let where: any = { requesterId: session.id };
+
+    if (canReview) {
+      where = undefined;
+    } else if (session.role === "EMPLOYEE" && session.isFloorManager) {
+      const manager = await getManagerRecord(session.id);
+      const teamIds = await getManagerTeamEmployeeIds(manager);
+      where = { OR: [{ requesterId: session.id }, { requesterId: { in: teamIds } }] };
+    }
+
     const requests = await prisma.leaveRequest.findMany({
-      where: canReview ? undefined : { requesterId: session.id },
+      where,
       include: includePeople,
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      orderBy: [{ status: "asc" }, { managerStatus: "asc" }, { createdAt: "desc" }],
       take: 500
     });
     return ok({ requests });
@@ -102,17 +114,65 @@ export async function POST(req: NextRequest) {
     if (fromDateText <= todayInIndia()) throw new Error("From date must be after today.");
     if (toDate < fromDate) throw new Error("To date cannot be before From date.");
 
+    const requester = await prisma.employee.findFirst({
+      where: { id: session.id, deletedAt: null },
+      select: { id: true, branch: true, floor: true, department: true }
+    });
+    if (!requester) throw new Error("Employee not found.");
+
+    const managers = await findManagersForEmployee(requester);
+    const managerStatus = managers.length ? "PENDING" : "APPROVED";
+
     const leaveRequest = await prisma.leaveRequest.create({
-      data: { requesterId: session.id, fromDate, toDate, fromDayType, toDayType, reason },
+      data: {
+        requesterId: session.id,
+        fromDate,
+        toDate,
+        fromDayType,
+        toDayType,
+        reason,
+        managerStatus,
+        managerDecidedAt: managers.length ? null : new Date()
+      },
       include: includePeople
     });
+
     await addAuditLog({
       actorId: session.id,
       actorName: session.name,
       action: "CREATE_LEAVE_REQUEST",
       target: leaveRequest.id,
-      details: { fromDate: body.fromDate, toDate: body.toDate, fromDayType, toDayType, days: inclusiveDayCount(fromDate, toDate, fromDayType, toDayType) }
+      details: {
+        fromDate: body.fromDate,
+        toDate: body.toDate,
+        fromDayType,
+        toDayType,
+        days: inclusiveDayCount(fromDate, toDate, fromDayType, toDayType),
+        managerApprovalRequired: managers.length > 0
+      }
     });
+
+    if (managers.length) {
+      const managerIds = managers.map(manager => manager.id);
+      const managerText = `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. Manager approval is required.`;
+      await prisma.notificationBlast.create({
+        data: {
+          type: "NOTICE",
+          text: managerText,
+          filterType: "SYSTEM",
+          filterValue: "NEW_LEAVE_REQUEST_MANAGER",
+          createdById: session.id,
+          recipients: { create: managerIds.map(employeeId => ({ employeeId })) }
+        }
+      });
+      await sendPushToEmployees(managerIds, {
+        title: "Leave Approval Required",
+        body: managerText,
+        url: "/?section=leaveRequests",
+        tag: `leave-manager-${leaveRequest.id}`
+      });
+    }
+
     await addSystemNotification({
       actorId: session.id,
       action: "NEW_LEAVE_REQUEST",
@@ -121,6 +181,7 @@ export async function POST(req: NextRequest) {
       type: "NOTICE",
       url: "/?section=leaveRequests",
     });
+
     return ok({ request: leaveRequest });
   } catch (error) {
     return fail(error);
@@ -130,24 +191,105 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const session = await requireSession();
-    if (session.role !== "ADMIN" && session.role !== "HR") throw new Error("Only Admin/HR can approve or reject leave requests.");
-    await requireHrPermission(session.role, "hrCanReviewLeaveRequests", "HR is not allowed to approve or reject leave requests.");
-
     const body = await req.json();
     const id = String(body.id || "").trim();
     const status = String(body.status || "").trim().toUpperCase();
     const rejectionReason = String(body.rejectionReason || "").trim();
+
     if (!id) throw new Error("Leave request is required.");
     if (status !== "APPROVED" && status !== "REJECTED") throw new Error("Select Approve or Reject.");
     if (status === "REJECTED" && !rejectionReason) throw new Error("Rejection reason is required.");
+
+    const isHrReviewer = session.role === "ADMIN" || session.role === "HR";
+    const isManagerReviewer = session.role === "EMPLOYEE" && Boolean(session.isFloorManager);
+
+    if (!isHrReviewer && !isManagerReviewer) {
+      throw new Error("You are not allowed to approve or reject leave requests.");
+    }
+
+    if (isHrReviewer) {
+      await requireHrPermission(session.role, "hrCanReviewLeaveRequests", "HR is not allowed to approve or reject leave requests.");
+    }
 
     const result = await prisma.$transaction(async tx => {
       const current = await tx.leaveRequest.findUnique({ where: { id }, include: includePeople });
       if (!current) throw new Error("Leave request not found.");
       if (current.status !== "PENDING") throw new Error("This leave request has already been decided.");
 
+      if (isManagerReviewer) {
+        const manager = await getManagerRecord(session.id);
+        const teamIds = await getManagerTeamEmployeeIds(manager);
+        if (!teamIds.includes(current.requesterId)) throw new Error("This employee is not in your team.");
+        if (current.managerStatus !== "PENDING") throw new Error("Manager decision has already been completed.");
+
+        await tx.leaveRequest.update({
+          where: { id },
+          data: {
+            managerStatus: status,
+            managerRejectionReason: status === "REJECTED" ? rejectionReason : null,
+            managerDecidedById: session.id,
+            managerDecidedAt: new Date(),
+            ...(status === "REJECTED" ? {
+              status: "REJECTED" as const,
+              rejectionReason,
+              decidedById: session.id,
+              decidedAt: new Date()
+            } : {})
+          }
+        });
+
+        const dateRange = formatDateRange(current.fromDate, current.toDate);
+        const days = inclusiveDayCount(current.fromDate, current.toDate, current.fromDayType, current.toDayType);
+        const text = status === "APPROVED"
+          ? `Your manager approved your leave request for ${dateRange} (${days} day(s)). It is now pending HR approval.`
+          : `Your leave request for ${dateRange} (${days} day(s)) was rejected by your manager. Reason: ${rejectionReason}`;
+
+        await tx.notificationBlast.create({
+          data: {
+            type: "INFORMATION",
+            text,
+            filterType: "SYSTEM",
+            filterValue: `LEAVE_MANAGER_${status}`,
+            createdById: session.id,
+            recipients: { create: [{ employeeId: current.requesterId }] }
+          }
+        });
+
+        if (status === "APPROVED") {
+          const hrUsers = await tx.employee.findMany({
+            where: { status: "ACTIVE", deletedAt: null, role: { in: ["ADMIN", "HR"] } },
+            select: { id: true }
+          });
+          if (hrUsers.length) {
+            await tx.notificationBlast.create({
+              data: {
+                type: "NOTICE",
+                text: `${current.requester.name}'s leave request for ${dateRange} has been approved by manager ${session.name} and is ready for HR action.`,
+                filterType: "SYSTEM",
+                filterValue: "LEAVE_MANAGER_APPROVED",
+                createdById: session.id,
+                recipients: { create: hrUsers.map(user => ({ employeeId: user.id })) }
+              }
+            });
+          }
+        }
+
+        const request = await tx.leaveRequest.findUnique({ where: { id }, include: includePeople });
+        return {
+          request,
+          monthlyBreakdown: [] as { monthYear: string; leave: number }[],
+          notificationText: text,
+          requesterId: current.requesterId,
+          managerStage: true
+        };
+      }
+
+      if (current.managerStatus !== "APPROVED") {
+        throw new Error("Manager approval is required before HR can take action.");
+      }
+
       const claimed = await tx.leaveRequest.updateMany({
-        where: { id, status: "PENDING" },
+        where: { id, status: "PENDING", managerStatus: "APPROVED" },
         data: {
           status: status as "APPROVED" | "REJECTED",
           rejectionReason: status === "REJECTED" ? rejectionReason : null,
@@ -192,8 +334,9 @@ export async function PATCH(req: NextRequest) {
       const daysText = `${days} ${days === 1 ? "day" : "days"}`;
       const monthlyText = monthlyBreakdown.map(item => `${item.leave} day(s) in ${item.monthYear}`).join(", ");
       const text = status === "APPROVED"
-        ? `Your leave request for ${dateRange} (${daysText}) has been approved. Leave added: ${monthlyText}.`
-        : `Your leave request for ${dateRange} (${daysText}) has been rejected. Reason: ${rejectionReason}`;
+        ? `Your leave request for ${dateRange} (${daysText}) has been approved by HR. Leave added: ${monthlyText}.`
+        : `Your leave request for ${dateRange} (${daysText}) has been rejected by HR. Reason: ${rejectionReason}`;
+
       await tx.notificationBlast.create({
         data: {
           type: "INFORMATION",
@@ -204,24 +347,33 @@ export async function PATCH(req: NextRequest) {
           recipients: { create: [{ employeeId: current.requesterId }] }
         }
       });
+
       const request = await tx.leaveRequest.findUnique({ where: { id }, include: includePeople });
-      return { request, monthlyBreakdown, notificationText: text, requesterId: current.requesterId };
+      return { request, monthlyBreakdown, notificationText: text, requesterId: current.requesterId, managerStage: false };
     });
 
     await addAuditLog({
       actorId: session.id,
       actorName: session.name,
-      action: `${status}_LEAVE_REQUEST`,
+      action: result.managerStage ? `MANAGER_${status}_LEAVE_REQUEST` : `${status}_LEAVE_REQUEST`,
       target: id,
       details: status === "REJECTED" ? { rejectionReason } : { monthlyLeaveAdded: result.monthlyBreakdown }
     });
+
     await sendPushToEmployees([result.requesterId], {
-      title: status === "APPROVED" ? "Leave Approved" : "Leave Rejected",
+      title: result.managerStage
+        ? (status === "APPROVED" ? "Manager Approved Leave" : "Manager Rejected Leave")
+        : (status === "APPROVED" ? "Leave Approved" : "Leave Rejected"),
       body: result.notificationText,
       url: "/?section=leaveRequests",
       tag: `leave-${id}`,
     });
-    return ok({ request: result.request, monthlyLeaveAdded: result.monthlyBreakdown });
+
+    return ok({
+      request: result.request,
+      monthlyLeaveAdded: result.monthlyBreakdown,
+      stage: result.managerStage ? "MANAGER" : "HR"
+    });
   } catch (error) {
     return fail(error);
   }

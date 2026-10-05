@@ -1,0 +1,40 @@
+MOTISONS EMPLOYEE DASHBOARD - PASSWORD SECURITY UPDATE
+Base: the latest Employee Dashboard ZIP supplied by the user (tsconfig.zip).
+This package contains only changed/new files.
+
+WHAT THIS UPDATE DOES
+- New employee temporary/default password can remain 1234.
+- Login with 1234 forces a password change before dashboard/API use.
+- New permanent password must be at least 8 characters.
+- 1234 cannot be used as a permanent password.
+- Employee/Admin/HR can change their own password from Change Password.
+- Admin/HR password reset marks the account for compulsory change at next login.
+- Passwords are stored as bcrypt hashes.
+- Existing password values are never exposed in the UI/API.
+- No OTP is used.
+
+FILES TO COPY (keep the same paths)
+app/components/DashboardApp.tsx
+app/api/auth/login/route.ts
+app/api/auth/change-password/route.ts
+app/api/employees/route.ts
+app/api/employees/[id]/route.ts
+lib/auth.ts
+prisma/schema.prisma
+prisma/migrations/20261002_password_security/migration.sql
+
+DATABASE
+Run your normal Prisma migration deployment command after copying the files.
+For a standard deployed Prisma project: prisma migrate deploy
+For local/dev environments where you use schema push: prisma db push
+
+MIGRATION BEHAVIOR
+Existing users are not automatically forced to change their current non-1234 passwords.
+Any user who logs in with 1234 is automatically forced to set a new permanent password.
+New accounts default to mustChangePassword=true.
+Admin/HR reset also sets mustChangePassword=true.
+
+IMPORTANT
+This corrected package was prepared against the uploaded latest Employee Dashboard structure,
+including the current Floor / Floor Manager / Manager Scope / My Team / Reporting / Help Tickets code.
+Do not use the earlier password-update ZIP on this latest project.
