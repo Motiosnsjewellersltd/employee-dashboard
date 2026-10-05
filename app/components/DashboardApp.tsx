@@ -59,9 +59,15 @@ type Section =
 
 
 const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
-  // Full phrases/sentences first so Hindi mode never produces mixed text such as "Change पासवर्ड".
+  // Complete phrases first. This keeps Hindi mode natural instead of producing mixed labels.
   [/\bYour temporary password must be changed before you can continue\./g, "आगे बढ़ने से पहले आपको अपना अस्थायी पासवर्ड बदलना होगा।"],
   [/\bUse your current password and choose a new permanent password\./g, "अपना वर्तमान पासवर्ड दर्ज करें और नया स्थायी पासवर्ड चुनें।"],
+  [/\bCurrent password is required\./g, "वर्तमान पासवर्ड दर्ज करना आवश्यक है।"],
+  [/\bNew password must be at least 8 characters\./g, "नया पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।"],
+  [/\b1234 cannot be used as your permanent password\./g, "1234 को स्थायी पासवर्ड के रूप में उपयोग नहीं किया जा सकता।"],
+  [/\bNew password and confirm password do not match\./g, "नया पासवर्ड और पुष्टि वाला पासवर्ड मेल नहीं खाते।"],
+  [/\bPassword changed successfully\./g, "पासवर्ड सफलतापूर्वक बदल दिया गया।"],
+  [/\bUnable to change password\./g, "पासवर्ड बदलने में समस्या हुई।"],
   [/\bCurrent Password\b/g, "वर्तमान पासवर्ड"],
   [/\bConfirm New Password\b/g, "नए पासवर्ड की पुष्टि करें"],
   [/\bNew Password\b/g, "नया पासवर्ड"],
@@ -70,8 +76,11 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bEnter new password\b/g, "नया पासवर्ड दर्ज करें"],
   [/\bChange Password\b/g, "पासवर्ड बदलें"],
   [/\bReset Password\b/g, "पासवर्ड रीसेट करें"],
-  [/\bUpdating\.\.\./g, "बदला जा रहा है..."],
+  [/\bUpdating password\.\.\./g, "पासवर्ड बदला जा रहा है..."],
+  [/\bUpdating\.\.\./g, "अपडेट किया जा रहा है..."],
+
   [/\bMotisons Employee System\b/g, "मोतिसन्स कर्मचारी सिस्टम"],
+  [/\bEmployee System\b/g, "कर्मचारी सिस्टम"],
   [/\bUsername \/ Mobile\b/g, "यूज़रनेम / मोबाइल"],
   [/\bLogin \/ Export\b/g, "लॉगिन / एक्सपोर्ट"],
   [/\bExport Data\b/g, "डेटा एक्सपोर्ट"],
@@ -80,6 +89,24 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bLeave Requests\b/g, "अवकाश अनुरोध"],
   [/\bLeave Request\b/g, "अवकाश अनुरोध"],
   [/\bHelp Tickets\b/g, "सहायता टिकट"],
+  [/\bHelp Ticket\b/g, "सहायता टिकट"],
+  [/\bRaise a help request and track its status here\./g, "यहाँ सहायता अनुरोध दर्ज करें और उसकी स्थिति देखें।"],
+  [/\bRaise Ticket\b/g, "टिकट दर्ज करें"],
+  [/\bEnter ticket subject\b/g, "टिकट का विषय लिखें"],
+  [/\bExplain your issue\b/g, "अपनी समस्या का विवरण लिखें"],
+  [/\bSearch your tickets\.\.\./g, "अपने टिकट खोजें..."],
+  [/\bAll Status\b/g, "सभी स्थितियाँ"],
+  [/\bTicket No\.\b/g, "टिकट नं."],
+  [/\bTicket No\b/g, "टिकट नं."],
+  [/\bGeneral\b/g, "सामान्य"],
+  [/\bPayroll\b/g, "पेरोल"],
+  [/\bAttendance\b/g, "उपस्थिति"],
+  [/\bIT \/ System\b/g, "आईटी / सिस्टम"],
+  [/\bOther\b/g, "अन्य"],
+  [/\bCategory\b/g, "श्रेणी"],
+  [/\bSubject\b/g, "विषय"],
+  [/\bDescription\b/g, "विवरण"],
+
   [/\bMy Profile\b/g, "मेरी प्रोफ़ाइल"],
   [/\bMy Details\b/g, "मेरी जानकारी"],
   [/\bMy Team\b/g, "मेरी टीम"],
@@ -90,19 +117,38 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bDepartment \/ Function\b/g, "विभाग / कार्य"],
   [/\bWhole Branch\b/g, "पूरी शाखा"],
   [/\bEmployee ID\b/g, "कर्मचारी आईडी"],
+  [/\bWorking Period\b/g, "कार्य अवधि"],
+  [/\bEmployee Notes\b/g, "कर्मचारी नोट्स"],
+  [/\bWork observations and remarks\./g, "कार्य से जुड़ी टिप्पणियाँ और नोट्स।"],
+  [/\bNo notes added yet\./g, "अभी कोई नोट नहीं जोड़ा गया है।"],
+  [/\bBranch \/ Store Transfer History\b/g, "शाखा / स्टोर स्थानांतरण इतिहास"],
+  [/\bTransfer Date\b/g, "स्थानांतरण तिथि"],
+  [/\bUpdated By\b/g, "अपडेट करने वाला"],
+  [/\bNot Assigned\b/g, "निर्धारित नहीं"],
+  [/\bLeave Balance\b/g, "अवकाश शेष"],
+  [/\bEarned Till Current Month\b/g, "वर्तमान माह तक अर्जित"],
+  [/\bUsed Leaves\b/g, "उपयोग किए गए अवकाश"],
+  [/\bMonthwise Leaves\b/g, "माहवार अवकाश"],
+  [/\bMonth\/Year\b/g, "माह/वर्ष"],
+  [/\bReason \/ Remark\b/g, "कारण / टिप्पणी"],
+  [/\bPrint \/ PDF\b/g, "प्रिंट / PDF"],
+
   [/\bFrom Date\b/g, "आरंभ तिथि"],
   [/\bTo Date\b/g, "अंतिम तिथि"],
+  [/\bFrom Day Type\b/g, "आरंभ दिन का प्रकार"],
+  [/\bTo Day Type\b/g, "अंतिम दिन का प्रकार"],
   [/\bFull Day\b/g, "पूरा दिन"],
   [/\bHalf Day\b/g, "आधा दिन"],
   [/\bTotal Leave Days\b/g, "कुल अवकाश दिवस"],
   [/\bLeave Reason\b/g, "अवकाश का कारण"],
-  [/\bEnter reason for leave\b/g, "अवकाश का कारण दर्ज करें"],
+  [/\bEnter reason for leave\b/g, "अवकाश का कारण लिखें"],
   [/\bSubmit Leave Request\b/g, "अवकाश अनुरोध भेजें"],
   [/\bManager Approval\b/g, "मैनेजर की स्वीकृति"],
   [/\bHR Approval\b/g, "HR की स्वीकृति"],
   [/\bWaiting for Manager\b/g, "मैनेजर की स्वीकृति की प्रतीक्षा"],
   [/\bWaiting for HR\b/g, "HR की स्वीकृति की प्रतीक्षा"],
   [/\bEmployee Summary\b/g, "कर्मचारी सारांश"],
+  [/\bEmployee-wise leave request history and totals\./g, "कर्मचारी के अनुसार अवकाश अनुरोध का इतिहास और कुल विवरण।"],
   [/\bTotal Requests\b/g, "कुल अनुरोध"],
   [/\bRequested Days\b/g, "मांगे गए दिन"],
   [/\bApproved Days\b/g, "स्वीकृत दिन"],
@@ -112,12 +158,28 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bFinancial Year\b/g, "वित्तीय वर्ष"],
   [/\bCurrent Balance\b/g, "वर्तमान शेष"],
   [/\bNo employees found\b/g, "कोई कर्मचारी नहीं मिला"],
+  [/\bNo employee found\b/g, "कोई कर्मचारी नहीं मिला"],
   [/\bNo leave requests found\b/g, "कोई अवकाश अनुरोध नहीं मिला"],
   [/\bNo employee leave requests found\b/g, "किसी कर्मचारी का अवकाश अनुरोध नहीं मिला"],
   [/\bRejection Reason\b/g, "अस्वीकृति का कारण"],
-  [/\bEnter reason for rejection\b/g, "अस्वीकृति का कारण दर्ज करें"],
+  [/\bEnter reason for rejection\b/g, "अस्वीकृति का कारण लिखें"],
   [/\bReject & Notify\b/g, "अस्वीकृत करें और सूचित करें"],
   [/\bAdd Note\b/g, "नोट जोड़ें"],
+
+  [/\bChats\b/g, "चैट"],
+  [/\bcontacts\b/g, "संपर्क"],
+  [/\bSearch Employee ID, name or mobile\b/g, "कर्मचारी आईडी, नाम या मोबाइल खोजें"],
+  [/\bNo messages yet\b/g, "अभी कोई संदेश नहीं"],
+  [/\bSelect an employee to start chat\b/g, "चैट शुरू करने के लिए कर्मचारी चुनें"],
+  [/\bStart your conversation\b/g, "बातचीत शुरू करें"],
+  [/\bType message\b/g, "संदेश लिखें"],
+  [/\bonline\b/g, "ऑनलाइन"],
+  [/\boffline\b/g, "ऑफलाइन"],
+
+  [/\bDate of Birth\b/g, "जन्म तिथि"],
+  [/\bDate of Joining\b/g, "जॉइनिंग तिथि"],
+  [/\bDOB\b/g, "जन्म तिथि"],
+  [/\bDOJ\b/g, "जॉइनिंग तिथि"],
 
   // Short/common UI labels after complete phrases.
   [/\bLogin\b/g, "लॉगिन"], [/\bLogout\b/g, "लॉगआउट"], [/\bPassword\b/g, "पासवर्ड"],
@@ -149,13 +211,31 @@ function translateUiText(value: string) {
   return output;
 }
 
-function LanguageSwitch() {
-  const [language, setLanguage] = useState<"en" | "hi">(() => {
-    if (typeof window === "undefined") return "en";
-    return window.localStorage.getItem("motisons-language") === "hi" ? "hi" : "en";
-  });
+type UiLanguage = "en" | "hi";
+
+function storedLanguage(): UiLanguage {
+  if (typeof window === "undefined") return "en";
+  return window.localStorage.getItem("motisons-language") === "hi" ? "hi" : "en";
+}
+
+function setStoredLanguage(language: UiLanguage) {
+  window.localStorage.setItem("motisons-language", language);
+  window.dispatchEvent(new CustomEvent("motisons-language-change", { detail: language }));
+}
+
+function LanguageRuntime() {
+  const [language, setLanguage] = useState<UiLanguage>(() => storedLanguage());
   const originalText = useRef(new WeakMap<Text, string>());
   const originalAttributes = useRef(new WeakMap<Element, Record<string, string>>());
+
+  useEffect(() => {
+    const onLanguageChange = (event: Event) => {
+      const next = (event as CustomEvent<UiLanguage>).detail;
+      setLanguage(next === "hi" ? "hi" : "en");
+    };
+    window.addEventListener("motisons-language-change", onLanguageChange);
+    return () => window.removeEventListener("motisons-language-change", onLanguageChange);
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem("motisons-language", language);
@@ -171,7 +251,8 @@ function LanguageSwitch() {
           const current = textNode.nodeValue || "";
           if (!originalText.current.has(textNode)) originalText.current.set(textNode, current);
           const english = originalText.current.get(textNode) || current;
-          textNode.nodeValue = language === "hi" ? translateUiText(english) : english;
+          const translated = language === "hi" ? translateUiText(english) : english;
+          if (textNode.nodeValue !== translated) textNode.nodeValue = translated;
         }
         node = walker.nextNode();
       }
@@ -188,7 +269,9 @@ function LanguageSwitch() {
         for (const attr of attrs) {
           if (!element.hasAttribute(attr)) continue;
           if (!(attr in originals)) originals[attr] = element.getAttribute(attr) || "";
-          element.setAttribute(attr, language === "hi" ? translateUiText(originals[attr]) : originals[attr]);
+          const english = originals[attr];
+          const translated = language === "hi" ? translateUiText(english) : english;
+          if (element.getAttribute(attr) !== translated) element.setAttribute(attr, translated);
         }
       }
     };
@@ -203,18 +286,40 @@ function LanguageSwitch() {
         if (mutation.type === "characterData" && mutation.target.parentElement) {
           const textNode = mutation.target as Text;
           const value = textNode.nodeValue || "";
-          if (language === "hi" && value && !originalText.current.has(textNode)) originalText.current.set(textNode, value);
+          const previousEnglish = originalText.current.get(textNode);
+
+          if (language === "en") {
+            originalText.current.set(textNode, value);
+          } else {
+            if (previousEnglish === undefined || (value !== previousEnglish && value !== translateUiText(previousEnglish))) {
+              originalText.current.set(textNode, value);
+            }
+            const english = originalText.current.get(textNode) || value;
+            const translated = translateUiText(english);
+            if (translated !== value) textNode.nodeValue = translated;
+          }
         }
       }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
   }, [language]);
 
+  return null;
+}
+
+function LanguageToggle() {
+  const [language, setLanguage] = useState<UiLanguage>(() => storedLanguage());
+
+  function choose(next: UiLanguage) {
+    setLanguage(next);
+    setStoredLanguage(next);
+  }
+
   return (
-    <div data-no-translate style={{ position: "fixed", right: 16, top: 10, zIndex: 10000, display: "flex", gap: 4, padding: 4, borderRadius: 10, background: "rgba(255,255,255,.96)", boxShadow: "0 2px 10px rgba(0,0,0,.12)" }}>
-      <button type="button" className={language === "en" ? "primary small" : "light small"} onClick={() => setLanguage("en")}>English</button>
-      <button type="button" className={language === "hi" ? "primary small" : "light small"} onClick={() => setLanguage("hi")}>हिंदी</button>
+    <div data-no-translate className="language-switch">
+      <button type="button" className={language === "en" ? "primary small" : "light small"} onClick={() => choose("en")}>English</button>
+      <button type="button" className={language === "hi" ? "primary small" : "light small"} onClick={() => choose("hi")}>हिंदी</button>
     </div>
   );
 }
@@ -390,7 +495,7 @@ function isOnline(u?: User | null) {
   return Date.now() - new Date(u.lastSeenAt).getTime() < 2 * 60 * 1000;
 }
 
-export default function DashboardApp() {
+function DashboardAppInner() {
   const [session, setSession] = useState<User | null>(null);
   const [login, setLogin] = useState({ username: "", password: "" });
   const [loginErr, setLoginErr] = useState("");
@@ -708,7 +813,7 @@ useEffect(() => {
   }, [notice]);
 
   if (!session) {
-    return <><LanguageSwitch /><div className="login-page"><form className="login-card" onSubmit={submitLogin}>
+    return <><LanguageToggle /><div className="login-page"><form className="login-card" onSubmit={submitLogin}>
       <div className="logo-box">MS</div>
       <h1>Login</h1>
       <label>Username / Mobile</label><input value={login.username} onChange={e => setLogin({ ...login, username: e.target.value })} autoFocus />
@@ -751,7 +856,7 @@ useEffect(() => {
   }
 
   if (session.mustChangePassword) {
-    return <><LanguageSwitch /><PasswordChangePanel session={session} forced onChanged={setSession} onLogout={logout} /></>;
+    return <PasswordChangePanel session={session} forced onChanged={setSession} onLogout={logout} />;
   }
 
   const isAdmin = session.role === "ADMIN" || session.role === "HR";
@@ -888,7 +993,7 @@ floorTeam: "My Team",
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
 
-  return <><LanguageSwitch /><div className={isHr ? "app-shell admin-shell hr-shell" : isAdmin ? "app-shell admin-shell" : "app-shell employee-shell"}>
+  return <div className={isHr ? "app-shell admin-shell hr-shell" : isAdmin ? "app-shell admin-shell" : "app-shell employee-shell"}>
     <button className="mobile-menu" onClick={() => setMenuOpen(true)}>☰</button>
     <aside className={`${menuOpen ? "sidebar open" : "sidebar"}${isAdmin ? " admin-mobile-tools" : ""}`}>
       <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div><button className="mobile-tools-close" type="button" aria-label="Close tools" onClick={() => setMenuOpen(false)}>×</button></div>
@@ -1095,7 +1200,7 @@ floorTeam: "My Team",
     <ConfirmHost />
     <PushNotificationSetup employeeId={session.id} />
     {isOffline && <OfflineNotice onRetry={retryConnection} />}
-  </div></>;
+  </div>;
 }
 
 function OfflineNotice({ onRetry }: { onRetry: () => void | Promise<void> }) {
@@ -2162,22 +2267,28 @@ function PasswordChangePanel({
     }
   }
 
-  const form = <form className="employee-form" onSubmit={changePassword}>
+  const form = <form className={forced ? "employee-form password-change-form forced-password-form" : "employee-form password-change-form"} onSubmit={changePassword}>
     <div><label>Current Password</label><input type={showPasswords ? "text" : "password"} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} autoFocus={forced} /></div>
     <div><label>New Password</label><input type={showPasswords ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Minimum 8 characters" /></div>
     <div><label>Confirm New Password</label><input type={showPasswords ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></div>
-    <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={showPasswords} onChange={e => setShowPasswords(e.target.checked)} style={{ width: "auto" }} /> Show passwords</label>
-    <button className="primary" type="submit" disabled={saving}>{saving ? "Updating..." : "Change Password"}</button>
+    <label className="show-passwords-row"><input type="checkbox" checked={showPasswords} onChange={e => setShowPasswords(e.target.checked)} /> Show passwords</label>
+    {forced ? (
+      <div className="password-change-actions">
+        <button className="primary" type="submit" disabled={saving}>{saving ? "Updating..." : "Change Password"}</button>
+        {onLogout && <button className="light" type="button" onClick={() => onLogout()}>Logout</button>}
+      </div>
+    ) : (
+      <button className="primary" type="submit" disabled={saving}>{saving ? "Updating..." : "Change Password"}</button>
+    )}
     {msg && <div className={msg.includes("successfully") ? "msg success" : "msg warn"}>{msg}</div>}
   </form>;
 
   if (forced) {
-    return <div className="login-page"><div className="login-card">
+    return <div className="login-page"><div className="login-card password-change-card">
       <div className="logo-box">MS</div>
       <h1>Change Password</h1>
       <p>Your temporary password must be changed before you can continue.</p>
       {form}
-      {onLogout && <button className="light" type="button" onClick={() => onLogout()}>Logout</button>}
     </div></div>;
   }
 
@@ -2367,10 +2478,6 @@ function ProfileContent({
       <Info label="Employee ID" value={user.employeeCode || "-"} /><Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} />
       <Info label="Working Period" value={totalWorkingPeriod(employmentHistory, user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
 <Info label="Floor" value={user.floor || "-"} />
-<Info
-  label="Floor Manager"
-  value={user.isFloorManager ? "Yes" : "No"}
-/>
     </div>
 {!viewer.isFloorManager && (
   <EmployeeNotes
@@ -5202,7 +5309,7 @@ useEffect(() => {
   function rowCanAct(row: any) {
     if (row.status !== "PENDING") return false;
     if (canManagerReview) return row.requester?.id !== session.id && row.managerStatus === "PENDING";
-    if (canHrReview) return row.managerStatus === "APPROVED";
+    if (canHrReview) return row.managerStatus === "APPROVED" || Boolean(row.requester?.isFloorManager);
     return false;
   }
 
@@ -5657,4 +5764,12 @@ function Chat({ session }: { session: User }) {
   <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.repeat) { e.preventDefault(); send(); } }} placeholder={file ? `Attached: ${file.name}` : "Type message"} />
   <button className="primary" onClick={send}>Send</button>
 </div></div></div></section>;
+}
+
+
+export default function DashboardApp() {
+  return <>
+    <LanguageRuntime />
+    <DashboardAppInner />
+  </>;
 }

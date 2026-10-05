@@ -65,7 +65,7 @@ function todayInIndia() {
 }
 
 const includePeople = {
-  requester: { select: { id: true, name: true, mobile: true, designation: true, department: true, branch: true, floor: true } },
+  requester: { select: { id: true, name: true, mobile: true, designation: true, department: true, branch: true, floor: true, isFloorManager: true } },
   decidedBy: { select: { id: true, name: true } },
   managerDecidedBy: { select: { id: true, name: true } }
 };
@@ -116,11 +116,13 @@ export async function POST(req: NextRequest) {
 
     const requester = await prisma.employee.findFirst({
       where: { id: session.id, deletedAt: null },
-      select: { id: true, branch: true, floor: true, department: true }
+      select: { id: true, branch: true, floor: true, department: true, isFloorManager: true }
     });
     if (!requester) throw new Error("Employee not found.");
 
-    const managers = await findManagersForEmployee(requester);
+    // A manager's own leave must never wait for another manager or allow self-stage handling.
+    // It goes directly to HR/Admin. Team employees still follow Manager -> HR/Admin.
+    const managers = requester.isFloorManager ? [] : await findManagersForEmployee(requester);
     const managerStatus = managers.length ? "PENDING" : "APPROVED";
 
     const leaveRequest = await prisma.leaveRequest.create({
@@ -284,14 +286,16 @@ export async function PATCH(req: NextRequest) {
         };
       }
 
-      if (current.managerStatus !== "APPROVED") {
+      const managerApprovalComplete = current.managerStatus === "APPROVED" || Boolean(current.requester.isFloorManager);
+      if (!managerApprovalComplete) {
         throw new Error("Manager approval is required before HR can take action.");
       }
 
       const claimed = await tx.leaveRequest.updateMany({
-        where: { id, status: "PENDING", managerStatus: "APPROVED" },
+        where: { id, status: "PENDING" },
         data: {
           status: status as "APPROVED" | "REJECTED",
+          managerStatus: "APPROVED",
           rejectionReason: status === "REJECTED" ? rejectionReason : null,
           decidedById: session.id,
           decidedAt: new Date()

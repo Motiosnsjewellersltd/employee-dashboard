@@ -3516,3 +3516,75 @@ html,body{width:100%;min-height:100%;max-width:100%;}
     font-size:21px !important;
   }
 }
+
+/* Login-only mobile language selector */
+.language-switch{
+  display:none;
+}
+
+/* First-login password page alignment */
+.password-change-form .show-passwords-row{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.password-change-form .show-passwords-row input{
+  width:auto;
+  margin:0;
+}
+.password-change-actions{
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:stretch;
+}
+.login-card .password-change-actions .primary,
+.login-card .password-change-actions .light{
+  width:auto;
+  margin-top:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+@media(max-width:900px){
+  .language-switch{
+    position:fixed;
+    right:16px;
+    top:10px;
+    z-index:10000;
+    display:flex;
+    gap:4px;
+    padding:4px;
+    border-radius:10px;
+    background:rgba(255,255,255,.96);
+    box-shadow:0 2px 10px rgba(0,0,0,.12);
+  }
+
+  .language-switch .small{
+    padding:12px 16px;
+  }
+
+  .password-change-card{
+    padding:28px;
+  }
+  .forced-password-form{
+    grid-template-columns:1fr !important;
+  }
+  .forced-password-form > *{
+    min-width:0;
+  }
+  .password-change-actions{
+    grid-column:1;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:10px;
+  }
+  .login-card .password-change-actions .primary{
+    margin-top:0 !important;
+  }
+  .login-card .password-change-actions .light{
+    white-space:nowrap;
+    min-width:96px;
+  }
+}
