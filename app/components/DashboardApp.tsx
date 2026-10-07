@@ -2970,6 +2970,90 @@ function ReportingPanel({
       null
     );
 
+  const pasteZoneRef =
+    useRef<HTMLDivElement>(
+      null
+    );
+
+  function isAllowedReportFile(
+    candidate: File
+  ) {
+    const name = candidate.name
+      .toLowerCase();
+    const type = (candidate.type || "")
+      .toLowerCase();
+
+    return (
+      type === "application/pdf" ||
+      type === "image/jpeg" ||
+      type === "image/png" ||
+      type === "image/webp" ||
+      name.endsWith(".pdf") ||
+      name.endsWith(".jpg") ||
+      name.endsWith(".jpeg") ||
+      name.endsWith(".png") ||
+      name.endsWith(".webp")
+    );
+  }
+
+  function attachReportFile(
+    candidate: File | null,
+    source: "upload" | "paste" = "upload"
+  ) {
+    if (!candidate) {
+      setFile(null);
+      return;
+    }
+
+    if (!isAllowedReportFile(candidate)) {
+      setMsg(
+        "Only PDF, JPG, JPEG, PNG or WEBP files are allowed."
+      );
+      return;
+    }
+
+    if (candidate.size > 4 * 1024 * 1024) {
+      setMsg(
+        "Report file must be 4 MB or smaller."
+      );
+      return;
+    }
+
+    setFile(candidate);
+    setMsg(
+      source === "paste"
+        ? `Pasted file ready: ${candidate.name}`
+        : ""
+    );
+  }
+
+  function handleReportPaste(
+    event: React.ClipboardEvent<HTMLDivElement>
+  ) {
+    const clipboardFiles =
+      Array.from(
+        event.clipboardData?.files || []
+      );
+
+    const pastedFile =
+      clipboardFiles.find(
+        item => isAllowedReportFile(item)
+      ) || null;
+
+    if (!pastedFile) {
+      setMsg(
+        "No PDF or supported image found in clipboard. Copy the file from your folder, click this box and press Ctrl+V."
+      );
+      return;
+    }
+
+    event.preventDefault();
+    attachReportFile(
+      pastedFile,
+      "paste"
+    );
+  }
+
   function inputDate(
     value?: string
   ) {
@@ -3744,17 +3828,40 @@ function ReportingPanel({
                     accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
                     onChange={
                       event =>
-                        setFile(
+                        attachReportFile(
                           event
                             .target
                             .files?.[0] ||
-                            null
+                            null,
+                          "upload"
                         )
                     }
                   />
 
+                  <div
+                    ref={pasteZoneRef}
+                    className="report-paste-zone"
+                    tabIndex={0}
+                    role="button"
+                    aria-label="Paste report file"
+                    onClick={() =>
+                      pasteZoneRef.current?.focus()
+                    }
+                    onPaste={handleReportPaste}
+                  >
+                    <b>Paste Report File</b>
+                    <span>
+                      Copy PDF/image from your folder, click here and press Ctrl+V
+                    </span>
+                    {file && (
+                      <small>
+                        Attached: {file.name}
+                      </small>
+                    )}
+                  </div>
+
                   <small className="hint">
-                   PDF, JPG, JPEG, PNG or WEBP · Maximum 4 MB.
+                   Upload or paste PDF, JPG, JPEG, PNG or WEBP · Maximum 4 MB.
                   </small>
                 </div>
 

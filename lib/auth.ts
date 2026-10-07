@@ -42,9 +42,27 @@ export async function getSession(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
+
   try {
     const verified = await jwtVerify(token, jwtSecret());
-    return verified.payload as SessionUser;
+    const tokenUser = verified.payload as SessionUser;
+
+    if (!tokenUser?.id) return null;
+
+    // Always refresh security-sensitive session flags from the database.
+    // This keeps password-change status consistent across mobile, laptop and PC
+    // even when another device still has an older 7-day JWT cookie.
+    const currentUser = await prisma.employee.findFirst({
+      where: {
+        id: tokenUser.id,
+        deletedAt: null,
+        status: "ACTIVE",
+        exitDate: null
+      }
+    });
+
+    if (!currentUser) return null;
+    return publicUser(currentUser);
   } catch {
     return null;
   }
@@ -54,8 +72,6 @@ export async function requireSession(options?: { allowPasswordChange?: boolean }
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
   if (session.mustChangePassword && !options?.allowPasswordChange) throw new Error("Password change required.");
-  const active = await prisma.employee.findFirst({ where: { id: session.id, deletedAt: null, status: "ACTIVE", exitDate: null }, select: { id: true } });
-  if (!active) throw new Error("Unauthorized");
   await prisma.employee.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } }).catch(() => null);
   await maybeCleanupRecycleBin().catch(() => null);
   return session;

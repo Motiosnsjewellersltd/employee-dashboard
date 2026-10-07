@@ -3710,3 +3710,29 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   top:auto!important;
   z-index:auto!important;
 }
+
+/* Report file clipboard paste support */
+.report-paste-zone{
+  margin-top:10px;
+  min-height:74px;
+  border:1.5px dashed #8fc9ea;
+  border-radius:12px;
+  background:#f6fbff;
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:4px;
+  cursor:text;
+  outline:none;
+  transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.report-paste-zone:focus{
+  border-color:#168ed0;
+  box-shadow:0 0 0 3px rgba(22,142,208,.12);
+  background:#fff;
+}
+.report-paste-zone b{color:#0b659d;}
+.report-paste-zone span,
+.report-paste-zone small{color:#657887;}
+.report-paste-zone small{font-weight:700;}
