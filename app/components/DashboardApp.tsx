@@ -5102,16 +5102,12 @@ function OfficialDutyPanel({ session }: { session: User }) {
 
   return <section className="panel official-duty-panel">
     <div className="official-duty-title-row">
-      <div>
-        <h1>Official Duty</h1>
-        <p className="muted">Office work outside the workplace with role-based approval and exact GPS movement tracking.</p>
-      </div>
-      <div className="official-duty-legend"><span>Owner / HR: 1 approval</span><span>Senior: Senior + HR</span><span>GPS check-ins</span></div>
+      <div><h1>Official Duty</h1></div>
     </div>
 
     {session.role === "EMPLOYEE" && <form className="official-duty-form" onSubmit={submit}>
       <div className="official-duty-form-head">
-        <div><h2>New Official Duty Request</h2><p>Choose who sent you. Owner/HR needs one approval; Team Head/Floor Manager needs Senior + HR approval.</p></div>
+        <div><h2>New Official Duty Request</h2></div>
       </div>
       <div className="official-duty-grid">
         <label className="span-2">Work Purpose<textarea value={form.purpose} onChange={e => setForm({ ...form, purpose: e.target.value })} placeholder="Why are you being sent outside office?" required /></label>
@@ -5131,12 +5127,8 @@ function OfficialDutyPanel({ session }: { session: User }) {
         <label>Expected Departure<input type="datetime-local" value={form.expectedStartAt} onChange={e => setForm({ ...form, expectedStartAt: e.target.value })} /></label>
         <label>Expected Return<input type="datetime-local" value={form.expectedReturnAt} onChange={e => setForm({ ...form, expectedReturnAt: e.target.value })} /></label>
       </div>
-      <div className={`official-duty-flow-note ${form.sentByType === "SENIOR" ? "two-step" : "one-step"}`}>
-        <b>{form.sentByType === "SENIOR" ? "2-Step Approval" : "1-Step Approval"}</b>
-        <span>{form.sentByType === "SENIOR" ? "Selected Senior approves first, then HR/Admin gives final approval." : form.sentByType === "HR" ? "Selected HR approves once and the duty becomes active." : "Owner name is recorded; HR/Admin approval activates the duty."}</span>
-      </div>
       <div className="official-duty-locations">
-        <div className="official-duty-subhead"><b>Work Locations</b><small>1 to 3 locations</small></div>
+        <div className="official-duty-subhead"><b>Work Locations</b></div>
         {locations.map((location, index) => <div className="official-duty-location-edit" key={index}>
           <input value={location.name} onChange={e => setLocations(current => current.map((x, i) => i === index ? { ...x, name: e.target.value } : x))} placeholder={`Location ${index + 1} name`} required />
           <input value={location.addressText} onChange={e => setLocations(current => current.map((x, i) => i === index ? { ...x, addressText: e.target.value } : x))} placeholder="Address / landmark (optional)" />
