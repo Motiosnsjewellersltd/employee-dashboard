@@ -87,6 +87,7 @@ model Employee {
   officialDutyRequests     OfficialDutyRequest[] @relation("OfficialDutyRequester")
   officialDutySentBy       OfficialDutyRequest[] @relation("OfficialDutySender")
   officialDutyHrDecisions  OfficialDutyRequest[] @relation("OfficialDutyHrDecider")
+  registeredDevices        DeviceBinding[]
 
   @@index([name])
   @@index([role])
@@ -352,6 +353,30 @@ model MessageRecipient {
 
   @@unique([blastId, employeeId])
   @@index([employeeId])
+}
+
+
+model DeviceBinding {
+  id            String   @id @default(cuid())
+  deviceToken   String   @unique
+  employeeId    String
+  employeeName  String
+  deviceLabel   String?
+  userAgent     String?  @db.Text
+  firstIpAddress String?
+  lastIpAddress  String?
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  isBlocked     Boolean  @default(false)
+  blockedAt     DateTime?
+  blockedById   String?
+  blockedByName String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([lastSeenAt])
+  @@index([isBlocked])
 }
 
 model LoginAttempt {

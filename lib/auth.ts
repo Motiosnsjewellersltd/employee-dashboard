@@ -4,6 +4,7 @@ import { prisma } from "./prisma";
 import { maybeCleanupRecycleBin } from "./recycleBin";
 
 const COOKIE_NAME = "employee_dashboard_token";
+const DEVICE_COOKIE_NAME = "motisons_device_id";
 
 function jwtSecret() {
   const configured = process.env.JWT_SECRET;
@@ -62,6 +63,19 @@ export async function getSession(): Promise<SessionUser | null> {
     });
 
     if (!currentUser) return null;
+
+    // If this session was created after device registration was introduced,
+    // enforce the server-side device binding on every authenticated request.
+    const deviceToken = cookieStore.get(DEVICE_COOKIE_NAME)?.value;
+    if (deviceToken) {
+      const device = await (prisma as any).deviceBinding.findUnique({ where: { deviceToken } }).catch(() => null);
+      if (!device || device.isBlocked || device.employeeId !== currentUser.id) return null;
+      await (prisma as any).deviceBinding.update({
+        where: { id: device.id },
+        data: { lastSeenAt: new Date() }
+      }).catch(() => null);
+    }
+
     return publicUser(currentUser);
   } catch {
     return null;
@@ -84,6 +98,18 @@ export async function setAuthCookie(token: string) {
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
+    secure: process.env.NODE_ENV === "production"
+  });
+}
+
+
+export async function setDeviceCookie(deviceToken: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(DEVICE_COOKIE_NAME, deviceToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365 * 5,
     secure: process.env.NODE_ENV === "production"
   });
 }

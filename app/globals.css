@@ -3855,3 +3855,13 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .device-permission-actions{grid-template-columns:1fr!important}
   .device-permission-actions button{min-height:42px}
 }
+
+/* Registered device management */
+.registered-device-table table{min-width:900px}
+.device-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.device-actions button{min-width:84px}
+@media(max-width:700px){
+  .registered-device-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .combined-tool-tabs{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px!important}
+  .combined-tool-tabs button{width:100%;min-height:42px}
+}

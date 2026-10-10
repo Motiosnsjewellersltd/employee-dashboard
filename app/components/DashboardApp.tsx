@@ -846,7 +846,21 @@ useEffect(() => {
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify(login),
+        body: JSON.stringify({
+          ...login,
+          deviceId: (() => {
+            const key = "motisons-device-id";
+            let value = localStorage.getItem(key) || "";
+            if (!value) {
+              value = typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+              localStorage.setItem(key, value);
+            }
+            return value;
+          })(),
+          deviceLabel: `${navigator.platform || "Device"} · ${navigator.userAgent.includes("Mobile") ? "Mobile" : "Desktop"}`
+        }),
         cache: "no-store",
         signal: controller.signal
       });
@@ -865,6 +879,7 @@ useEffect(() => {
 
       const data = json.data;
       if (data.loginAttemptId) sessionStorage.setItem("motisons-login-attempt-id", String(data.loginAttemptId));
+      if (data.deviceId) localStorage.setItem("motisons-device-id", String(data.deviceId));
       setMenuOpen(false);
       setSession(data.user);
       setLoginErr("");
@@ -2835,6 +2850,63 @@ function LoginHistory() {
   </section>;
 }
 
+function RegisteredDevices() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [msg, setMsg] = useState("");
+  const [busyId, setBusyId] = useState("");
+
+  const load = () => {
+    api("/api/registered-devices").then(data => {
+      setRows(data.devices || []);
+      setMsg("");
+    }).catch((e: any) => {
+      setRows([]);
+      setMsg(e.message);
+    });
+  };
+
+  useEffect(() => { load(); }, []);
+
+  async function act(row: any, action: "unbind" | "block" | "unblock") {
+    const wording = action === "unbind"
+      ? `Remove device registration for ${row.employeeName}? Another employee will then be able to register this device.`
+      : action === "block"
+        ? `Block this device for ${row.employeeName}? Login from this registered device will stop.`
+        : `Unblock this device for ${row.employeeName}?`;
+    if (!window.confirm(wording)) return;
+    try {
+      setBusyId(row.id);
+      const data = await api("/api/registered-devices", {
+        method: "POST",
+        body: JSON.stringify({ id: row.id, action })
+      });
+      setMsg(data.message || "Device updated.");
+      load();
+    } catch (e: any) {
+      setMsg(e.message || "Unable to update device.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  return <section className="panel"><h1>Registered Devices</h1>
+    <div className="msg info">One registered device can be used by only one employee. Logout does not remove the registration.</div>
+    {msg && <div className="msg warn">{msg}</div>}
+    {rows.length ? <div className="table-wrap registered-device-table"><table><thead><tr><th>Employee</th><th>Device</th><th>First Registered</th><th>Last Used</th><th>Last IP</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}>
+      <td><b>{row.employeeName}</b></td>
+      <td>{row.deviceLabel || "Unknown device"}</td>
+      <td>{new Date(row.firstSeenAt).toLocaleString()}</td>
+      <td>{new Date(row.lastSeenAt).toLocaleString()}</td>
+      <td>{row.lastIpAddress || "-"}</td>
+      <td><span className={row.isBlocked ? "pill danger" : "pill ok"}>{row.isBlocked ? "BLOCKED" : "ACTIVE"}</span></td>
+      <td><div className="device-actions">
+        <button className="light" type="button" disabled={busyId === row.id} onClick={() => act(row, row.isBlocked ? "unblock" : "block")}>{row.isBlocked ? "Unblock" : "Block"}</button>
+        <button className="danger" type="button" disabled={busyId === row.id} onClick={() => act(row, "unbind")}>Unbind</button>
+      </div></td>
+    </tr>)}</tbody></table></div> : !msg && <div className="empty-state">No registered devices found.</div>}
+  </section>;
+}
+
 function ExportData() {
   const exports = [
     ["Employees", "employees"],
@@ -2847,13 +2919,14 @@ function ExportData() {
 }
 
 function LoginExportCenter({ canViewLoginHistory, canExportData }: { canViewLoginHistory: boolean; canExportData: boolean }) {
-  const [tab, setTab] = useState<"login" | "export">(canViewLoginHistory ? "login" : "export");
+  const [tab, setTab] = useState<"login" | "devices" | "export">(canViewLoginHistory ? "login" : "export");
   return <>
     <div className="panel combined-tool-tabs">
       {canViewLoginHistory && <button className={tab === "login" ? "primary active" : "light"} type="button" onClick={() => setTab("login")}>Login History</button>}
+      {canViewLoginHistory && <button className={tab === "devices" ? "primary active" : "light"} type="button" onClick={() => setTab("devices")}>Registered Devices</button>}
       {canExportData && <button className={tab === "export" ? "primary active" : "light"} type="button" onClick={() => setTab("export")}>Export Data</button>}
     </div>
-    {tab === "login" && canViewLoginHistory ? <LoginHistory /> : canExportData ? <ExportData /> : null}
+    {tab === "login" && canViewLoginHistory ? <LoginHistory /> : tab === "devices" && canViewLoginHistory ? <RegisteredDevices /> : canExportData ? <ExportData /> : null}
   </>;
 }
 
