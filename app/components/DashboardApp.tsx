@@ -2761,6 +2761,15 @@ function SystemHealth() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!showRequestForm) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowRequestForm(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showRequestForm]);
+
   return <section className="panel system-health-page">
     <div className="system-health-head"><div><h1>System Health</h1></div><button className="light" onClick={load}>Refresh</button></div>
     {loading ? <SkeletonCards count={4} /> : data ? <>
@@ -4953,7 +4962,8 @@ function OfficialDutyPanel({ session }: { session: User }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ purpose: "", sentByType: "SENIOR", sentById: "", ownerName: "", expectedStartAt: "", expectedReturnAt: "" });
   const [locations, setLocations] = useState([{ name: "", addressText: "" }]);
-  const [filter, setFilter] = useState<"ALL" | "MINE" | "ACTION">("ALL");
+  const [filter, setFilter] = useState<"ALL" | "MINE" | "ACTION">(session.role === "EMPLOYEE" ? "MINE" : "ALL");
+  const [showRequestForm, setShowRequestForm] = useState(false);
 
   const isHr = session.role === "ADMIN" || session.role === "HR";
   const hrApprovers = approvers.filter((person: any) => person.role === "HR");
@@ -4988,6 +4998,8 @@ function OfficialDutyPanel({ session }: { session: User }) {
       setLocations([{ name: "", addressText: "" }]);
       showToast(form.sentByType === "SENIOR" ? "Official Duty request submitted for senior approval." : "Official Duty request submitted for HR approval.", "success");
       await load();
+      setShowRequestForm(false);
+      setFilter("MINE");
     } catch (e: any) {
       showToast(e.message || "Unable to submit request.", "error");
     } finally {
@@ -5105,7 +5117,10 @@ function OfficialDutyPanel({ session }: { session: User }) {
       <div><h1>Official Duty</h1></div>
     </div>
 
-    {session.role === "EMPLOYEE" && <form className="official-duty-form" onSubmit={submit}>
+    {session.role === "EMPLOYEE" && showRequestForm && <div className="modal" onMouseDown={() => setShowRequestForm(false)}>
+      <div className="modal-box wide official-duty-request-modal" onMouseDown={event => event.stopPropagation()}>
+        <button className="close" type="button" onClick={() => setShowRequestForm(false)}>×</button>
+        <form className="official-duty-form" onSubmit={submit}>
       <div className="official-duty-form-head">
         <div><h2>New Official Duty Request</h2></div>
       </div>
@@ -5136,13 +5151,16 @@ function OfficialDutyPanel({ session }: { session: User }) {
         </div>)}
         {locations.length < 3 && <button className="secondary compact" type="button" onClick={() => setLocations(current => [...current, { name: "", addressText: "" }])}>+ Add Location</button>}
       </div>
-      <button className="primary official-duty-submit" type="submit" disabled={saving}>{saving ? "Submitting..." : "Submit Official Duty Request"}</button>
-    </form>}
+          <button className="primary official-duty-submit" type="submit" disabled={saving}>{saving ? "Submitting..." : "Submit Official Duty Request"}</button>
+        </form>
+      </div>
+    </div>}
 
     <div className="official-duty-toolbar">
-      <button className={filter === "ALL" ? "primary compact" : "secondary compact"} onClick={() => setFilter("ALL")}>All Visible</button>
+      {session.role === "EMPLOYEE" && <button className="primary compact" type="button" onClick={() => setShowRequestForm(true)}>+ New Request</button>}
       <button className={filter === "MINE" ? "primary compact" : "secondary compact"} onClick={() => setFilter("MINE")}>My Requests</button>
       <button className={filter === "ACTION" ? "primary compact" : "secondary compact"} onClick={() => setFilter("ACTION")}>Approval Required</button>
+      {session.role !== "EMPLOYEE" && <button className={filter === "ALL" ? "primary compact" : "secondary compact"} onClick={() => setFilter("ALL")}>All Visible</button>}
       <button className="secondary compact" onClick={load}>↻ Refresh</button>
     </div>
 
