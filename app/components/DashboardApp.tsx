@@ -2761,15 +2761,6 @@ function SystemHealth() {
 
   useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    if (!showRequestForm) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setShowRequestForm(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [showRequestForm]);
-
   return <section className="panel system-health-page">
     <div className="system-health-head"><div><h1>System Health</h1></div><button className="light" onClick={load}>Refresh</button></div>
     {loading ? <SkeletonCards count={4} /> : data ? <>
@@ -4983,6 +4974,15 @@ function OfficialDutyPanel({ session }: { session: User }) {
   }
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!showRequestForm) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowRequestForm(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showRequestForm]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
