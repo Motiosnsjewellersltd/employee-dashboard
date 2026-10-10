@@ -14,9 +14,10 @@ async function writeLoginAttempt(data: {
   userAgent?: string | null;
 }) {
   try {
-    await (prisma as any).loginAttempt.create({ data });
+    return await (prisma as any).loginAttempt.create({ data });
   } catch {
     // Login history must never block login itself.
+    return null;
   }
 }
 
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     });
     const sessionUser = publicUser(matchedUser);
     await setAuthCookie(await createToken(sessionUser));
-    await writeLoginAttempt({
+    const loginAttempt = await writeLoginAttempt({
       username,
       employeeId: matchedUser.id,
       employeeName: matchedUser.name,
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
       ipAddress,
       userAgent
     });
-    return ok({ user: sessionUser });
+    return ok({ user: sessionUser, loginAttemptId: loginAttempt?.id || null });
   } catch (e: any) {
     await writeLoginAttempt({
       username: username || "(blank)",

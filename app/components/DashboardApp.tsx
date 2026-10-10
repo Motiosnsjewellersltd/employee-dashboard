@@ -200,6 +200,14 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bReject & Notify\b/g, "अस्वीकृत करें और सूचित करें"],
   [/\bAdd Note\b/g, "नोट जोड़ें"],
 
+  [/\bExact Location\b/g, "सटीक स्थान"],
+  [/\bAccuracy\b/g, "सटीकता"],
+  [/\bOpen Map\b/g, "मैप खोलें"],
+  [/\bEnable device permissions\b/g, "डिवाइस अनुमतियाँ सक्षम करें"],
+  [/\bEnable Notifications\b/g, "सूचनाएँ सक्षम करें"],
+  [/\bEnable Location\b/g, "लोकेशन सक्षम करें"],
+  [/\bNot now\b/g, "अभी नहीं"],
+
   [/\bChats\b/g, "चैट"],
   [/\bcontacts\b/g, "संपर्क"],
   [/\bSearch Employee ID, name or mobile\b/g, "कर्मचारी आईडी, नाम या मोबाइल खोजें"],
@@ -856,6 +864,7 @@ useEffect(() => {
       if (!res.ok || !json.ok) throw new Error(json.error || `Login failed (HTTP ${res.status}).`);
 
       const data = json.data;
+      if (data.loginAttemptId) sessionStorage.setItem("motisons-login-attempt-id", String(data.loginAttemptId));
       setMenuOpen(false);
       setSession(data.user);
       setLoginErr("");
@@ -2819,7 +2828,10 @@ function LoginHistory() {
     <div className="cards small login-summary"><div className="stat"><span>Total Attempts</span><b>{summary.total}</b></div><div className="stat"><span>Successful</span><b>{summary.success}</b></div><div className="stat"><span>Failed Attempts</span><b>{summary.failed}</b></div></div>
     <div className="notification-filters"><select value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}><option>All</option><option>Success</option><option>Failed</option></select><input placeholder="Search user / mobile / IP" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /><input type="date" value={filters.from} onChange={e => setFilters({ ...filters, from: e.target.value })} /><input type="date" value={filters.to} onChange={e => setFilters({ ...filters, to: e.target.value })} /></div>
     {msg && <div className="msg warn">{msg}</div>}
-    {rows.length ? <div className="table-wrap login-history-table"><table><thead><tr><th>Date / Time</th><th>Status</th><th>User / Mobile</th><th>Employee</th><th>IP Address</th><th>Reason</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td>{new Date(row.createdAt).toLocaleString()}</td><td><span className={row.success ? "pill ok" : "pill danger"}>{row.success ? "SUCCESS" : "FAILED"}</span></td><td>{row.username}</td><td>{row.employeeName || "-"}</td><td>{row.ipAddress || "-"}</td><td>{row.success ? "-" : row.reason || "Login failed."}</td></tr>)}</tbody></table></div> : !msg && <div className="empty-state">No login attempts found.</div>}
+    {rows.length ? <div className="table-wrap login-history-table"><table><thead><tr><th>Date / Time</th><th>Status</th><th>User / Mobile</th><th>Employee</th><th>IP Address</th><th>Exact Location</th><th>Accuracy</th><th>Reason</th></tr></thead><tbody>{rows.map(row => {
+      const hasGps = Number.isFinite(row.latitude) && Number.isFinite(row.longitude);
+      return <tr key={row.id}><td>{new Date(row.createdAt).toLocaleString()}</td><td><span className={row.success ? "pill ok" : "pill danger"}>{row.success ? "SUCCESS" : "FAILED"}</span></td><td>{row.username}</td><td>{row.employeeName || "-"}</td><td>{row.ipAddress || "-"}</td><td>{hasGps ? <div className="login-location-cell"><b>{Number(row.latitude).toFixed(6)}, {Number(row.longitude).toFixed(6)}</b><a href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`} target="_blank" rel="noreferrer">Open Map</a></div> : "-"}</td><td>{hasGps && Number.isFinite(row.locationAccuracy) ? `±${Math.round(Number(row.locationAccuracy))} m` : "-"}</td><td>{row.success ? "-" : row.reason || "Login failed."}</td></tr>;
+    })}</tbody></table></div> : !msg && <div className="empty-state">No login attempts found.</div>}
   </section>;
 }
 

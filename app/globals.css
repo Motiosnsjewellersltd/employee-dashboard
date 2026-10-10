@@ -3844,3 +3844,14 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   .employee-shell .official-duty-top-action b{font-size:11px}
   .employee-shell .official-duty-top-action span{font-size:18px}
 }
+
+/* Login GPS location / combined device-permission controls */
+.device-permission-card{z-index:1200}
+.device-permission-actions{flex-wrap:wrap;justify-content:flex-end}
+.login-location-cell{display:flex;flex-direction:column;gap:4px;min-width:165px}
+.login-location-cell b{font-size:12px;white-space:nowrap}
+.login-location-cell a{color:#0879c9;font-size:12px;font-weight:900;text-decoration:underline}
+@media (max-width:720px){
+  .device-permission-actions{grid-template-columns:1fr!important}
+  .device-permission-actions button{min-height:42px}
+}
