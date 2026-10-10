@@ -84,6 +84,9 @@ model Employee {
   uploadedEmployeeReports EmployeeReport[]    @relation("EmployeeReportUploader")
   notesReceived           EmployeeNote[]      @relation("EmployeeNoteRecipient")
   notesCreated            EmployeeNote[]      @relation("EmployeeNoteCreator")
+  officialDutyRequests     OfficialDutyRequest[] @relation("OfficialDutyRequester")
+  officialDutySentBy       OfficialDutyRequest[] @relation("OfficialDutySender")
+  officialDutyHrDecisions  OfficialDutyRequest[] @relation("OfficialDutyHrDecider")
 
   @@index([name])
   @@index([role])
@@ -189,6 +192,71 @@ model LeaveRequest {
   @@index([requesterId, createdAt])
   @@index([status, createdAt])
   @@index([managerStatus, createdAt])
+}
+
+
+model OfficialDutyRequest {
+  id                    String   @id @default(cuid())
+  requesterId           String
+  sentById              String?
+  sentByType            String   @default("SENIOR")
+  ownerName             String?
+  approvalMode          String   @default("TWO_STEP")
+  purpose               String   @db.Text
+  expectedStartAt       DateTime?
+  expectedReturnAt      DateTime?
+  status                String   @default("PENDING_SENDER")
+  senderStatus          String   @default("PENDING")
+  senderRejectionReason String?  @db.Text
+  senderDecidedAt       DateTime?
+  hrStatus              String   @default("PENDING")
+  hrRejectionReason     String?  @db.Text
+  hrDecidedById         String?
+  hrDecidedAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  requester   Employee  @relation("OfficialDutyRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  sentBy      Employee? @relation("OfficialDutySender", fields: [sentById], references: [id], onDelete: Restrict)
+  hrDecidedBy Employee? @relation("OfficialDutyHrDecider", fields: [hrDecidedById], references: [id], onDelete: SetNull)
+  locations   OfficialDutyLocation[]
+  events      OfficialDutyEvent[]
+
+  @@index([requesterId, createdAt])
+  @@index([sentById, createdAt])
+  @@index([status, createdAt])
+}
+
+model OfficialDutyLocation {
+  id          String   @id @default(cuid())
+  requestId   String
+  sequence    Int
+  name        String
+  addressText String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  request OfficialDutyRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  events  OfficialDutyEvent[]
+
+  @@unique([requestId, sequence])
+  @@index([requestId])
+}
+
+model OfficialDutyEvent {
+  id             String   @id @default(cuid())
+  requestId      String
+  locationId     String?
+  eventType      String
+  latitude       Float
+  longitude      Float
+  accuracyMeters Float?
+  capturedAt     DateTime @default(now())
+
+  request  OfficialDutyRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  location OfficialDutyLocation? @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, capturedAt])
+  @@index([locationId])
 }
 
 model ManagementComment {

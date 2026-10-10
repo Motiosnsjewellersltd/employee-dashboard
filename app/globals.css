@@ -3736,3 +3736,111 @@ html,body{width:100%;min-height:100%;max-width:100%;}
 .report-paste-zone span,
 .report-paste-zone small{color:#657887;}
 .report-paste-zone small{font-weight:700;}
+
+/* Official Duty / Field Visit */
+.official-duty-panel{display:grid;gap:18px}
+.official-duty-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.official-duty-title-row h1{margin-bottom:4px}
+.official-duty-legend{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.official-duty-legend span{background:#edf7ff;border:1px solid #bfe0f6;border-radius:999px;padding:8px 12px;font-weight:800;color:#0b5fa5;font-size:12px}
+.official-duty-form{border:1px solid #bfe0f6;border-radius:18px;padding:18px;background:#fafdff;display:grid;gap:14px}
+.official-duty-form h2{margin:0;color:#0b5fa5}
+.official-duty-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.official-duty-grid label{display:grid;gap:7px;font-weight:800;color:#173a56}
+.official-duty-grid .span-2{grid-column:1/-1}
+.official-duty-grid input,.official-duty-grid select,.official-duty-grid textarea,.official-duty-location-edit input{width:100%;border:1px solid #b9d8ea;border-radius:12px;padding:12px 13px;background:white;color:#102a43;font:inherit}
+.official-duty-grid textarea{min-height:92px;resize:vertical}
+.official-duty-locations{display:grid;gap:10px}
+.official-duty-subhead{display:flex;justify-content:space-between;align-items:center;color:#173a56}
+.official-duty-subhead small{color:#6a7f91}
+.official-duty-location-edit{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;align-items:center}
+.official-duty-toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.official-duty-list{display:grid;gap:14px}
+.official-duty-card{border:1px solid #bfe0f6;border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 5px 20px rgba(16,88,136,.06)}
+.official-duty-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 18px;background:#f7fcff;border-bottom:1px solid #d8ecf7}
+.official-duty-card-head h3{margin:0 0 3px;color:#073f70}
+.official-duty-card-head p{margin:0;color:#667d90;font-size:13px}
+.duty-status{font-size:11px;font-weight:900;border-radius:999px;padding:7px 10px;text-transform:uppercase;letter-spacing:.02em;background:#eef3f6;color:#486273}
+.duty-approved,.duty-completed{background:#e5f8eb;color:#098436}
+.duty-rejected{background:#ffe8e8;color:#c32b2b}
+.duty-in_progress{background:#fff3d9;color:#9d6800}
+.duty-pending_sender,.duty-pending_hr{background:#e9f4ff;color:#0b5fa5}
+.official-duty-meta{padding:15px 18px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.official-duty-meta>div{display:grid;gap:4px;padding:10px;border:1px solid #e0edf5;border-radius:12px;background:#fbfdff}
+.official-duty-meta small{color:#6d8190;font-weight:800}
+.official-duty-meta b{color:#173a56;word-break:break-word}
+.official-duty-destinations{padding:0 18px 14px;display:grid;gap:8px}
+.official-duty-destinations>div{border-left:4px solid #209be0;background:#f4fbff;border-radius:10px;padding:10px 12px;display:grid;gap:3px}
+.official-duty-destinations span{font-size:13px;color:#667d90}
+.official-duty-actions{padding:0 18px 15px;display:flex;gap:8px;flex-wrap:wrap}
+.official-duty-timeline{border-top:1px solid #dcebf4;padding:14px 18px 18px;background:#fbfdff}
+.official-duty-timeline h4{margin:0 0 10px;color:#0b5fa5}
+.duty-event{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed #d9e8f0}
+.duty-event:last-child{border-bottom:0}
+.duty-event-dot{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#e5f4ff;color:#0b7fc4;font-weight:900}
+.duty-event div{display:grid;gap:2px}
+.duty-event small{color:#6d8190}
+.duty-event a{font-weight:900;color:#0878be;text-decoration:none;white-space:nowrap}
+
+@media(max-width:760px){
+  .official-duty-title-row{display:grid}
+  .official-duty-legend{justify-content:flex-start}
+  .official-duty-grid{grid-template-columns:1fr}
+  .official-duty-grid .span-2{grid-column:auto}
+  .official-duty-location-edit{grid-template-columns:1fr}
+  .official-duty-meta{grid-template-columns:1fr 1fr;padding:12px}
+  .official-duty-card-head{padding:14px}
+  .official-duty-destinations,.official-duty-actions,.official-duty-timeline{padding-left:12px;padding-right:12px}
+  .duty-event{grid-template-columns:auto 1fr}
+  .duty-event a{grid-column:2}
+}
+
+/* Official Duty sender flow + mobile shortcut refinements */
+.official-duty-form-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.official-duty-form-head p{margin:4px 0 0;color:#6a7f91;font-size:13px;line-height:1.45}
+.official-duty-flow-note{display:grid;gap:4px;border:1px solid #c8e2f2;border-radius:14px;padding:11px 13px;background:#f4fbff;color:#173a56}
+.official-duty-flow-note b{color:#0b5fa5}
+.official-duty-flow-note span{font-size:13px;line-height:1.4;color:#60788b}
+.official-duty-flow-note.one-step{border-color:#bfe8cf;background:#f2fcf5}
+.official-duty-flow-note.one-step b{color:#0b7f3b}
+.official-duty-submit{justify-self:start;min-width:230px}
+.official-duty-top-action{display:none;border:1px solid #b9def7;background:#fff;color:#0b5fa5;border-radius:14px;height:46px;padding:0 12px;align-items:center;gap:7px;font-weight:900;box-shadow:0 5px 16px rgba(8,86,142,.07)}
+.official-duty-top-action span{font-size:20px;line-height:1}
+.official-duty-top-action.active{background:#0b5fa5;color:#fff;border-color:#0b5fa5}
+
+@media(max-width:900px){
+  .employee-shell .official-duty-top-action{display:inline-flex;min-width:118px;justify-content:center}
+  .employee-shell .app-topbar{justify-content:flex-end!important}
+  .employee-shell .official-duty-top-action b{font-size:12px;white-space:nowrap}
+}
+
+@media(max-width:520px){
+  .official-duty-panel{gap:12px}
+  .official-duty-panel.panel{padding:14px 12px}
+  .official-duty-title-row{gap:10px}
+  .official-duty-title-row h1{font-size:25px}
+  .official-duty-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .official-duty-legend span{padding:7px 8px;font-size:10px;text-align:center}
+  .official-duty-legend span:last-child{grid-column:1/-1}
+  .official-duty-form{padding:13px;border-radius:16px;gap:12px}
+  .official-duty-form h2{font-size:20px}
+  .official-duty-grid{gap:9px}
+  .official-duty-grid label{margin:0;gap:5px;font-size:13px}
+  .official-duty-grid input,.official-duty-grid select,.official-duty-grid textarea,.official-duty-location-edit input{padding:11px 12px;border-radius:11px;font-size:14px}
+  .official-duty-grid textarea{min-height:82px}
+  .official-duty-location-edit{gap:7px}
+  .official-duty-submit{width:100%;min-width:0;justify-self:stretch}
+  .official-duty-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .official-duty-toolbar button{width:100%;min-width:0;padding:10px 8px;font-size:12px}
+  .official-duty-meta{grid-template-columns:1fr;padding:10px;gap:8px}
+  .official-duty-meta>div{padding:9px}
+  .official-duty-card-head{align-items:center}
+  .official-duty-card-head h3{font-size:18px}
+  .official-duty-actions{display:grid;grid-template-columns:1fr;gap:7px}
+  .official-duty-actions button{width:100%}
+  .duty-event{grid-template-columns:30px minmax(0,1fr);gap:8px}
+  .duty-event a{grid-column:2;font-size:12px}
+  .employee-shell .official-duty-top-action{min-width:104px;height:44px;padding:0 9px;gap:5px}
+  .employee-shell .official-duty-top-action b{font-size:11px}
+  .employee-shell .official-duty-top-action span{font-size:18px}
+}

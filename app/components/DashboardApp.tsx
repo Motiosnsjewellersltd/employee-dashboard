@@ -40,6 +40,7 @@ type Section =
   | "add"
   | "leaves"
   | "leaveRequests"
+  | "officialDuty"
   | "helpTickets"
   | "reporting"
 | "floorTeam"
@@ -95,6 +96,31 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bAll Leave Requests\b/g, "सभी अवकाश अनुरोध"],
   [/\bNot Required\b/g, "आवश्यक नहीं"],
   [/\bLeave Requests\b/g, "अवकाश अनुरोध"],
+  [/\bOfficial Duty\b/g, "आधिकारिक कार्य"],
+  [/\bOfficial Duty Request\b/g, "आधिकारिक कार्य अनुरोध"],
+  [/\bOfficial Duty Requests\b/g, "आधिकारिक कार्य अनुरोध"],
+  [/\bSent By Type\b/g, "किसने भेजा"],
+  [/\bOwner Name\b/g, "मालिक का नाम"],
+  [/\bSelect HR\b/g, "एचआर चुनें"],
+  [/\bSelect Senior\b/g, "वरिष्ठ चुनें"],
+  [/\bApproval Flow\b/g, "स्वीकृति प्रक्रिया"],
+  [/\bSenior Approval\b/g, "वरिष्ठ स्वीकृति"],
+  [/\b1-Step Approval\b/g, "1-चरण स्वीकृति"],
+  [/\b2-Step Approval\b/g, "2-चरण स्वीकृति"],
+  [/\bSent By\b/g, "भेजने वाले वरिष्ठ"],
+  [/\bWork Purpose\b/g, "कार्य का उद्देश्य"],
+  [/\bExpected Departure\b/g, "अनुमानित प्रस्थान"],
+  [/\bExpected Return\b/g, "अनुमानित वापसी"],
+  [/\bWork Locations\b/g, "कार्य स्थान"],
+  [/\bAdd Location\b/g, "स्थान जोड़ें"],
+  [/\bSubmit Official Duty Request\b/g, "आधिकारिक कार्य अनुरोध भेजें"],
+  [/\bSender Approval\b/g, "वरिष्ठ की स्वीकृति"],
+  [/\bHR Approval\b/g, "एचआर स्वीकृति"],
+  [/\bLeft Office\b/g, "ऑफिस से निकले"],
+  [/\bReached Location\b/g, "स्थान पर पहुँचे"],
+  [/\bLeft Location\b/g, "स्थान से निकले"],
+  [/\bReached Office\b/g, "ऑफिस पहुँचे"],
+  [/\bOpen in Maps\b/g, "मैप में खोलें"],
   [/\bLeave Request\b/g, "अवकाश अनुरोध"],
   [/\bHelp Tickets\b/g, "सहायता टिकट"],
   [/\bHelp Ticket\b/g, "सहायता टिकट"],
@@ -1001,7 +1027,8 @@ reporting: session.role === "EMPLOYEE"
   ? "My Reports"
   : "Reporting Management",
 floorTeam: "My Team",
-    leaveRequests: "Leave Requests"
+    leaveRequests: "Leave Requests",
+    officialDuty: "Official Duty"
   };
 
   function normalizedDesignation(e: User) {
@@ -1082,6 +1109,12 @@ floorTeam: "My Team",
     mobileBottomDuplicate={isAdmin}
   />
 )}
+<MenuItem
+  label="Official Duty"
+  icon="⌖"
+  active={section === "officialDuty"}
+  onClick={() => goto("officialDuty")}
+/>
         {showHelpTickets && (
   <MenuItem
     label="Help Tickets"
@@ -1154,6 +1187,7 @@ floorTeam: "My Team",
           </div>}
         </div>}
         {isAdmin && <button className="desktop-admin-tools" type="button" onClick={() => setMenuOpen(value => !value)}><span>☰</span><b>Tools</b></button>}
+        <button className={`official-duty-top-action${section === "officialDuty" ? " active" : ""}`} type="button" onClick={() => goto("officialDuty")}><span>⌖</span><b>Official Duty</b></button>
         {showNotifications && <NotificationBell onOpen={() => goto("notifications")} />}
       </div>
       {notice && <div className="msg warn" onClick={() => setNotice("")}>{notice}</div>}
@@ -1178,6 +1212,7 @@ floorTeam: "My Team",
       </div>} /></section>}
       {section === "add" && isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <AddUploadCenter canAddEmployee={canAddEmployee} canUploadLeaves={canUploadLeaves} onEmployeeSaved={() => { loadEmployees(); setSection("employees"); }} />}
       {section === "leaveRequests" && showLeaveRequests && <LeaveRequests session={session} canReview={canReviewLeaveRequests} />}
+      {section === "officialDuty" && <OfficialDutyPanel session={session} />}
 {section === "helpTickets" && showHelpTickets && (
   <HelpTickets
     session={session}
@@ -4909,6 +4944,263 @@ setManagerScope(data.managerScope || "");
 }
 
 
+
+
+function OfficialDutyPanel({ session }: { session: User }) {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [approvers, setApprovers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ purpose: "", sentByType: "SENIOR", sentById: "", ownerName: "", expectedStartAt: "", expectedReturnAt: "" });
+  const [locations, setLocations] = useState([{ name: "", addressText: "" }]);
+  const [filter, setFilter] = useState<"ALL" | "MINE" | "ACTION">("ALL");
+
+  const isHr = session.role === "ADMIN" || session.role === "HR";
+  const hrApprovers = approvers.filter((person: any) => person.role === "HR");
+  const seniorApprovers = approvers.filter((person: any) => person.role === "EMPLOYEE");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await api("/api/official-duty");
+      setRequests(data.requests || []);
+      setApprovers((data.approvers || []).filter((x: any) => x.id !== session.id));
+    } catch (e: any) {
+      showToast(e.message || "Unable to load Official Duty requests.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    try {
+      await api("/api/official-duty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, locations })
+      });
+      setForm({ purpose: "", sentByType: "SENIOR", sentById: "", ownerName: "", expectedStartAt: "", expectedReturnAt: "" });
+      setLocations([{ name: "", addressText: "" }]);
+      showToast(form.sentByType === "SENIOR" ? "Official Duty request submitted for senior approval." : "Official Duty request submitted for HR approval.", "success");
+      await load();
+    } catch (e: any) {
+      showToast(e.message || "Unable to submit request.", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function decide(id: string, action: string, needsReason = false) {
+    let reason = "";
+    if (needsReason) {
+      reason = window.prompt("Enter rejection reason:")?.trim() || "";
+      if (!reason) return;
+    }
+    try {
+      await api("/api/official-duty", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action, reason })
+      });
+      showToast("Official Duty request updated.", "success");
+      await load();
+    } catch (e: any) {
+      showToast(e.message || "Unable to update request.", "error");
+    }
+  }
+
+  function captureLocation() {
+    return new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("Location is not supported on this device/browser."));
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 0
+      });
+    });
+  }
+
+  async function recordEvent(requestId: string, eventType: string, locationId?: string) {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const position = await captureLocation();
+      const { latitude, longitude, accuracy } = position.coords;
+      await api("/api/official-duty", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: requestId,
+          action: "LOCATION_EVENT",
+          eventType,
+          locationId: locationId || null,
+          latitude,
+          longitude,
+          accuracyMeters: accuracy
+        })
+      });
+      showToast("Exact GPS location and time recorded.", "success");
+      await load();
+    } catch (e: any) {
+      const message = e?.code === 1
+        ? "Location permission is required to record Official Duty movement."
+        : e?.message || "Unable to capture location.";
+      showToast(message, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function eventLabel(type: string) {
+    if (type === "LEFT_OFFICE") return "Left Office";
+    if (type === "REACHED_LOCATION") return "Reached Location";
+    if (type === "LEFT_LOCATION") return "Left Location";
+    if (type === "RETURNED_OFFICE") return "Reached Office";
+    return type;
+  }
+
+  function statusLabel(value: string) {
+    return String(value || "").replaceAll("_", " ");
+  }
+
+  function nextMovementButton(request: any) {
+    if (request.requesterId !== session.id || !["APPROVED", "IN_PROGRESS"].includes(request.status)) return null;
+    const events = request.events || [];
+    const has = (type: string, locId?: string) => events.some((event: any) => event.eventType === type && (!locId || event.locationId === locId));
+    if (!has("LEFT_OFFICE")) {
+      return <button className="primary compact" type="button" disabled={saving} onClick={() => recordEvent(request.id, "LEFT_OFFICE")}>⌖ Left Office</button>;
+    }
+    for (const location of request.locations || []) {
+      if (!has("REACHED_LOCATION", location.id)) {
+        return <button className="primary compact" type="button" disabled={saving} onClick={() => recordEvent(request.id, "REACHED_LOCATION", location.id)}>⌖ Reached: {location.name}</button>;
+      }
+      if (!has("LEFT_LOCATION", location.id)) {
+        return <button className="primary compact" type="button" disabled={saving} onClick={() => recordEvent(request.id, "LEFT_LOCATION", location.id)}>⌖ Left: {location.name}</button>;
+      }
+    }
+    if (!has("RETURNED_OFFICE")) {
+      return <button className="primary compact" type="button" disabled={saving} onClick={() => recordEvent(request.id, "RETURNED_OFFICE")}>⌖ Reached Office</button>;
+    }
+    return null;
+  }
+
+  const visible = requests.filter(request => {
+    if (filter === "MINE") return request.requesterId === session.id;
+    if (filter === "ACTION") {
+      const senderAction = request.approvalMode === "TWO_STEP" && request.sentById === session.id && request.senderStatus === "PENDING";
+      const hrReady = request.hrStatus === "PENDING" && (request.approvalMode === "ONE_STEP" || request.senderStatus === "APPROVED");
+      const hrAction = isHr && hrReady && (request.sentByType !== "HR" || session.role === "ADMIN" || request.sentById === session.id);
+      return senderAction || hrAction;
+    }
+    return true;
+  });
+
+  return <section className="panel official-duty-panel">
+    <div className="official-duty-title-row">
+      <div>
+        <h1>Official Duty</h1>
+        <p className="muted">Office work outside the workplace with role-based approval and exact GPS movement tracking.</p>
+      </div>
+      <div className="official-duty-legend"><span>Owner / HR: 1 approval</span><span>Senior: Senior + HR</span><span>GPS check-ins</span></div>
+    </div>
+
+    {session.role === "EMPLOYEE" && <form className="official-duty-form" onSubmit={submit}>
+      <div className="official-duty-form-head">
+        <div><h2>New Official Duty Request</h2><p>Choose who sent you. Owner/HR needs one approval; Team Head/Floor Manager needs Senior + HR approval.</p></div>
+      </div>
+      <div className="official-duty-grid">
+        <label className="span-2">Work Purpose<textarea value={form.purpose} onChange={e => setForm({ ...form, purpose: e.target.value })} placeholder="Why are you being sent outside office?" required /></label>
+        <label>Sent By Type
+          <select value={form.sentByType} onChange={e => setForm({ ...form, sentByType: e.target.value, sentById: "", ownerName: "" })}>
+            <option value="SENIOR">Senior - Team Head / Floor Manager</option>
+            <option value="HR">HR</option>
+            <option value="OWNER">Owner</option>
+          </select>
+        </label>
+        {form.sentByType === "OWNER" ? <label>Owner Name<input value={form.ownerName} onChange={e => setForm({ ...form, ownerName: e.target.value })} placeholder="Enter owner's name" required /></label> : <label>{form.sentByType === "HR" ? "Select HR" : "Select Senior"}
+          <select value={form.sentById} onChange={e => setForm({ ...form, sentById: e.target.value })} required>
+            <option value="">{form.sentByType === "HR" ? "Select HR" : "Select Team Head / Floor Manager"}</option>
+            {(form.sentByType === "HR" ? hrApprovers : seniorApprovers).map((person: any) => <option key={person.id} value={person.id}>{person.name}{person.designation ? ` - ${person.designation}` : ""}</option>)}
+          </select>
+        </label>}
+        <label>Expected Departure<input type="datetime-local" value={form.expectedStartAt} onChange={e => setForm({ ...form, expectedStartAt: e.target.value })} /></label>
+        <label>Expected Return<input type="datetime-local" value={form.expectedReturnAt} onChange={e => setForm({ ...form, expectedReturnAt: e.target.value })} /></label>
+      </div>
+      <div className={`official-duty-flow-note ${form.sentByType === "SENIOR" ? "two-step" : "one-step"}`}>
+        <b>{form.sentByType === "SENIOR" ? "2-Step Approval" : "1-Step Approval"}</b>
+        <span>{form.sentByType === "SENIOR" ? "Selected Senior approves first, then HR/Admin gives final approval." : form.sentByType === "HR" ? "Selected HR approves once and the duty becomes active." : "Owner name is recorded; HR/Admin approval activates the duty."}</span>
+      </div>
+      <div className="official-duty-locations">
+        <div className="official-duty-subhead"><b>Work Locations</b><small>1 to 3 locations</small></div>
+        {locations.map((location, index) => <div className="official-duty-location-edit" key={index}>
+          <input value={location.name} onChange={e => setLocations(current => current.map((x, i) => i === index ? { ...x, name: e.target.value } : x))} placeholder={`Location ${index + 1} name`} required />
+          <input value={location.addressText} onChange={e => setLocations(current => current.map((x, i) => i === index ? { ...x, addressText: e.target.value } : x))} placeholder="Address / landmark (optional)" />
+          {locations.length > 1 && <button type="button" className="secondary compact" onClick={() => setLocations(current => current.filter((_, i) => i !== index))}>×</button>}
+        </div>)}
+        {locations.length < 3 && <button className="secondary compact" type="button" onClick={() => setLocations(current => [...current, { name: "", addressText: "" }])}>+ Add Location</button>}
+      </div>
+      <button className="primary official-duty-submit" type="submit" disabled={saving}>{saving ? "Submitting..." : "Submit Official Duty Request"}</button>
+    </form>}
+
+    <div className="official-duty-toolbar">
+      <button className={filter === "ALL" ? "primary compact" : "secondary compact"} onClick={() => setFilter("ALL")}>All Visible</button>
+      <button className={filter === "MINE" ? "primary compact" : "secondary compact"} onClick={() => setFilter("MINE")}>My Requests</button>
+      <button className={filter === "ACTION" ? "primary compact" : "secondary compact"} onClick={() => setFilter("ACTION")}>Approval Required</button>
+      <button className="secondary compact" onClick={load}>↻ Refresh</button>
+    </div>
+
+    {loading ? <div className="empty-state">Loading Official Duty requests...</div> : visible.length === 0 ? <div className="empty-state">No Official Duty request found.</div> : <div className="official-duty-list">
+      {visible.map(request => <article className="official-duty-card" key={request.id}>
+        <div className="official-duty-card-head">
+          <div><h3>{request.requester?.name}</h3><p>{request.requester?.designation || "Employee"} · {request.requester?.department || "-"}</p></div>
+          <span className={`duty-status duty-${String(request.status || "").toLowerCase()}`}>{statusLabel(request.status)}</span>
+        </div>
+        <div className="official-duty-meta">
+          <div><small>Work Purpose</small><b>{request.purpose}</b></div>
+          <div><small>Sent By</small><b>{request.sentByType === "OWNER" ? `Owner - ${request.ownerName || "-"}` : request.sentBy?.name || "-"}</b></div>
+          <div><small>Approval Flow</small><b>{request.approvalMode === "ONE_STEP" ? "1-Step" : "2-Step"}</b></div>
+          <div><small>Senior Approval</small><b>{request.approvalMode === "ONE_STEP" ? "Not Required" : statusLabel(request.senderStatus)}</b></div>
+          <div><small>HR Approval</small><b>{statusLabel(request.hrStatus)}</b></div>
+          <div><small>Expected Departure</small><b>{request.expectedStartAt ? new Date(request.expectedStartAt).toLocaleString("en-IN") : "-"}</b></div>
+          <div><small>Expected Return</small><b>{request.expectedReturnAt ? new Date(request.expectedReturnAt).toLocaleString("en-IN") : "-"}</b></div>
+        </div>
+
+        <div className="official-duty-destinations">
+          {(request.locations || []).map((location: any) => <div key={location.id}><b>{location.sequence}. {location.name}</b><span>{location.addressText || "Address not entered"}</span></div>)}
+        </div>
+
+        {request.senderStatus === "REJECTED" && <div className="msg error">Sender rejection: {request.senderRejectionReason}</div>}
+        {request.hrStatus === "REJECTED" && <div className="msg error">HR rejection: {request.hrRejectionReason}</div>}
+
+        <div className="official-duty-actions">
+          {request.approvalMode === "TWO_STEP" && request.sentById === session.id && request.senderStatus === "PENDING" && <>
+            <button className="primary compact" onClick={() => decide(request.id, "SENDER_APPROVE")}>Approve as Sender</button>
+            <button className="danger compact" onClick={() => decide(request.id, "SENDER_REJECT", true)}>Reject</button>
+          </>}
+          {isHr && request.hrStatus === "PENDING" && (request.approvalMode === "ONE_STEP" || request.senderStatus === "APPROVED") && (request.sentByType !== "HR" || session.role === "ADMIN" || request.sentById === session.id) && <>
+            <button className="primary compact" onClick={() => decide(request.id, "HR_APPROVE")}>{request.approvalMode === "ONE_STEP" ? "Approve & Activate" : "HR Approve"}</button>
+            <button className="danger compact" onClick={() => decide(request.id, "HR_REJECT", true)}>HR Reject</button>
+          </>}
+          {nextMovementButton(request)}
+        </div>
+
+        {(request.events || []).length > 0 && <div className="official-duty-timeline">
+          <h4>Movement Timeline</h4>
+          {(request.events || []).map((event: any) => <div className="duty-event" key={event.id}>
+            <span className="duty-event-dot">⌖</span>
+            <div><b>{eventLabel(event.eventType)}{event.location?.name ? ` — ${event.location.name}` : ""}</b><small>{new Date(event.capturedAt).toLocaleString("en-IN")} · GPS accuracy {event.accuracyMeters ? `${Math.round(event.accuracyMeters)} m` : "-"}</small></div>
+            <a href={`https://www.google.com/maps?q=${event.latitude},${event.longitude}`} target="_blank" rel="noreferrer">Open in Maps</a>
+          </div>)}
+        </div>}
+      </article>)}
+    </div>}
+  </section>;
+}
 
 function HelpTickets({
   session,
