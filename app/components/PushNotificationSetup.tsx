@@ -2,6 +2,21 @@
 
 import { useEffect, useState } from "react";
 
+const NOTIFICATION_PERMISSION_KEY = "motisons-notification-enabled-v1";
+const LOCATION_PERMISSION_KEY = "motisons-location-enabled-v1";
+
+function rememberPermission(key: string) {
+  try { localStorage.setItem(key, "1"); } catch {}
+}
+
+function forgetPermission(key: string) {
+  try { localStorage.removeItem(key); } catch {}
+}
+
+function permissionRemembered(key: string) {
+  try { return localStorage.getItem(key) === "1"; } catch { return false; }
+}
+
 function applicationServerKey(value: string) {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
   const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -72,6 +87,8 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
 
       setPushAvailable(true);
       setNotificationState(Notification.permission);
+      if (Notification.permission === "granted") rememberPermission(NOTIFICATION_PERMISSION_KEY);
+      else if (Notification.permission === "denied") forgetPermission(NOTIFICATION_PERMISSION_KEY);
 
       const response = await fetch("/api/push-subscriptions", { cache: "no-store" });
       const result = await response.json().catch(() => null);
@@ -93,28 +110,45 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
         return;
       }
 
+      const remembered = permissionRemembered(LOCATION_PERMISSION_KEY);
       let state: PermissionState | "unknown" = "unknown";
+
       try {
         if (navigator.permissions?.query) {
           const permission = await navigator.permissions.query({ name: "geolocation" as PermissionName });
           state = permission.state;
           if (!cancelled) {
             setLocationState(permission.state);
-            permission.onchange = () => setLocationState(permission.state);
+            permission.onchange = () => {
+              setLocationState(permission.state);
+              if (permission.state === "granted") rememberPermission(LOCATION_PERMISSION_KEY);
+              if (permission.state === "denied") forgetPermission(LOCATION_PERMISSION_KEY);
+            };
           }
         }
       } catch {
         state = "unknown";
       }
 
-      // Once permission has already been granted, capture the exact GPS position
-      // automatically for every new successful login.
-      if (state === "granted") {
+      // If this browser/device has already granted location once, do not show
+      // the app permission screen again. Capture the fresh GPS location silently
+      // for every successful login and attach it to that login history record.
+      if (state === "granted" || remembered) {
+        if (!cancelled) setLocationState("granted");
         try {
           const position = await getCurrentLocation();
+          rememberPermission(LOCATION_PERMISSION_KEY);
+          if (!cancelled) setLocationState("granted");
           await saveLoginLocation(position);
-        } catch {
-          // Do not block the dashboard if GPS is temporarily unavailable.
+        } catch (error: any) {
+          // A real permission denial/revocation must be enabled again. Temporary
+          // GPS/network/timeout issues should not re-open the permission popup.
+          if (error?.code === 1) {
+            forgetPermission(LOCATION_PERMISSION_KEY);
+            if (!cancelled) setLocationState("denied");
+          } else if (remembered && !cancelled) {
+            setLocationState("granted");
+          }
         }
       }
     }
@@ -135,11 +169,23 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
 
   useEffect(() => {
     function refreshPermissions() {
-      if ("Notification" in window) setNotificationState(Notification.permission);
+      if ("Notification" in window) {
+        setNotificationState(Notification.permission);
+        if (Notification.permission === "granted") rememberPermission(NOTIFICATION_PERMISSION_KEY);
+        if (Notification.permission === "denied") forgetPermission(NOTIFICATION_PERMISSION_KEY);
+      }
       if (navigator.permissions?.query) {
         navigator.permissions.query({ name: "geolocation" as PermissionName })
-          .then(permission => setLocationState(permission.state))
-          .catch(() => undefined);
+          .then(permission => {
+            setLocationState(permission.state);
+            if (permission.state === "granted") rememberPermission(LOCATION_PERMISSION_KEY);
+            if (permission.state === "denied") forgetPermission(LOCATION_PERMISSION_KEY);
+          })
+          .catch(() => {
+            if (permissionRemembered(LOCATION_PERMISSION_KEY)) setLocationState("granted");
+          });
+      } else if (permissionRemembered(LOCATION_PERMISSION_KEY)) {
+        setLocationState("granted");
       }
     }
     window.addEventListener("focus", refreshPermissions);
@@ -153,6 +199,8 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
       if (!("Notification" in window)) throw new Error("Notifications are not supported on this browser.");
       const permission = await Notification.requestPermission();
       setNotificationState(permission);
+      if (permission === "granted") rememberPermission(NOTIFICATION_PERMISSION_KEY);
+      else forgetPermission(NOTIFICATION_PERMISSION_KEY);
       if (permission !== "granted") {
         setMessage("Notification permission was not granted. Enable it from browser settings if needed.");
         return;
@@ -182,10 +230,12 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
     try {
       const position = await getCurrentLocation();
       await saveLoginLocation(position);
+      rememberPermission(LOCATION_PERMISSION_KEY);
       setLocationState("granted");
       setMessage(`Location enabled. GPS accuracy ±${Math.round(position.coords.accuracy)} m.`);
     } catch (error: any) {
       if (error?.code === 1) {
+        forgetPermission(LOCATION_PERMISSION_KEY);
         setLocationState("denied");
         setMessage("Location permission was denied. Enable Location for this site from browser settings.");
       } else {
