@@ -70,6 +70,25 @@ const includePeople = {
   managerDecidedBy: { select: { id: true, name: true } }
 };
 
+const DESIGNING_DEPARTMENT = "DESIGNING";
+const DESIGNING_HEAD_EMPLOYEE_CODE = "1466"; // Cheshta Malik
+
+function isDesigningDepartment(value: unknown) {
+  return String(value || "").trim().toUpperCase() === DESIGNING_DEPARTMENT;
+}
+
+async function findDesigningDepartmentHead() {
+  return prisma.employee.findFirst({
+    where: {
+      employeeCode: DESIGNING_HEAD_EMPLOYEE_CODE,
+      status: "ACTIVE",
+      exitDate: null,
+      deletedAt: null
+    },
+    select: { id: true, name: true, employeeCode: true }
+  });
+}
+
 export async function GET() {
   try {
     const session = await requireSession();
@@ -120,9 +139,22 @@ export async function POST(req: NextRequest) {
     });
     if (!requester) throw new Error("Employee not found.");
 
-    // A manager's own leave must never wait for another manager or allow self-stage handling.
-    // It goes directly to HR/Admin. Team employees still follow Manager -> HR/Admin.
-    const managers = requester.isFloorManager ? [] : await findManagersForEmployee(requester);
+    // Designing department has a fixed department-head approval stage:
+    // Designing employee -> Cheshta Malik (employee code 1466) -> HR/Admin final approval.
+    // All other departments keep the existing manager -> HR/Admin flow.
+    let managers: { id: string; name: string }[] = [];
+    if (isDesigningDepartment(requester.department)) {
+      const designingHead = await findDesigningDepartmentHead();
+      if (!designingHead) throw new Error("Designing Department Head (Cheshta Malik - 1466) is not active or could not be found.");
+      if (designingHead.id === requester.id) {
+        managers = [];
+      } else {
+        managers = [{ id: designingHead.id, name: designingHead.name }];
+      }
+    } else {
+      // A manager's own leave must never wait for another manager or allow self-stage handling.
+      managers = requester.isFloorManager ? [] : await findManagersForEmployee(requester);
+    }
     const managerStatus = managers.length ? "PENDING" : "APPROVED";
 
     const leaveRequest = await prisma.leaveRequest.create({
@@ -156,7 +188,8 @@ export async function POST(req: NextRequest) {
 
     if (managers.length) {
       const managerIds = managers.map(manager => manager.id);
-      const managerText = `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. Manager approval is required.`;
+      const firstApproverLabel = isDesigningDepartment(requester.department) ? "Designing Department Head approval" : "Manager approval";
+      const managerText = `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. ${firstApproverLabel} is required.`;
       await prisma.notificationBlast.create({
         data: {
           type: "NOTICE",
@@ -204,13 +237,10 @@ export async function PATCH(req: NextRequest) {
 
     const isHrReviewer = session.role === "ADMIN" || session.role === "HR";
     const isManagerReviewer = session.role === "EMPLOYEE" && Boolean(session.isFloorManager);
+    const isDesigningHeadReviewer = String(session.employeeCode || "") === DESIGNING_HEAD_EMPLOYEE_CODE;
 
-    if (!isHrReviewer && !isManagerReviewer) {
+    if (!isHrReviewer && !isManagerReviewer && !isDesigningHeadReviewer) {
       throw new Error("You are not allowed to approve or reject leave requests.");
-    }
-
-    if (isHrReviewer) {
-      await requireHrPermission(session.role, "hrCanReviewLeaveRequests", "HR is not allowed to approve or reject leave requests.");
     }
 
     const result = await prisma.$transaction(async tx => {
@@ -218,11 +248,19 @@ export async function PATCH(req: NextRequest) {
       if (!current) throw new Error("Leave request not found.");
       if (current.status !== "PENDING") throw new Error("This leave request has already been decided.");
 
-      if (isManagerReviewer) {
-        const manager = await getManagerRecord(session.id);
-        const teamIds = await getManagerTeamEmployeeIds(manager);
-        if (!teamIds.includes(current.requesterId)) throw new Error("This employee is not in your team.");
-        if (current.managerStatus !== "PENDING") throw new Error("Manager decision has already been completed.");
+      const isDesigningRequest = isDesigningDepartment(current.requester.department);
+      const isDesigningHeadStage = isDesigningHeadReviewer && isDesigningRequest && current.managerStatus === "PENDING";
+      const isStandardManagerStage = isManagerReviewer && !isDesigningRequest;
+
+      if (isStandardManagerStage || isDesigningHeadStage) {
+        if (isDesigningHeadStage) {
+          if (String(session.employeeCode || "") !== DESIGNING_HEAD_EMPLOYEE_CODE) throw new Error("Only the Designing Department Head can review this request first.");
+        } else {
+          const manager = await getManagerRecord(session.id);
+          const teamIds = await getManagerTeamEmployeeIds(manager);
+          if (!teamIds.includes(current.requesterId)) throw new Error("This employee is not in your team.");
+        }
+        if (current.managerStatus !== "PENDING") throw new Error("Manager/Head decision has already been completed.");
 
         await tx.leaveRequest.update({
           where: { id },
@@ -242,9 +280,10 @@ export async function PATCH(req: NextRequest) {
 
         const dateRange = formatDateRange(current.fromDate, current.toDate);
         const days = inclusiveDayCount(current.fromDate, current.toDate, current.fromDayType, current.toDayType);
+        const reviewerLabel = isDesigningHeadStage ? "Designing Department Head" : "manager";
         const text = status === "APPROVED"
-          ? `Your manager approved your leave request for ${dateRange} (${days} day(s)). It is now pending HR approval.`
-          : `Your leave request for ${dateRange} (${days} day(s)) was rejected by your manager. Reason: ${rejectionReason}`;
+          ? `Your ${reviewerLabel} approved your leave request for ${dateRange} (${days} day(s)). It is now pending HR approval.`
+          : `Your leave request for ${dateRange} (${days} day(s)) was rejected by your ${reviewerLabel}. Reason: ${rejectionReason}`;
 
         await tx.notificationBlast.create({
           data: {
@@ -266,7 +305,7 @@ export async function PATCH(req: NextRequest) {
             await tx.notificationBlast.create({
               data: {
                 type: "NOTICE",
-                text: `${current.requester.name}'s leave request for ${dateRange} has been approved by manager ${session.name} and is ready for HR action.`,
+                text: `${current.requester.name}'s leave request for ${dateRange} has been approved by ${isDesigningHeadStage ? "Designing Department Head" : "manager"} ${session.name} and is ready for HR action.`,
                 filterType: "SYSTEM",
                 filterValue: "LEAVE_MANAGER_APPROVED",
                 createdById: session.id,
@@ -286,9 +325,18 @@ export async function PATCH(req: NextRequest) {
         };
       }
 
-      const managerApprovalComplete = current.managerStatus === "APPROVED" || Boolean(current.requester.isFloorManager);
+      if (!isHrReviewer) {
+        throw new Error(isDesigningDepartment(current.requester.department)
+          ? "Only Cheshta Malik can complete the Designing Department Head approval stage."
+          : "You are not allowed to complete the HR approval stage.");
+      }
+      await requireHrPermission(session.role, "hrCanReviewLeaveRequests", "HR is not allowed to approve or reject leave requests.");
+
+      const managerApprovalComplete = current.managerStatus === "APPROVED" || (Boolean(current.requester.isFloorManager) && !isDesigningDepartment(current.requester.department));
       if (!managerApprovalComplete) {
-        throw new Error("Manager approval is required before HR can take action.");
+        throw new Error(isDesigningDepartment(current.requester.department)
+          ? "Cheshta Malik's Department Head approval is required before HR can take action."
+          : "Manager approval is required before HR can take action.");
       }
 
       const claimed = await tx.leaveRequest.updateMany({

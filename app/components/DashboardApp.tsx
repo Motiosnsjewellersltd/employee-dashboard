@@ -5878,8 +5878,11 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
 
   function rowCanAct(row: any) {
     if (row.status !== "PENDING") return false;
-    if (canManagerReview && managerEmployeeReviewMode) return row.requester?.id !== session.id && row.managerStatus === "PENDING";
-    if (canHrReview) return row.managerStatus === "APPROVED" || Boolean(row.requester?.isFloorManager);
+    const isDesigningHead = String(session.employeeCode || "") === "1466";
+    const isDesigningRequest = String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING";
+    if (isDesigningHead && isDesigningRequest && row.managerStatus === "PENDING") return true;
+    if (canManagerReview && managerEmployeeReviewMode) return !isDesigningRequest && row.requester?.id !== session.id && row.managerStatus === "PENDING";
+    if (canHrReview) return row.managerStatus === "APPROVED" || (Boolean(row.requester?.isFloorManager) && !isDesigningRequest);
     return false;
   }
 
@@ -5972,15 +5975,15 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
 
     {canManagerReview && managerEmployeeReviewMode && <div className="manager-team-request-count"><b>Total Team Requests: {managerTeamRows.length}</b><span>Pending Manager Action: {teamPendingCount}</span></div>}
 
-    <div className="table-wrap leave-request-table"><table><thead><tr>{reviewMode && <th>Employee</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Manager Approval</th><th>HR Decision</th>{reviewMode && <th>Action</th>}</tr></thead><tbody>
+    <div className="table-wrap leave-request-table"><table><thead><tr>{reviewMode && <th>Employee</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Manager / Head Approval</th><th>HR Decision</th>{reviewMode && <th>Action</th>}</tr></thead><tbody>
       {loading && <tr><td colSpan={reviewMode ? 9 : 8}>Loading leave requests...</td></tr>}
       {!loading && visibleRows.length === 0 && <tr><td colSpan={reviewMode ? 9 : 8}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
         {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
         <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
         <td><b>{managerStageLabel(row)}</b>{row.managerDecidedAt && !(canManagerReview && row.requester?.id === session.id) && <small className="leave-decision-date">{displayDate(row.managerDecidedAt)}</small>}{row.managerStatus === "REJECTED" && row.managerRejectionReason && <small className="leave-rejection-text">Reason: {row.managerRejectionReason}</small>}</td>
-        <td>{row.status === "PENDING" ? <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : "Waiting for Manager"}</small> : <><b>{row.decidedBy?.name || "-"}</b><small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>{row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
-        {reviewMode && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? "Waiting for Manager" : "Pending"}</td>}
+        <td>{row.status === "PENDING" ? <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager"}</small> : <><b>{row.decidedBy?.name || "-"}</b><small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>{row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
+        {reviewMode && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager" : "Pending"}</td>}
       </tr>)}
     </tbody></table></div>
 
