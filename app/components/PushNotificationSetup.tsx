@@ -128,10 +128,23 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
 
   useEffect(() => {
     if (!visible) return;
-    const notificationsDone = notificationState === "granted" || notificationState === "unsupported";
-    const locationDone = locationState === "granted" || locationState === "unsupported";
+    const notificationsDone = notificationState === "granted";
+    const locationDone = locationState === "granted";
     if (notificationsDone && locationDone) setVisible(false);
   }, [notificationState, locationState, visible]);
+
+  useEffect(() => {
+    function refreshPermissions() {
+      if ("Notification" in window) setNotificationState(Notification.permission);
+      if (navigator.permissions?.query) {
+        navigator.permissions.query({ name: "geolocation" as PermissionName })
+          .then(permission => setLocationState(permission.state))
+          .catch(() => undefined);
+      }
+    }
+    window.addEventListener("focus", refreshPermissions);
+    return () => window.removeEventListener("focus", refreshPermissions);
+  }, []);
 
   async function enableNotifications() {
     setPushBusy(true);
@@ -183,27 +196,51 @@ export default function PushNotificationSetup({ employeeId }: { employeeId: stri
     }
   }
 
-  function dismiss() {
-    // Hide for this login only. If location is still not enabled, the option
-    // is shown again after the employee logs in next time.
-    setVisible(false);
-  }
-
-  const needsNotifications = notificationState !== "granted" && notificationState !== "unsupported";
-  const needsLocation = locationState !== "granted" && locationState !== "unsupported";
+  const needsNotifications = notificationState !== "granted";
+  const needsLocation = locationState !== "granted";
   if (!visible || (!needsNotifications && !needsLocation)) return null;
 
-  return <div className="push-permission-card device-permission-card" role="dialog" aria-label="Enable device permissions">
-    <div className="push-permission-icon">◎</div>
-    <div className="push-permission-copy">
-      <b>Enable device permissions</b>
-      <span>Allow notifications and exact location so alerts and login location can be recorded on this device.</span>
-      {message && <small>{message}</small>}
-    </div>
-    <div className="push-permission-actions device-permission-actions">
-      {needsNotifications && <button className="primary" type="button" disabled={pushBusy || locationBusy} onClick={enableNotifications}>{pushBusy ? "Enabling..." : "Enable Notifications"}</button>}
-      {needsLocation && <button className="primary" type="button" disabled={pushBusy || locationBusy} onClick={enableLocation}>{locationBusy ? "Getting GPS..." : "Enable Location"}</button>}
-      <button className="light" type="button" disabled={pushBusy || locationBusy} onClick={dismiss}>Not now</button>
+  return <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Enable device permissions"
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 5000,
+      background: "rgba(3, 31, 51, .52)",
+      backdropFilter: "blur(3px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16,
+    }}
+  >
+    <div
+      className="push-permission-card device-permission-card"
+      style={{
+        position: "relative",
+        left: "auto",
+        right: "auto",
+        bottom: "auto",
+        transform: "none",
+        width: "min(680px, calc(100vw - 32px))",
+        maxHeight: "calc(100dvh - 32px)",
+        overflowY: "auto",
+      }}
+    >
+      <div className="push-permission-icon">◎</div>
+      <div className="push-permission-copy">
+        <b>Enable device permissions</b>
+        <span>Notifications and exact location are mandatory to use the Employee Dashboard on this device.</span>
+        {notificationState === "unsupported" && <small style={{ color: "#c62828" }}>Notifications are not supported in this browser. Please open the dashboard in a supported browser.</small>}
+        {locationState === "unsupported" && <small style={{ color: "#c62828" }}>Location is not supported on this device/browser.</small>}
+        {message && <small>{message}</small>}
+      </div>
+      <div className="push-permission-actions device-permission-actions">
+        {needsNotifications && notificationState !== "unsupported" && <button className="primary" type="button" disabled={pushBusy || locationBusy} onClick={enableNotifications}>{pushBusy ? "Enabling..." : "Enable Notifications"}</button>}
+        {needsLocation && locationState !== "unsupported" && <button className="primary" type="button" disabled={pushBusy || locationBusy} onClick={enableLocation}>{locationBusy ? "Getting GPS..." : "Enable Location"}</button>}
+      </div>
     </div>
   </div>;
 }

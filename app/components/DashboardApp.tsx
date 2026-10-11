@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PushNotificationSetup from "./PushNotificationSetup";
 
+const SHOW_PROFILE_LEAVE_DATA = false;
+
 type User = {
   id: string;
   employeeCode?: string;
@@ -1260,7 +1262,7 @@ floorTeam: "My Team",
 
 
       {section === "reminder" && isAdmin && showReminder && <Reminder employees={activeEmployeeRows} canCreateMessage={canCreateNotifications} />}
-      {section === "notifications" && showNotifications && <Notifications session={session} employees={activeEmployeeRows} />}
+      {section === "notifications" && showNotifications && <Notifications session={session} employees={activeEmployeeRows} onNavigate={goto} />}
       {section === "chat" && showChat && <Chat session={session} />}
       {section === "reset" && isAdmin && showResetPassword && canResetPassword && <ResetPassword employees={activeEmployeeRows} />}
       {section === "loginHistory" && isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <LoginExportCenter canViewLoginHistory={canViewLoginHistory} canExportData={canExportData} />}
@@ -2626,7 +2628,7 @@ function ProfileContent({
 )}
 
     {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null}
-    {user.role !== "ADMIN" && <>
+    {SHOW_PROFILE_LEAVE_DATA && user.role !== "ADMIN" && <>
       <h2>Leave Balance</h2>
       {loading && <div className="profile-loading"><SkeletonCards count={4} /><div className="skeleton-table"><span /><span /><span /><span /></div></div>}
       {leaves && <>
@@ -6012,7 +6014,7 @@ function NotificationBell({ onOpen }: { onOpen: () => void }) {
   return <button className="notification-bell" onClick={onOpen} aria-label="Open notification center"><span>◴</span>{unread > 0 && <b>{unread > 99 ? "99+" : unread}</b>}</button>;
 }
 
-function Notifications({ session, employees }: { session: User; employees: User[] }) {
+function Notifications({ session, employees, onNavigate }: { session: User; employees: User[]; onNavigate: (section: Section) => void }) {
   const [rows, setRows] = useState<any[]>([]);
   const [mode, setMode] = useState<"center" | "history">("center");
   const [filters, setFilters] = useState({ search: "", type: "All", designation: "All", department: "All", from: "", to: "" });
@@ -6056,6 +6058,39 @@ function Notifications({ session, employees }: { session: User; employees: User[
     }
   }
 
+  function targetSectionForNotification(row: any): Section | null {
+    const key = String(row?.filterValue || "").trim().toUpperCase();
+    if (!key) return null;
+
+    if (key.startsWith("OFFICIAL-DUTY") || key.includes("OFFICIAL_DUTY")) return "officialDuty";
+    if (key === "NEW_HELP_TICKET" || key.startsWith("HELP_TICKET_")) return "helpTickets";
+    if (key === "EMPLOYEE_REPORT" || key.includes("REPORT_UPLOAD") || key.includes("EMPLOYEE_REPORT")) return "reporting";
+    if (key === "UPLOAD_LEAVES" || key === "LEAVE_UPLOAD_FAILED") return "leaves";
+    if (key === "NEW_LEAVE_REQUEST" || key.startsWith("LEAVE_")) return "leaveRequests";
+    if (key.includes("EMPLOYEE")) return "employees";
+    return null;
+  }
+
+  async function openNotification(row: any) {
+    try {
+      if (!row?.readAt) {
+        await api("/api/notifications", { method: "PATCH", body: JSON.stringify({ id: row.id }) });
+      }
+    } catch {
+      // Navigation should still work even if marking the notification as read fails.
+    }
+
+    const target = targetSectionForNotification(row);
+    if (target) {
+      onNavigate(target);
+      return;
+    }
+
+    if (!row?.readAt) {
+      setRows(current => current.map((item: any) => item.id === row.id ? { ...item, readAt: new Date().toISOString() } : item));
+    }
+  }
+
   async function clearAll() {
     if (!(await requestConfirm("Clear notifications", "Clear all notifications from your notification center?", "Clear All"))) return;
     try {
@@ -6075,7 +6110,7 @@ function Notifications({ session, employees }: { session: User; employees: User[
     {loading ? <div className="notification-loading"><SkeletonCards count={3} /></div> : rows.length ? rows.map(r => {
       if (mode === "center") {
         const unread = !r.readAt;
-        return <button className={unread ? "history notification-item unread" : "history notification-item"} key={r.id} onClick={() => unread && markRead(r.id)}><div className="notification-item-head"><b>{r.filterType === "SYSTEM" ? "SYSTEM" : r.type}</b>{unread && <span className="unread-dot">Unread</span>}</div><p>{r.text}</p>{r.attachmentUrl && <a href={r.attachmentUrl} target="_blank" onClick={e => e.stopPropagation()}>Attachment</a>}<small>{new Date(r.createdAt).toLocaleString()} | By {r.createdBy}</small></button>;
+        return <button className={unread ? "history notification-item unread" : "history notification-item"} key={r.id} onClick={() => openNotification(r)}><div className="notification-item-head"><b>{r.filterType === "SYSTEM" ? "SYSTEM" : r.type}</b>{unread && <span className="unread-dot">Unread</span>}</div><p>{r.text}</p>{r.attachmentUrl && <a href={r.attachmentUrl} target="_blank" onClick={e => e.stopPropagation()}>Attachment</a>}<small>{new Date(r.createdAt).toLocaleString()} | By {r.createdBy}</small></button>;
       }
       const read = (r.recipients || []).filter((x: any) => x.readAt).length;
       const total = (r.recipients || []).length;
