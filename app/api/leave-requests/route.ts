@@ -70,24 +70,8 @@ const includePeople = {
   managerDecidedBy: { select: { id: true, name: true } }
 };
 
-
 function normalizedDepartment(value: unknown) {
   return String(value || "").trim().toUpperCase();
-}
-
-function buildConflictSummary(conflicts: { requesterId: string; requester: { name: string } }[]) {
-  const unique = new Map<string, string>();
-  for (const item of conflicts) {
-    if (!unique.has(item.requesterId)) unique.set(item.requesterId, item.requester.name);
-  }
-  const names = Array.from(unique.values());
-  return {
-    count: names.length,
-    names,
-    text: names.length
-      ? `${names.length} other team member${names.length === 1 ? "" : "s"} already ${names.length === 1 ? "has" : "have"} overlapping pending/approved leave on these date(s).`
-      : ""
-  };
 }
 
 const DESIGNING_DEPARTMENT = "DESIGNING";
@@ -133,10 +117,6 @@ export async function GET() {
       orderBy: [{ status: "asc" }, { managerStatus: "asc" }, { createdAt: "desc" }],
       take: 500
     });
-
-    // Add a live conflict summary for approvers without storing duplicate data.
-    // A conflict means another employee from the same department has a PENDING
-    // or APPROVED leave request overlapping the same date range.
     const conflictPool = (canReview || (session.role === "EMPLOYEE" && session.isFloorManager))
       ? await prisma.leaveRequest.findMany({
           where: { status: { in: ["PENDING", "APPROVED"] } },
@@ -153,17 +133,18 @@ export async function GET() {
       : [];
 
     const requestsWithConflicts = requests.map(request => {
-      if (!conflictPool.length || !request.requester?.department) return { ...request, teamConflictCount: 0, teamConflictNames: [] };
+      if (!conflictPool.length || !request.requester?.department) {
+        return { ...request, teamConflictCount: 0, teamConflictNames: [] };
+      }
       const department = normalizedDepartment(request.requester.department);
-      const conflicts = conflictPool.filter(other =>
-        other.id !== request.id &&
-        other.requesterId !== request.requesterId &&
-        normalizedDepartment(other.requester?.department) === department &&
-        other.fromDate <= request.toDate &&
-        other.toDate >= request.fromDate
-      );
-      const summary = buildConflictSummary(conflicts);
-      return { ...request, teamConflictCount: summary.count, teamConflictNames: summary.names };
+      const unique = new Map<string, string>();
+      for (const other of conflictPool) {
+        if (other.id === request.id || other.requesterId === request.requesterId) continue;
+        if (normalizedDepartment(other.requester?.department) !== department) continue;
+        if (other.fromDate > request.toDate || other.toDate < request.fromDate) continue;
+        if (!unique.has(other.requesterId)) unique.set(other.requesterId, other.requester.name);
+      }
+      return { ...request, teamConflictCount: unique.size, teamConflictNames: Array.from(unique.values()) };
     });
 
     return ok({ requests: requestsWithConflicts });
@@ -195,25 +176,6 @@ export async function POST(req: NextRequest) {
       select: { id: true, branch: true, floor: true, department: true, isFloorManager: true }
     });
     if (!requester) throw new Error("Employee not found.");
-
-    const overlappingDepartmentLeaves = requester.department
-      ? await prisma.leaveRequest.findMany({
-          where: {
-            requesterId: { not: session.id },
-            status: { in: ["PENDING", "APPROVED"] },
-            fromDate: { lte: toDate },
-            toDate: { gte: fromDate },
-            requester: {
-              department: { equals: requester.department, mode: "insensitive" },
-              status: "ACTIVE",
-              deletedAt: null
-            }
-          },
-          select: { requesterId: true, requester: { select: { name: true } } }
-        })
-      : [];
-    const conflictSummary = buildConflictSummary(overlappingDepartmentLeaves);
-    const conflictSuffix = conflictSummary.count ? ` Conflict alert: ${conflictSummary.text}` : "";
 
     // Designing department has a fixed department-head approval stage:
     // Designing employee -> Cheshta Malik (employee code 7222) -> HR/Admin final approval.
@@ -265,7 +227,7 @@ export async function POST(req: NextRequest) {
     if (managers.length) {
       const managerIds = managers.map(manager => manager.id);
       const firstApproverLabel = isDesigningDepartment(requester.department) ? "Designing Department Head approval" : "Manager approval";
-      const managerText = `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. ${firstApproverLabel} is required.${conflictSuffix}`;
+      const managerText = `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. ${firstApproverLabel} is required.`;
       await prisma.notificationBlast.create({
         data: {
           type: "NOTICE",
@@ -288,7 +250,7 @@ export async function POST(req: NextRequest) {
       actorId: session.id,
       action: "NEW_LEAVE_REQUEST",
       title: "New Leave Request",
-      text: `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. Reason: ${reason}.${conflictSuffix}`,
+      text: `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. Reason: ${reason}`,
       type: "NOTICE",
       url: "/?section=leaveRequests",
     });
