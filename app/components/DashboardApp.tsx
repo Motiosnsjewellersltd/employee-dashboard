@@ -3,9 +3,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PushNotificationSetup from "./PushNotificationSetup";
 
-const SHOW_PROFILE_LEAVE_DATA = false;
-const SHOW_EMPLOYEE_CHAT = false;
-
 type User = {
   id: string;
   employeeCode?: string;
@@ -584,6 +581,7 @@ function DashboardAppInner() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [employeeFeatures, setEmployeeFeatures] = useState({ profileLeavesVisible: false, employeeChatVisible: false });
 const [
   employeeReportingEnabled,
   setEmployeeReportingEnabled
@@ -643,6 +641,19 @@ hrCanManageReports: "true",
     window.setTimeout(restoreEmployeeListPosition, 120);
   }
 
+  async function updateEmployeeFeature(key: "profileLeavesVisible" | "employeeChatVisible", value: boolean) {
+    const data = await api("/api/feature-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [key]: value })
+    });
+    setEmployeeFeatures({
+      profileLeavesVisible: Boolean(data.settings?.profileLeavesVisible),
+      employeeChatVisible: Boolean(data.settings?.employeeChatVisible)
+    });
+    showToast(value ? "Feature enabled for employees." : "Feature hidden from employees.", "success");
+  }
+
   async function loadMe() {
     const data = await api("/api/auth/me");
     if (data.user) {
@@ -699,6 +710,40 @@ hrCanManageReports: "true",
       window.removeEventListener("motisons-network-unavailable", markOffline);
     };
   }, []);
+  useEffect(() => {
+    if (!session || session.mustChangePassword) return;
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        const data = await api("/api/feature-settings");
+        if (!cancelled) {
+          setEmployeeFeatures({
+            profileLeavesVisible: Boolean(data.settings?.profileLeavesVisible),
+            employeeChatVisible: Boolean(data.settings?.employeeChatVisible)
+          });
+        }
+      } catch {
+        // Keep the last known visibility state if refresh fails.
+      }
+    };
+
+    refresh();
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [session?.id, session?.mustChangePassword]);
+
+  useEffect(() => {
+    if (session?.role === "EMPLOYEE" && !employeeFeatures.employeeChatVisible && section === "chat") {
+      setSection("profile");
+    }
+  }, [session?.role, employeeFeatures.employeeChatVisible, section]);
+
   useEffect(() => {
     if (!menuOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -999,7 +1044,7 @@ const showHelpTickets =
   session.role === "EMPLOYEE" || hrAllowed("hrMenuHelpTickets");
   const showReminder = hrAllowed("hrMenuReminder");
   const showNotifications = session.role === "EMPLOYEE" || hrAllowed("hrMenuNotifications");
-  const showChat = session.role === "EMPLOYEE" ? SHOW_EMPLOYEE_CHAT : hrAllowed("hrMenuChat");
+  const showChat = session.role === "EMPLOYEE" ? employeeFeatures.employeeChatVisible : hrAllowed("hrMenuChat");
   const showResetPassword = hrAllowed("hrMenuResetPassword");
   const showLoginExport = hrAllowed("hrMenuLoginExport");
   const showRecycleBin = hrAllowed("hrMenuRecycleBin");
@@ -1220,6 +1265,17 @@ floorTeam: "My Team",
       {notice && <div className="msg warn" onClick={() => setNotice("")}>{notice}</div>}
       {section === "dashboard" && showDashboard && <section>
         <div className="dashboard-hero"><div><h1>{isHr ? "HR Dashboard" : "Admin Dashboard"}</h1></div></div>
+        {isSuperAdmin && <div className="panel" style={{ marginBottom: 16 }}>
+          <h2 style={{ marginTop: 0 }}>Employee Visibility Control</h2>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button className={employeeFeatures.profileLeavesVisible ? "primary" : "light"} type="button" onClick={() => updateEmployeeFeature("profileLeavesVisible", !employeeFeatures.profileLeavesVisible)}>
+              Employee Leaves: {employeeFeatures.profileLeavesVisible ? "ON" : "OFF"}
+            </button>
+            <button className={employeeFeatures.employeeChatVisible ? "primary" : "light"} type="button" onClick={() => updateEmployeeFeature("employeeChatVisible", !employeeFeatures.employeeChatVisible)}>
+              Employee Chat: {employeeFeatures.employeeChatVisible ? "ON" : "OFF"}
+            </button>
+          </div>
+        </div>}
         <div className="cards dashboard-cards">{cards.map(c => <button className={dashboardFilter === c[0] || (dashboardFilter === "All Employees" && c[0] === "Total Employees") ? "stat stat-button active" : "stat stat-button"} key={c[0]} onClick={() => setDashboardFilter(c[0] === "Total Employees" ? "All Employees" : String(c[0]))}><span>{c[0]}</span><b>{c[1]}</b></button>)}</div>
         {isHr && <button className="hr-mobile-filter-toggle light" type="button" onClick={() => setHrMobileFiltersOpen(open => !open)}><span>⌕</span>{hrMobileFiltersOpen ? "Hide Filters" : "Search & Filters"}<b>{dashboardRows.length}</b></button>}
         <div className={`panel dashboard-filter-panel${isHr && hrMobileFiltersOpen ? " mobile-open" : ""}`}><div className="filters dashboard-quick">
@@ -1269,7 +1325,7 @@ floorTeam: "My Team",
       {section === "loginHistory" && isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <LoginExportCenter canViewLoginHistory={canViewLoginHistory} canExportData={canExportData} />}
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
-      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} />}
+      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}
       {section === "changePassword" && <PasswordChangePanel session={session} onChanged={setSession} />}
     </main>
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
@@ -1328,6 +1384,7 @@ floorTeam: "My Team",
     onBranchHistoryDeleted={() =>
       loadProfileLeaves(profileUser)
     }
+    showProfileLeaveData={employeeFeatures.profileLeavesVisible}
   />
 )}
     {profilePhotoPreview && (
@@ -2345,7 +2402,7 @@ function ImportPreview({ title, data }: { title: string; data: any }) {
   return <div className="preview-box"><h3>{title}</h3><div className="preview-cards">{Object.entries(data).filter(([k]) => k !== "errors").map(([k, v]) => <div key={k}><span>{k}</span><b>{String(v)}</b></div>)}</div>{data.errors?.length ? <div className="preview-errors"><b>Error / Skipped Rows</b>{data.errors.slice(0, 20).map((e: any, i: number) => <p key={i}>Row {e.row}: {e.reason} {e.employeeCode || e.name || e.mobile || ""}</p>)}</div> : <div className="empty-state">No validation errors found.</div>}</div>;
 }
 
-function MyProfile({ user, leaves, loading, loadLeaves }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void> }) {
+function MyProfile({ user, leaves, loading, loadLeaves, showProfileLeaveData }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void>; showProfileLeaveData: boolean }) {
 
 useEffect(() => {
   loadLeaves(user);
@@ -2358,6 +2415,7 @@ useEffect(() => {
       viewer={user}
       leaves={leaves}
       loading={loading}
+      showProfileLeaveData={showProfileLeaveData}
     />
   </section>
 );
@@ -2539,7 +2597,8 @@ function ProfileModal({
   employees,
   onSwitch,
   canDeleteBranchHistory,
-  onBranchHistoryDeleted
+  onBranchHistoryDeleted,
+  showProfileLeaveData
 }: {
   user: User;
   session: User;
@@ -2550,6 +2609,7 @@ function ProfileModal({
   onSwitch: (u: User) => void;
   canDeleteBranchHistory: boolean;
   onBranchHistoryDeleted: () => void | Promise<void>;
+  showProfileLeaveData: boolean;
 }) {
   useEffect(() => {
     const escClose = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -2573,6 +2633,7 @@ function ProfileModal({
   loading={loading}
   canDeleteBranchHistory={canDeleteBranchHistory}
   onBranchHistoryDeleted={onBranchHistoryDeleted}
+  showProfileLeaveData={showProfileLeaveData}
 />
     </div>
   </div>;
@@ -2584,7 +2645,8 @@ function ProfileContent({
   leaves,
   loading,
   canDeleteBranchHistory = false,
-  onBranchHistoryDeleted
+  onBranchHistoryDeleted,
+  showProfileLeaveData = false
 }: {
   user: User;
   viewer: User;
@@ -2592,6 +2654,7 @@ function ProfileContent({
   loading: boolean;
   canDeleteBranchHistory?: boolean;
   onBranchHistoryDeleted?: () => void | Promise<void>;
+  showProfileLeaveData?: boolean;
 }) {
   const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
 
@@ -2629,7 +2692,7 @@ function ProfileContent({
 )}
 
     {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null}
-    {SHOW_PROFILE_LEAVE_DATA && user.role !== "ADMIN" && <>
+    {showProfileLeaveData && user.role !== "ADMIN" && <>
       <h2>Leave Balance</h2>
       {loading && <div className="profile-loading"><SkeletonCards count={4} /><div className="skeleton-table"><span /><span /><span /><span /></div></div>}
       {leaves && <>
