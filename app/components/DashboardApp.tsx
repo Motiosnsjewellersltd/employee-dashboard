@@ -2955,7 +2955,11 @@ function RegisteredDevices() {
     }
   }
 
+  const uniqueEmployees = new Set(rows.map(row => String(row.employeeId || row.employeeName || "").trim()).filter(Boolean)).size;
+  const activeDevices = rows.filter(row => !row.isBlocked).length;
+
   return <section className="panel"><h1>Registered Devices</h1>
+    <div className="cards small login-summary"><div className="stat"><span>Unique Employees Logged In</span><b>{uniqueEmployees}</b></div><div className="stat"><span>Total Registered Devices</span><b>{rows.length}</b></div><div className="stat"><span>Active Devices</span><b>{activeDevices}</b></div></div>
     <div className="msg info">One registered device can be used by only one employee. Logout does not remove the registration.</div>
     {msg && <div className="msg warn">{msg}</div>}
     {rows.length ? <div className="table-wrap registered-device-table"><table><thead><tr><th>Employee</th><th>Device</th><th>First Registered</th><th>Last Used</th><th>Last IP</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}>
