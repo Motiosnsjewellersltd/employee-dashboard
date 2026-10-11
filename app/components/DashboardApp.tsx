@@ -2988,15 +2988,80 @@ function ExportData() {
   return <section className="panel"><h1>Backup / Export Data</h1><div className="export-grid">{exports.map(([label, type]) => <a key={type} className="export-card" href={`/api/export?type=${type}`} target="_blank"><b>{label}</b><span>Download CSV</span></a>)}</div></section>;
 }
 
+function ChatAudit() {
+  const [threads, setThreads] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<any>(null);
+  const [loadingId, setLoadingId] = useState("");
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    api("/api/chat/audit").then(data => {
+      setThreads(data.threads || []);
+      setMsg("");
+    }).catch((e: any) => setMsg(e.message || "Unable to load chat audit."));
+  }, []);
+
+  const filtered = threads.filter((thread: any) => {
+    const haystack = [
+      ...(thread.participants || []).flatMap((p: any) => [p.name, p.employeeCode, p.mobile, p.department, p.designation]),
+      thread.lastMessage?.text,
+      thread.lastMessage?.attachmentName
+    ].filter(Boolean).join(" ").toLowerCase();
+    return !q.trim() || haystack.includes(q.trim().toLowerCase());
+  });
+
+  async function openConversation(thread: any) {
+    try {
+      setLoadingId(thread.id);
+      const data = await api(`/api/chat/audit?threadId=${encodeURIComponent(thread.id)}`);
+      setSelected(data.conversation || null);
+      setMsg("");
+    } catch (e: any) {
+      setMsg(e.message || "Unable to open conversation.");
+    } finally {
+      setLoadingId("");
+    }
+  }
+
+  useEffect(() => {
+    if (!selected) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selected]);
+
+  return <section className="panel">
+    <div className="section-head"><div><h1>Chat Audit</h1><p className="muted">Read-only Admin view of employee conversations.</p></div><span className="pill info">{threads.length} Conversations</span></div>
+    <div className="filters one-line"><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search employee name, ID, mobile or message" /></div>
+    {msg && <div className="msg warn">{msg}</div>}
+    {filtered.length ? <div className="table-wrap"><table><thead><tr><th>Employees</th><th>Last Message</th><th>Last Activity</th><th>Total Messages</th><th>Action</th></tr></thead><tbody>{filtered.map((thread: any) => {
+      const names = (thread.participants || []).map((p: any) => p.name).join(" ↔ ") || "Unknown";
+      const detail = (thread.participants || []).map((p: any) => [p.employeeCode, p.mobile].filter(Boolean).join(" / ")).filter(Boolean).join("  •  ");
+      return <tr key={thread.id}><td><b>{names}</b>{detail && <small className="table-subtext">{detail}</small>}</td><td>{thread.lastMessage?.text || (thread.lastMessage?.attachmentName ? `Attachment: ${thread.lastMessage.attachmentName}` : "-")}</td><td>{thread.updatedAt ? new Date(thread.updatedAt).toLocaleString() : "-"}</td><td><b>{thread.messageCount || 0}</b></td><td><button className="light" type="button" disabled={loadingId === thread.id} onClick={() => openConversation(thread)}>{loadingId === thread.id ? "Opening..." : "Open Conversation"}</button></td></tr>;
+    })}</tbody></table></div> : <div className="empty-state">No conversation found.</div>}
+
+    {selected && <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={e => { if (e.target === e.currentTarget) setSelected(null); }}>
+      <div className="modal-card wide employee-detail-modal" onMouseDown={e => e.stopPropagation()}>
+        <div className="section-head"><div><h2>{(selected.participants || []).map((p: any) => p.name).join(" ↔ ")}</h2><p className="muted">{selected.messages?.length || 0} messages • Read-only</p></div><button className="danger" type="button" aria-label="Close" onClick={() => setSelected(null)}>✕</button></div>
+        <div className="chat-messages" style={{ maxHeight: "65vh", overflowY: "auto" }}>{selected.messages?.length ? selected.messages.map((m: any) => <div className="bubble" key={m.id}><b>{m.senderName}</b><p>{m.text || ""}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank" rel="noreferrer">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleString()} {m.isEdited ? "• edited" : ""}</small></div>) : <div className="empty-state">No messages in this conversation.</div>}</div>
+      </div>
+    </div>}
+  </section>;
+}
+
 function LoginExportCenter({ canViewLoginHistory, canExportData }: { canViewLoginHistory: boolean; canExportData: boolean }) {
-  const [tab, setTab] = useState<"login" | "devices" | "export">(canViewLoginHistory ? "login" : "export");
+  const [tab, setTab] = useState<"login" | "devices" | "chatAudit" | "export">(canViewLoginHistory ? "login" : "export");
   return <>
     <div className="panel combined-tool-tabs">
       {canViewLoginHistory && <button className={tab === "login" ? "primary active" : "light"} type="button" onClick={() => setTab("login")}>Login History</button>}
       {canViewLoginHistory && <button className={tab === "devices" ? "primary active" : "light"} type="button" onClick={() => setTab("devices")}>Registered Devices</button>}
+      <button className={tab === "chatAudit" ? "primary active" : "light"} type="button" onClick={() => setTab("chatAudit")}>Chat Audit</button>
       {canExportData && <button className={tab === "export" ? "primary active" : "light"} type="button" onClick={() => setTab("export")}>Export Data</button>}
     </div>
-    {tab === "login" && canViewLoginHistory ? <LoginHistory /> : tab === "devices" && canViewLoginHistory ? <RegisteredDevices /> : canExportData ? <ExportData /> : null}
+    {tab === "login" && canViewLoginHistory ? <LoginHistory /> : tab === "devices" && canViewLoginHistory ? <RegisteredDevices /> : tab === "chatAudit" ? <ChatAudit /> : canExportData ? <ExportData /> : null}
   </>;
 }
 
