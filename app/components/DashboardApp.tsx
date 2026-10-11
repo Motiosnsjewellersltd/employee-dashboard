@@ -2616,7 +2616,7 @@ function ProfileContent({
     <div className="profile-grid">
       <Info label="Employee ID" value={user.employeeCode || "-"} /><Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} />
       <Info label="Working Period" value={totalWorkingPeriod(employmentHistory, user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
-<Info label="Floor" value={user.floor || "-"} />
+{(user.floor || "").trim().toLowerCase() !== "support / non-floor" && <Info label="Floor" value={user.floor || "-"} />}
     </div>
 {!viewer.isFloorManager && (
   <EmployeeNotes
