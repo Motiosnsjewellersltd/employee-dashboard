@@ -3043,10 +3043,41 @@ function ChatAudit() {
       return <tr key={thread.id}><td><b>{names}</b>{detail && <small className="table-subtext">{detail}</small>}</td><td>{thread.lastMessage?.text || (thread.lastMessage?.attachmentName ? `Attachment: ${thread.lastMessage.attachmentName}` : "-")}</td><td>{thread.updatedAt ? new Date(thread.updatedAt).toLocaleString() : "-"}</td><td><b>{thread.messageCount || 0}</b></td><td><button className="light" type="button" disabled={loadingId === thread.id} onClick={() => openConversation(thread)}>{loadingId === thread.id ? "Opening..." : "Open Conversation"}</button></td></tr>;
     })}</tbody></table></div> : <div className="empty-state">No conversation found.</div>}
 
-    {selected && <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={e => { if (e.target === e.currentTarget) setSelected(null); }}>
-      <div className="modal-card wide employee-detail-modal" onMouseDown={e => e.stopPropagation()}>
-        <div className="section-head"><div><h2>{(selected.participants || []).map((p: any) => p.name).join(" ↔ ")}</h2><p className="muted">{selected.messages?.length || 0} messages • Read-only</p></div><button className="danger" type="button" aria-label="Close" onClick={() => setSelected(null)}>✕</button></div>
-        <div className="chat-messages" style={{ maxHeight: "65vh", overflowY: "auto" }}>{selected.messages?.length ? selected.messages.map((m: any) => <div className="bubble" key={m.id}><b>{m.senderName}</b><p>{m.text || ""}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank" rel="noreferrer">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleString()} {m.isEdited ? "• edited" : ""}</small></div>) : <div className="empty-state">No messages in this conversation.</div>}</div>
+    {selected && <div
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={e => { if (e.target === e.currentTarget) setSelected(null); }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        background: "rgba(7, 31, 52, 0.55)",
+        backdropFilter: "blur(3px)"
+      }}
+    >
+      <div
+        onMouseDown={e => e.stopPropagation()}
+        style={{
+          width: "min(920px, 96vw)",
+          maxHeight: "88vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          borderRadius: "22px",
+          border: "1px solid #b9dcf4",
+          background: "#fff",
+          boxShadow: "0 24px 70px rgba(0, 0, 0, 0.28)"
+        }}
+      >
+        <div className="section-head" style={{ padding: "18px 20px", margin: 0, borderBottom: "1px solid #d8eaf7", flexShrink: 0 }}>
+          <div><h2 style={{ margin: 0 }}>{(selected.participants || []).map((p: any) => p.name).join(" ↔ ")}</h2><p className="muted" style={{ marginBottom: 0 }}>{selected.messages?.length || 0} messages • Read-only</p></div>
+          <button className="danger" type="button" aria-label="Close" onClick={() => setSelected(null)} style={{ minWidth: "44px", minHeight: "44px", borderRadius: "12px", fontSize: "20px" }}>✕</button>
+        </div>
+        <div className="chat-messages" style={{ flex: 1, minHeight: 0, maxHeight: "calc(88vh - 90px)", overflowY: "auto", padding: "18px 20px" }}>{selected.messages?.length ? selected.messages.map((m: any) => <div className="bubble" key={m.id}><b>{m.senderName}</b><p>{m.text || ""}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank" rel="noreferrer">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleString()} {m.isEdited ? "• edited" : ""}</small></div>) : <div className="empty-state">No messages in this conversation.</div>}</div>
       </div>
     </div>}
   </section>;
