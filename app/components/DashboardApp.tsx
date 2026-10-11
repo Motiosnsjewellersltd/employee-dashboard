@@ -2955,11 +2955,7 @@ function RegisteredDevices() {
     }
   }
 
-  const uniqueEmployees = new Set(rows.map(row => String(row.employeeId || row.employeeName || "").trim()).filter(Boolean)).size;
-  const activeDevices = rows.filter(row => !row.isBlocked).length;
-
   return <section className="panel"><h1>Registered Devices</h1>
-    <div className="cards small login-summary"><div className="stat"><span>Unique Employees Logged In</span><b>{uniqueEmployees}</b></div><div className="stat"><span>Total Registered Devices</span><b>{rows.length}</b></div><div className="stat"><span>Active Devices</span><b>{activeDevices}</b></div></div>
     <div className="msg info">One registered device can be used by only one employee. Logout does not remove the registration.</div>
     {msg && <div className="msg warn">{msg}</div>}
     {rows.length ? <div className="table-wrap registered-device-table"><table><thead><tr><th>Employee</th><th>Device</th><th>First Registered</th><th>Last Used</th><th>Last IP</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}>
@@ -2988,111 +2984,15 @@ function ExportData() {
   return <section className="panel"><h1>Backup / Export Data</h1><div className="export-grid">{exports.map(([label, type]) => <a key={type} className="export-card" href={`/api/export?type=${type}`} target="_blank"><b>{label}</b><span>Download CSV</span></a>)}</div></section>;
 }
 
-function ChatAudit() {
-  const [threads, setThreads] = useState<any[]>([]);
-  const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<any>(null);
-  const [loadingId, setLoadingId] = useState("");
-  const [msg, setMsg] = useState("");
-
-  useEffect(() => {
-    api("/api/chat/audit").then(data => {
-      setThreads(data.threads || []);
-      setMsg("");
-    }).catch((e: any) => setMsg(e.message || "Unable to load chat audit."));
-  }, []);
-
-  const filtered = threads.filter((thread: any) => {
-    const haystack = [
-      ...(thread.participants || []).flatMap((p: any) => [p.name, p.employeeCode, p.mobile, p.department, p.designation]),
-      thread.lastMessage?.text,
-      thread.lastMessage?.attachmentName
-    ].filter(Boolean).join(" ").toLowerCase();
-    return !q.trim() || haystack.includes(q.trim().toLowerCase());
-  });
-
-  async function openConversation(thread: any) {
-    try {
-      setLoadingId(thread.id);
-      const data = await api(`/api/chat/audit?threadId=${encodeURIComponent(thread.id)}`);
-      setSelected(data.conversation || null);
-      setMsg("");
-    } catch (e: any) {
-      setMsg(e.message || "Unable to open conversation.");
-    } finally {
-      setLoadingId("");
-    }
-  }
-
-  useEffect(() => {
-    if (!selected) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelected(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selected]);
-
-  return <section className="panel">
-    <div className="section-head"><div><h1>Chat Audit</h1><p className="muted">Read-only Admin view of employee conversations.</p></div><span className="pill info">{threads.length} Conversations</span></div>
-    <div className="filters one-line"><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search employee name, ID, mobile or message" /></div>
-    {msg && <div className="msg warn">{msg}</div>}
-    {filtered.length ? <div className="table-wrap"><table><thead><tr><th>Employees</th><th>Last Message</th><th>Last Activity</th><th>Total Messages</th><th>Action</th></tr></thead><tbody>{filtered.map((thread: any) => {
-      const names = (thread.participants || []).map((p: any) => p.name).join(" ↔ ") || "Unknown";
-      const detail = (thread.participants || []).map((p: any) => [p.employeeCode, p.mobile].filter(Boolean).join(" / ")).filter(Boolean).join("  •  ");
-      return <tr key={thread.id}><td><b>{names}</b>{detail && <small className="table-subtext">{detail}</small>}</td><td>{thread.lastMessage?.text || (thread.lastMessage?.attachmentName ? `Attachment: ${thread.lastMessage.attachmentName}` : "-")}</td><td>{thread.updatedAt ? new Date(thread.updatedAt).toLocaleString() : "-"}</td><td><b>{thread.messageCount || 0}</b></td><td><button className="light" type="button" disabled={loadingId === thread.id} onClick={() => openConversation(thread)}>{loadingId === thread.id ? "Opening..." : "Open Conversation"}</button></td></tr>;
-    })}</tbody></table></div> : <div className="empty-state">No conversation found.</div>}
-
-    {selected && <div
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={e => { if (e.target === e.currentTarget) setSelected(null); }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 99999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px",
-        background: "rgba(7, 31, 52, 0.55)",
-        backdropFilter: "blur(3px)"
-      }}
-    >
-      <div
-        onMouseDown={e => e.stopPropagation()}
-        style={{
-          width: "min(920px, 96vw)",
-          maxHeight: "88vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          borderRadius: "22px",
-          border: "1px solid #b9dcf4",
-          background: "#fff",
-          boxShadow: "0 24px 70px rgba(0, 0, 0, 0.28)"
-        }}
-      >
-        <div className="section-head" style={{ padding: "18px 20px", margin: 0, borderBottom: "1px solid #d8eaf7", flexShrink: 0 }}>
-          <div><h2 style={{ margin: 0 }}>{(selected.participants || []).map((p: any) => p.name).join(" ↔ ")}</h2><p className="muted" style={{ marginBottom: 0 }}>{selected.messages?.length || 0} messages • Read-only</p></div>
-          <button className="danger" type="button" aria-label="Close" onClick={() => setSelected(null)} style={{ minWidth: "44px", minHeight: "44px", borderRadius: "12px", fontSize: "20px" }}>✕</button>
-        </div>
-        <div className="chat-messages" style={{ flex: 1, minHeight: 0, maxHeight: "calc(88vh - 90px)", overflowY: "auto", padding: "18px 20px" }}>{selected.messages?.length ? selected.messages.map((m: any) => <div className="bubble" key={m.id}><b>{m.senderName}</b><p>{m.text || ""}</p>{m.attachmentUrl && <a href={m.attachmentUrl} target="_blank" rel="noreferrer">{m.attachmentName || "Attachment"}</a>}<small>{new Date(m.createdAt).toLocaleString()} {m.isEdited ? "• edited" : ""}</small></div>) : <div className="empty-state">No messages in this conversation.</div>}</div>
-      </div>
-    </div>}
-  </section>;
-}
-
 function LoginExportCenter({ canViewLoginHistory, canExportData }: { canViewLoginHistory: boolean; canExportData: boolean }) {
-  const [tab, setTab] = useState<"login" | "devices" | "chatAudit" | "export">(canViewLoginHistory ? "login" : "export");
+  const [tab, setTab] = useState<"login" | "devices" | "export">(canViewLoginHistory ? "login" : "export");
   return <>
     <div className="panel combined-tool-tabs">
       {canViewLoginHistory && <button className={tab === "login" ? "primary active" : "light"} type="button" onClick={() => setTab("login")}>Login History</button>}
       {canViewLoginHistory && <button className={tab === "devices" ? "primary active" : "light"} type="button" onClick={() => setTab("devices")}>Registered Devices</button>}
-      <button className={tab === "chatAudit" ? "primary active" : "light"} type="button" onClick={() => setTab("chatAudit")}>Chat Audit</button>
       {canExportData && <button className={tab === "export" ? "primary active" : "light"} type="button" onClick={() => setTab("export")}>Export Data</button>}
     </div>
-    {tab === "login" && canViewLoginHistory ? <LoginHistory /> : tab === "devices" && canViewLoginHistory ? <RegisteredDevices /> : tab === "chatAudit" ? <ChatAudit /> : canExportData ? <ExportData /> : null}
+    {tab === "login" && canViewLoginHistory ? <LoginHistory /> : tab === "devices" && canViewLoginHistory ? <RegisteredDevices /> : canExportData ? <ExportData /> : null}
   </>;
 }
 
@@ -3141,9 +3041,6 @@ function PermissionsPanel({ session }: { session: User }) {
     ["hrMenuLoginExport", "Login / Export"],
     ["hrMenuRecycleBin", "Recycle Bin"]
   ];
-  const chatAccessRows = [
-    ["employeePeerChatAllowed", "Normal Employee → Same Department Employee Chat"]
-  ];
   const actionRows = [
     ["hrCanAddEmployee", "Add or import employees"],
     ["hrCanEditEmployee", "Edit employees and bulk status/department"],
@@ -3163,7 +3060,7 @@ function PermissionsPanel({ session }: { session: User }) {
   ];
   const permissionRow = ([key, label]: string[]) => <label className="permission-row" key={key}><span>{label}</span><select disabled={session.role !== "ADMIN"} value={permissions[key] ?? "false"} onChange={e => setPermissions({ ...permissions, [key]: e.target.value })}><option value="true">Show / Allow</option><option value="false">Hide / Block</option></select></label>;
 
-  return <section className="panel permission-panel"><h1>Role Permission Control</h1><p className="permission-help">Control HR rights and employee chat access.</p><div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div><div><h2>Chat Access Control</h2>{chatAccessRows.map(permissionRow)}<p className="hint">Block = normal employees cannot chat with other normal employees. They can still chat with their Team Head / Floor Manager / HR / Admin. Allow = same-department employee-to-employee chat is enabled; cross-department chat stays blocked.</p></div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
+  return <section className="panel permission-panel"><h1>HR Permission Control</h1><p className="permission-help">Choose which menu options HR can see and which actions HR can perform.</p><div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save HR Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
 }
 
 function ReportingPanel({
@@ -6149,7 +6046,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
       {!loading && visibleRows.length === 0 && <tr><td colSpan={reviewMode ? 9 : 8}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
         {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
-        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
+        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}{reviewMode && Number(row.teamConflictCount || 0) > 0 && <span className="leave-conflict-alert"><b>Team Leave Alert:</b> {row.teamConflictCount} other team member{Number(row.teamConflictCount) === 1 ? "" : "s"} already {Number(row.teamConflictCount) === 1 ? "has" : "have"} overlapping leave{Array.isArray(row.teamConflictNames) && row.teamConflictNames.length ? ` (${row.teamConflictNames.join(", ")})` : ""}.</span>}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
         <td><b>{managerStageLabel(row)}</b>{row.managerDecidedAt && !(canManagerReview && row.requester?.id === session.id) && <small className="leave-decision-date">{displayDate(row.managerDecidedAt)}</small>}{row.managerStatus === "REJECTED" && row.managerRejectionReason && <small className="leave-rejection-text">Reason: {row.managerRejectionReason}</small>}</td>
         <td>{row.status === "PENDING" ? <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager"}</small> : <><b>{row.decidedBy?.name || "-"}</b><small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>{row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
         {reviewMode && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager" : "Pending"}</td>}
