@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { fail, ok, saveUpload } from "@/lib/utils";
 import { sendPushToEmployees } from "@/lib/webPush";
+import { assertChatAllowed, getOtherParticipantId } from "@/lib/chatPermissions";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,6 +16,10 @@ export async function POST(req: NextRequest) {
     if (!text && (!file || !file.size)) throw new Error("Message required.");
     const part = await prisma.chatParticipant.findUnique({ where: { threadId_employeeId: { threadId, employeeId: session.id } } });
     if (!part) throw new Error("Unauthorized");
+    const otherId = await getOtherParticipantId(threadId, session.id);
+    if (!otherId) throw new Error("Conversation unavailable.");
+    await assertChatAllowed(session.id, otherId);
+
     let attachmentUrl = "";
     let attachmentName = "";
     if (file && file.size) {

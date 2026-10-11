@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export const permissionDefaults: Record<string, string> = {
+  employeePeerChatAllowed: "false",
   hrMenuDashboard: "true",
   hrMenuEmployees: "true",
   hrMenuAddUpload: "true",

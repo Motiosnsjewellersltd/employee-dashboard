@@ -3141,6 +3141,9 @@ function PermissionsPanel({ session }: { session: User }) {
     ["hrMenuLoginExport", "Login / Export"],
     ["hrMenuRecycleBin", "Recycle Bin"]
   ];
+  const chatAccessRows = [
+    ["employeePeerChatAllowed", "Normal Employee → Same Department Employee Chat"]
+  ];
   const actionRows = [
     ["hrCanAddEmployee", "Add or import employees"],
     ["hrCanEditEmployee", "Edit employees and bulk status/department"],
@@ -3160,7 +3163,7 @@ function PermissionsPanel({ session }: { session: User }) {
   ];
   const permissionRow = ([key, label]: string[]) => <label className="permission-row" key={key}><span>{label}</span><select disabled={session.role !== "ADMIN"} value={permissions[key] ?? "false"} onChange={e => setPermissions({ ...permissions, [key]: e.target.value })}><option value="true">Show / Allow</option><option value="false">Hide / Block</option></select></label>;
 
-  return <section className="panel permission-panel"><h1>HR Permission Control</h1><p className="permission-help">Choose which menu options HR can see and which actions HR can perform.</p><div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save HR Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
+  return <section className="panel permission-panel"><h1>Role Permission Control</h1><p className="permission-help">Control HR rights and employee chat access.</p><div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div><div><h2>Chat Access Control</h2>{chatAccessRows.map(permissionRow)}<p className="hint">Block = normal employees cannot chat with other normal employees. They can still chat with their Team Head / Floor Manager / HR / Admin. Allow = same-department employee-to-employee chat is enabled; cross-department chat stays blocked.</p></div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
 }
 
 function ReportingPanel({
