@@ -122,8 +122,21 @@ export function getFinancialYear(date = new Date()) {
 }
 
 export function monthEarned(month: number) {
-  const thirtyOne = [1, 3, 5, 7, 8, 10, 12];
-  return thirtyOne.includes(month) ? 2 : 1.5;
+  const earnedByMonth: Record<number, number> = {
+    1: 2,   // January
+    2: 2,   // February
+    3: 1.5, // March
+    4: 1.5, // April
+    5: 2,   // May
+    6: 2,   // June
+    7: 1.5, // July
+    8: 2,   // August
+    9: 2,   // September
+    10: 2,  // October
+    11: 1.5,// November
+    12: 2   // December
+  };
+  return earnedByMonth[month] ?? 0;
 }
 
 export function employeeEarnsLeaveInMonth(
