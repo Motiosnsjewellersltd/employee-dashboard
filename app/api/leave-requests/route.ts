@@ -71,7 +71,7 @@ const includePeople = {
 };
 
 const DESIGNING_DEPARTMENT = "DESIGNING";
-const DESIGNING_HEAD_EMPLOYEE_CODE = "1466"; // Cheshta Malik
+const DESIGNING_HEAD_EMPLOYEE_CODE = "7222"; // Cheshta Malik
 
 function isDesigningDepartment(value: unknown) {
   return String(value || "").trim().toUpperCase() === DESIGNING_DEPARTMENT;
@@ -80,12 +80,16 @@ function isDesigningDepartment(value: unknown) {
 async function findDesigningDepartmentHead() {
   return prisma.employee.findFirst({
     where: {
-      employeeCode: DESIGNING_HEAD_EMPLOYEE_CODE,
       status: "ACTIVE",
       exitDate: null,
-      deletedAt: null
+      deletedAt: null,
+      OR: [
+        { employeeCode: DESIGNING_HEAD_EMPLOYEE_CODE },
+        { mobile: "9461093869" },
+        { name: { equals: "Cheshta Malik", mode: "insensitive" } }
+      ]
     },
-    select: { id: true, name: true, employeeCode: true }
+    select: { id: true, name: true, employeeCode: true, mobile: true }
   });
 }
 
@@ -140,12 +144,12 @@ export async function POST(req: NextRequest) {
     if (!requester) throw new Error("Employee not found.");
 
     // Designing department has a fixed department-head approval stage:
-    // Designing employee -> Cheshta Malik (employee code 1466) -> HR/Admin final approval.
+    // Designing employee -> Cheshta Malik (employee code 7222) -> HR/Admin final approval.
     // All other departments keep the existing manager -> HR/Admin flow.
     let managers: { id: string; name: string }[] = [];
     if (isDesigningDepartment(requester.department)) {
       const designingHead = await findDesigningDepartmentHead();
-      if (!designingHead) throw new Error("Designing Department Head (Cheshta Malik - 1466) is not active or could not be found.");
+      if (!designingHead) throw new Error("Designing Department Head (Cheshta Malik - 7222) is not active or could not be found.");
       if (designingHead.id === requester.id) {
         managers = [];
       } else {

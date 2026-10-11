@@ -5944,7 +5944,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
 
   function rowCanAct(row: any) {
     if (row.status !== "PENDING") return false;
-    const isDesigningHead = String(session.employeeCode || "") === "1466";
+    const isDesigningHead = String(session.employeeCode || "") === "7222" || String(session.mobile || "") === "9461093869" || String(session.name || "").trim().toLowerCase() === "cheshta malik";
     const isDesigningRequest = String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING";
     if (isDesigningHead && isDesigningRequest && row.managerStatus === "PENDING") return true;
     if (canManagerReview && managerEmployeeReviewMode) return !isDesigningRequest && row.requester?.id !== session.id && row.managerStatus === "PENDING";
