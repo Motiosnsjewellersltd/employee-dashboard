@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import PushNotificationSetup from "./PushNotificationSetup";
 
 const SHOW_PROFILE_LEAVE_DATA = false;
+const SHOW_EMPLOYEE_CHAT = false;
 
 type User = {
   id: string;
@@ -998,7 +999,7 @@ const showHelpTickets =
   session.role === "EMPLOYEE" || hrAllowed("hrMenuHelpTickets");
   const showReminder = hrAllowed("hrMenuReminder");
   const showNotifications = session.role === "EMPLOYEE" || hrAllowed("hrMenuNotifications");
-  const showChat = session.role === "EMPLOYEE" || hrAllowed("hrMenuChat");
+  const showChat = session.role === "EMPLOYEE" ? SHOW_EMPLOYEE_CHAT : hrAllowed("hrMenuChat");
   const showResetPassword = hrAllowed("hrMenuResetPassword");
   const showLoginExport = hrAllowed("hrMenuLoginExport");
   const showRecycleBin = hrAllowed("hrMenuRecycleBin");
@@ -1310,7 +1311,7 @@ floorTeam: "My Team",
     />
   )}
 
-      {!isAdmin && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
+      {!isAdmin && showChat && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
       {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
