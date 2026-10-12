@@ -927,14 +927,27 @@ useEffect(() => {
 
       if (!res.ok || !json.ok) {
         const errorMessage = json.error || `Login failed (HTTP ${res.status}).`;
-        if (json.countFirstLoginInvalidAttempt) {
-          const nextCount = invalidLoginCount + 1;
+        const normalizedUsername = login.username.trim().toLowerCase();
+        const attemptKey = `motisons-first-login-invalid:${normalizedUsername}`;
+
+        if (json.code === "FIRST_LOGIN_USE_1234") {
+          // Any password other than 1234 gets guidance immediately and does not count.
+          sessionStorage.removeItem(attemptKey);
+          setInvalidLoginCount(0);
+          setShowFirstLoginSupport(false);
+        } else if (json.code === "FIRST_LOGIN_INVALID_USERNAME" && login.password.trim() === "1234") {
+          // Count only Invalid Login attempts made with temporary password 1234.
+          const storedCount = Number(sessionStorage.getItem(attemptKey) || "0");
+          const nextCount = storedCount + 1;
+          sessionStorage.setItem(attemptKey, String(nextCount));
           setInvalidLoginCount(nextCount);
           if (nextCount >= 3) setShowFirstLoginSupport(true);
         }
         throw new Error(errorMessage);
       }
 
+      const successAttemptKey = `motisons-first-login-invalid:${login.username.trim().toLowerCase()}`;
+      sessionStorage.removeItem(successAttemptKey);
       setInvalidLoginCount(0);
       setShowFirstLoginSupport(false);
       const data = json.data;
@@ -1008,8 +1021,10 @@ useEffect(() => {
       <div className="logo-box">MS</div>
       <h1>Login</h1>
       <label>Username / Mobile</label><input value={login.username} onChange={e => {
-        setLogin({ ...login, username: e.target.value });
-        setInvalidLoginCount(0);
+        const nextUsername = e.target.value;
+        setLogin({ ...login, username: nextUsername });
+        const attemptKey = `motisons-first-login-invalid:${nextUsername.trim().toLowerCase()}`;
+        setInvalidLoginCount(Number(sessionStorage.getItem(attemptKey) || "0"));
         setShowFirstLoginSupport(false);
       }} autoFocus />
       <label>Password</label>

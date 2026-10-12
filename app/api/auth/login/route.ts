@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
   let matchedUser: any = null;
   let deviceToken = "";
   let needsFirstLoginSupport = false;
-  let countFirstLoginInvalidAttempt = false;
   const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || null;
   const userAgent = req.headers.get("user-agent") || null;
 
@@ -45,29 +44,60 @@ export async function POST(req: NextRequest) {
       where: { deletedAt: null, OR: [{ mobile: username }, { name: username }] }
     });
     if (!matchedUser) {
-      // For an unknown mobile/username, first guide the user to use the temporary
-      // first-login password. Only attempts made with 1234 count toward the
-      // first-login support popup.
-      if (password !== "1234") {
-        throw new Error("For first login, please use temporary password: 1234");
-      }
+      // Unknown mobile/username: guide first-time users to the temporary password first.
+      // Only attempts made with 1234 are counted by the UI toward the support popup.
       needsFirstLoginSupport = true;
-      countFirstLoginInvalidAttempt = true;
-      throw new Error("Invalid login.");
+      if (password !== "1234") {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "For first login, please use temporary password: 1234",
+            code: "FIRST_LOGIN_USE_1234",
+            needsFirstLoginSupport: true,
+            countFirstLoginInvalidAttempt: false
+          },
+          { status: 401 }
+        );
+      }
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Invalid login.",
+          code: "FIRST_LOGIN_INVALID_USERNAME",
+          needsFirstLoginSupport: true,
+          countFirstLoginInvalidAttempt: true
+        },
+        { status: 401 }
+      );
     }
 
     const firstLoginPending = Boolean(matchedUser.mustChangePassword);
     const plainOk = matchedUser.password === password;
     const hashOk = matchedUser.password.startsWith("$2") ? await bcrypt.compare(password, matchedUser.password) : false;
     if (!plainOk && !hashOk) {
+      needsFirstLoginSupport = firstLoginPending;
       if (firstLoginPending && password !== "1234") {
-        throw new Error("For first login, please use temporary password: 1234");
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "For first login, please use temporary password: 1234",
+            code: "FIRST_LOGIN_USE_1234",
+            needsFirstLoginSupport: true,
+            countFirstLoginInvalidAttempt: false
+          },
+          { status: 401 }
+        );
       }
-      if (firstLoginPending && password === "1234") {
-        needsFirstLoginSupport = true;
-        countFirstLoginInvalidAttempt = true;
-      }
-      throw new Error("Invalid login.");
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Invalid login.",
+          code: firstLoginPending ? "FIRST_LOGIN_INVALID_USERNAME" : "INVALID_LOGIN",
+          needsFirstLoginSupport: firstLoginPending,
+          countFirstLoginInvalidAttempt: Boolean(firstLoginPending && password === "1234")
+        },
+        { status: 401 }
+      );
     }
     if (matchedUser.status !== "ACTIVE" || matchedUser.exitDate) throw new Error("You are an inactive employee.");
 
@@ -142,8 +172,7 @@ export async function POST(req: NextRequest) {
       {
         ok: false,
         error: e?.message || "Login failed.",
-        needsFirstLoginSupport,
-        countFirstLoginInvalidAttempt
+        needsFirstLoginSupport
       },
       { status: 401 }
     );
