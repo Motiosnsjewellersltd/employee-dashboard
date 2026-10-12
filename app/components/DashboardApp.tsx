@@ -3016,7 +3016,15 @@ function ProfileContent({
   />
 )}
 
-    {leaves?.branchHistory?.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{leaves.branchHistory.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch || "Not Assigned"}</td><td data-label="To">{item.toBranch === "UNASSIGNED" ? "Not Assigned" : item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null}
+    {(() => {
+      const actualBranchTransfers = (leaves?.branchHistory || []).filter(item => {
+        const from = String(item.fromBranch || "").trim();
+        const to = String(item.toBranch || "").trim();
+        const isAssigned = (value: string) => value && value.toUpperCase() !== "UNASSIGNED" && value.toLowerCase() !== "not assigned";
+        return isAssigned(from) && isAssigned(to) && from.toUpperCase() !== to.toUpperCase();
+      });
+      return actualBranchTransfers.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{actualBranchTransfers.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch}</td><td data-label="To">{item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null;
+    })()}
     {showProfileLeaveData && user.role !== "ADMIN" && <>
       <h2>Leave Balance</h2>
       {loading && <div className="profile-loading"><SkeletonCards count={4} /><div className="skeleton-table"><span /><span /><span /><span /></div></div>}

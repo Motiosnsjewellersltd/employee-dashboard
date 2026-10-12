@@ -146,7 +146,7 @@ export function employeeEarnsLeaveInMonth(
 ) {
   const monthKey = year * 12 + (month - 1);
   const eligibilityKey = employee.doj
-    ? employee.doj.getFullYear() * 12 + employee.doj.getMonth() + 3
+    ? employee.doj.getFullYear() * 12 + employee.doj.getMonth() + (employee.doj.getDate() > 20 ? 4 : 3)
     : null;
   if (eligibilityKey !== null && monthKey < eligibilityKey) return false;
 
