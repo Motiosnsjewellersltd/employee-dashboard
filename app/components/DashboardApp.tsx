@@ -927,12 +927,10 @@ useEffect(() => {
 
       if (!res.ok || !json.ok) {
         const errorMessage = json.error || `Login failed (HTTP ${res.status}).`;
-        if (String(errorMessage).toLowerCase().includes("invalid login")) {
+        if (json.needsFirstLoginSupport) {
           const nextCount = invalidLoginCount + 1;
           setInvalidLoginCount(nextCount);
-          if (nextCount >= 4 && json.needsFirstLoginSupport) {
-            setShowFirstLoginSupport(true);
-          }
+          if (nextCount >= 4) setShowFirstLoginSupport(true);
         }
         throw new Error(errorMessage);
       }

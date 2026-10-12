@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createToken, publicUser, setAuthCookie, setDeviceCookie } from "@/lib/auth";
-import { fail, ok } from "@/lib/utils";
+import { ok } from "@/lib/utils";
 
 async function writeLoginAttempt(data: {
   username: string;
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
   let username = "";
   let matchedUser: any = null;
   let deviceToken = "";
+  let needsFirstLoginSupport = false;
   const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || null;
   const userAgent = req.headers.get("user-agent") || null;
 
@@ -42,11 +43,26 @@ export async function POST(req: NextRequest) {
     matchedUser = await prisma.employee.findFirst({
       where: { deletedAt: null, OR: [{ mobile: username }, { name: username }] }
     });
-    if (!matchedUser) throw new Error("Invalid login.");
+    if (!matchedUser) {
+      // A wrong mobile/username can still be a first-login setup issue.
+      // Temporary password guidance is shown in English as requested.
+      needsFirstLoginSupport = true;
+      if (password !== "1234") {
+        throw new Error("For first login, please use temporary password: 1234");
+      }
+      throw new Error("Invalid login.");
+    }
 
+    const firstLoginPending = Boolean(matchedUser.mustChangePassword);
     const plainOk = matchedUser.password === password;
     const hashOk = matchedUser.password.startsWith("$2") ? await bcrypt.compare(password, matchedUser.password) : false;
-    if (!plainOk && !hashOk) throw new Error("Invalid login.");
+    if (!plainOk && !hashOk) {
+      needsFirstLoginSupport = firstLoginPending;
+      if (firstLoginPending && password !== "1234") {
+        throw new Error("For first login, please use temporary password: 1234");
+      }
+      throw new Error("Invalid login.");
+    }
     if (matchedUser.status !== "ACTIVE" || matchedUser.exitDate) throw new Error("You are an inactive employee.");
 
     // One device can be registered to only one employee. The binding survives logout.
@@ -116,13 +132,13 @@ export async function POST(req: NextRequest) {
       ipAddress,
       userAgent
     });
-    const message = e?.message || "Login failed.";
-    if (message === "Invalid login." && matchedUser?.mustChangePassword) {
-      return NextResponse.json(
-        { ok: false, error: message, needsFirstLoginSupport: true },
-        { status: 401 }
-      );
-    }
-    return fail(e, 401);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: e?.message || "Login failed.",
+        needsFirstLoginSupport
+      },
+      { status: 401 }
+    );
   }
 }
