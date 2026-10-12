@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createToken, publicUser, setAuthCookie, setDeviceCookie } from "@/lib/auth";
@@ -116,6 +116,13 @@ export async function POST(req: NextRequest) {
       ipAddress,
       userAgent
     });
+    const message = e?.message || "Login failed.";
+    if (message === "Invalid login." && matchedUser?.mustChangePassword) {
+      return NextResponse.json(
+        { ok: false, error: message, needsFirstLoginSupport: true },
+        { status: 401 }
+      );
+    }
     return fail(e, 401);
   }
 }

@@ -564,6 +564,8 @@ function DashboardAppInner() {
   const [login, setLogin] = useState({ username: "", password: "" });
   const [loginErr, setLoginErr] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [invalidLoginCount, setInvalidLoginCount] = useState(0);
+  const [showFirstLoginSupport, setShowFirstLoginSupport] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [section, setSection] = useState<Section>("dashboard");
   const [dashboardFilter, setDashboardFilter] = useState("All Employees");
@@ -923,8 +925,20 @@ useEffect(() => {
         throw new Error(`Login server returned an invalid response (HTTP ${res.status}).`);
       }
 
-      if (!res.ok || !json.ok) throw new Error(json.error || `Login failed (HTTP ${res.status}).`);
+      if (!res.ok || !json.ok) {
+        const errorMessage = json.error || `Login failed (HTTP ${res.status}).`;
+        if (String(errorMessage).toLowerCase().includes("invalid login")) {
+          const nextCount = invalidLoginCount + 1;
+          setInvalidLoginCount(nextCount);
+          if (nextCount >= 4 && json.needsFirstLoginSupport) {
+            setShowFirstLoginSupport(true);
+          }
+        }
+        throw new Error(errorMessage);
+      }
 
+      setInvalidLoginCount(0);
+      setShowFirstLoginSupport(false);
       const data = json.data;
       if (data.loginAttemptId) sessionStorage.setItem("motisons-login-attempt-id", String(data.loginAttemptId));
       if (data.deviceId) localStorage.setItem("motisons-device-id", String(data.deviceId));
@@ -943,6 +957,15 @@ useEffect(() => {
       window.clearTimeout(timeout);
     }
   }
+
+  useEffect(() => {
+    if (!showFirstLoginSupport) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowFirstLoginSupport(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showFirstLoginSupport]);
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST" });
@@ -986,7 +1009,11 @@ useEffect(() => {
     return <><LanguageToggle /><div className="login-page"><form className="login-card" onSubmit={submitLogin}>
       <div className="logo-box">MS</div>
       <h1>Login</h1>
-      <label>Username / Mobile</label><input value={login.username} onChange={e => setLogin({ ...login, username: e.target.value })} autoFocus />
+      <label>Username / Mobile</label><input value={login.username} onChange={e => {
+        setLogin({ ...login, username: e.target.value });
+        setInvalidLoginCount(0);
+        setShowFirstLoginSupport(false);
+      }} autoFocus />
       <label>Password</label>
       <div style={{ position: "relative" }}>
         <input
@@ -1022,7 +1049,80 @@ useEffect(() => {
       </div>
       <button className="primary">Login</button>
       {loginErr && <div className={loginErr.includes("Logging in") ? "msg warn" : "msg error"}>{loginErr}</div>}
-    </form>{isOffline && <OfflineNotice onRetry={retryConnection} />}</div></>;
+    </form>
+    {showFirstLoginSupport && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Login or technical issue support"
+        onClick={() => setShowFirstLoginSupport(false)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          background: "rgba(8, 30, 48, 0.52)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 18
+        }}
+      >
+        <div
+          onClick={event => event.stopPropagation()}
+          style={{
+            position: "relative",
+            width: "min(92vw, 520px)",
+            background: "#fff",
+            border: "1px solid #b9def5",
+            borderRadius: 22,
+            boxShadow: "0 22px 70px rgba(7, 51, 82, 0.28)",
+            padding: "28px 26px",
+            color: "#08243b"
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowFirstLoginSupport(false)}
+            aria-label="Close"
+            style={{
+              position: "absolute",
+              right: 14,
+              top: 12,
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              border: "1px solid #ffd0d0",
+              background: "#fff1f1",
+              color: "#d92d2d",
+              fontSize: 22,
+              fontWeight: 800,
+              cursor: "pointer"
+            }}
+          >
+            ×
+          </button>
+          <h2 style={{ margin: "0 42px 14px 0", color: "#0869ad", fontSize: 26 }}>
+            Login या Technical Issue?
+          </h2>
+          <p style={{ margin: "0 0 20px", lineHeight: 1.65, fontSize: 16 }}>
+            ऐप में Login (Invalid Login), Personal Details या Leave Data से संबंधित किसी भी समस्या के लिए संपर्क करें:
+          </p>
+          <div style={{
+            background: "#f1f9ff",
+            border: "1px solid #c8e8fb",
+            borderRadius: 16,
+            padding: "16px 18px",
+            lineHeight: 1.7,
+            fontSize: 16
+          }}>
+            <strong style={{ display: "block", fontSize: 19, marginBottom: 6 }}>Ghanshyam Jangir (Design Cabin)</strong>
+            <div>☎️ Cordless: 162 / 163</div>
+            <div>📱 Mobile: 7240166001</div>
+          </div>
+        </div>
+      </div>
+    )}
+    {isOffline && <OfflineNotice onRetry={retryConnection} />}</div></>;
   }
 
   if (session.mustChangePassword) {
