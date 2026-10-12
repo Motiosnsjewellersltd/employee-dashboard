@@ -559,6 +559,132 @@ function isOnline(u?: User | null) {
   return Date.now() - new Date(u.lastSeenAt).getTime() < 2 * 60 * 1000;
 }
 
+
+function ForgotPasswordModal({ mobile, onClose }: { mobile: string; onClose: () => void }) {
+  const [step, setStep] = useState<"mobile" | "otp" | "password" | "done">("mobile");
+  const [registeredMobile, setRegisteredMobile] = useState(mobile.replace(/\D/g, "").slice(-10));
+  const [requestId, setRequestId] = useState("");
+  const [otp, setOtp] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  async function post(url: string, body: any) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store"
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) throw new Error(json.error || "Request failed.");
+    return json.data;
+  }
+
+  async function sendOtp(e?: React.FormEvent) {
+    e?.preventDefault();
+    setBusy(true);
+    setMessage("Sending OTP on WhatsApp...");
+    try {
+      const data = await post("/api/auth/forgot-password/request", { mobile: registeredMobile });
+      setRequestId(data.requestId);
+      setStep("otp");
+      setMessage("OTP sent to your registered WhatsApp number. It is valid for 10 minutes.");
+    } catch (error: any) {
+      setMessage(error?.message || "Unable to send OTP.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyOtp(e?: React.FormEvent) {
+    e?.preventDefault();
+    setBusy(true);
+    setMessage("Verifying OTP...");
+    try {
+      const data = await post("/api/auth/forgot-password/verify", { requestId, otp });
+      setResetToken(data.resetToken);
+      setStep("password");
+      setMessage("OTP verified. Set your new 6-character password.");
+    } catch (error: any) {
+      setMessage(error?.message || "Unable to verify OTP.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resetPassword(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (password.length !== 6) {
+      setMessage("Password must be exactly 6 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setMessage("New password and confirm password do not match.");
+      return;
+    }
+    setBusy(true);
+    setMessage("Updating password...");
+    try {
+      await post("/api/auth/forgot-password/reset", { requestId, resetToken, password, confirmPassword });
+      setStep("done");
+      setMessage("Password changed successfully. You can now login with your new password.");
+    } catch (error: any) {
+      setMessage(error?.message || "Unable to reset password.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Forgot password"
+    onClick={onClose}
+    style={{ position: "fixed", inset: 0, zIndex: 10020, background: "rgba(8,30,48,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}
+  >
+    <div onClick={e => e.stopPropagation()} style={{ position: "relative", width: "min(94vw,520px)", background: "#fff", border: "1px solid #b9def5", borderRadius: 22, boxShadow: "0 24px 70px rgba(7,51,82,.28)", padding: "28px 26px", color: "#08243b" }}>
+      <button type="button" onClick={onClose} aria-label="Close" style={{ position: "absolute", right: 14, top: 12, width: 36, height: 36, borderRadius: 10, border: "1px solid #ffd0d0", background: "#fff1f1", color: "#d92d2d", fontSize: 22, fontWeight: 800, cursor: "pointer" }}>×</button>
+      <h2 style={{ margin: "0 42px 8px 0", color: "#0869ad", fontSize: 27 }}>Forgot Password</h2>
+      <p style={{ margin: "0 0 20px", color: "#66788a", lineHeight: 1.5 }}>Reset your password using the OTP sent to your registered WhatsApp number.</p>
+
+      {step === "mobile" && <form onSubmit={sendOtp}>
+        <label>Registered Mobile Number</label>
+        <input inputMode="numeric" value={registeredMobile} onChange={e => setRegisteredMobile(e.target.value.replace(/\D/g, "").slice(0, 12))} placeholder="Enter registered mobile number" autoFocus />
+        <button type="submit" className="primary" disabled={busy || registeredMobile.length < 10} style={{ width: "100%", marginTop: 14 }}>{busy ? "Sending..." : "Send OTP"}</button>
+      </form>}
+
+      {step === "otp" && <form onSubmit={verifyOtp}>
+        <label>Enter OTP</label>
+        <input inputMode="numeric" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit OTP" autoFocus />
+        <button type="submit" className="primary" disabled={busy || otp.length !== 6} style={{ width: "100%", marginTop: 14 }}>{busy ? "Verifying..." : "Verify OTP"}</button>
+        <button type="button" className="light" disabled={busy} onClick={sendOtp} style={{ width: "100%", marginTop: 10 }}>Resend OTP</button>
+      </form>}
+
+      {step === "password" && <form onSubmit={resetPassword}>
+        <label>New Password</label>
+        <input type="password" maxLength={6} value={password} onChange={e => setPassword(e.target.value.slice(0, 6))} placeholder="Exactly 6 characters" autoFocus />
+        <label style={{ marginTop: 12 }}>Confirm New Password</label>
+        <input type="password" maxLength={6} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value.slice(0, 6))} placeholder="Re-enter new password" />
+        <button type="submit" className="primary" disabled={busy || password.length !== 6 || confirmPassword.length !== 6} style={{ width: "100%", marginTop: 14 }}>{busy ? "Updating..." : "Set New Password"}</button>
+      </form>}
+
+      {step === "done" && <button type="button" className="primary" onClick={onClose} style={{ width: "100%" }}>Back to Login</button>}
+      {message && <div className={step === "done" ? "msg success" : "msg warn"} style={{ marginTop: 14 }}>{message}</div>}
+    </div>
+  </div>;
+}
+
 function DashboardAppInner() {
   const [session, setSession] = useState<User | null>(null);
   const [login, setLogin] = useState({ username: "", password: "" });
@@ -566,6 +692,8 @@ function DashboardAppInner() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [invalidLoginCount, setInvalidLoginCount] = useState(0);
   const [showFirstLoginSupport, setShowFirstLoginSupport] = useState(false);
+  const [forgotEligible, setForgotEligible] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [section, setSection] = useState<Section>("dashboard");
   const [dashboardFilter, setDashboardFilter] = useState("All Employees");
@@ -877,6 +1005,23 @@ useEffect(() => {
     };
   }, [session]);
 
+
+  useEffect(() => {
+    const mobile = login.username.replace(/\D/g, "");
+    setForgotEligible(false);
+    if (mobile.length < 10) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/forgot-password/eligibility?mobile=${encodeURIComponent(mobile)}`, { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+        setForgotEligible(Boolean(res.ok && json?.ok && json?.data?.eligible));
+      } catch {
+        setForgotEligible(false);
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [login.username]);
+
   async function submitLogin(e?: React.FormEvent) {
     e?.preventDefault();
     if (!window.navigator.onLine) {
@@ -1061,8 +1206,10 @@ useEffect(() => {
         </button>
       </div>
       <button className="primary">Login</button>
+      {forgotEligible && <button type="button" onClick={() => setShowForgotPassword(true)} style={{ marginTop: 10, border: 0, background: "transparent", color: "#0b6fb8", fontWeight: 800, cursor: "pointer", textDecoration: "underline", width: "100%" }}>Forgot Password?</button>}
       {loginErr && <div className={loginErr.includes("Logging in") ? "msg warn" : "msg error"}>{loginErr}</div>}
     </form>
+    {showForgotPassword && <ForgotPasswordModal mobile={login.username} onClose={() => setShowForgotPassword(false)} />}
     {showFirstLoginSupport && (
       <div
         role="dialog"

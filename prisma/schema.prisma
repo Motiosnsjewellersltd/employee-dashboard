@@ -84,6 +84,7 @@ model Employee {
   uploadedEmployeeReports EmployeeReport[]    @relation("EmployeeReportUploader")
   notesReceived           EmployeeNote[]      @relation("EmployeeNoteRecipient")
   notesCreated            EmployeeNote[]      @relation("EmployeeNoteCreator")
+  passwordResetOtps       PasswordResetOtp[]
   officialDutyRequests     OfficialDutyRequest[] @relation("OfficialDutyRequester")
   officialDutySentBy       OfficialDutyRequest[] @relation("OfficialDutySender")
   officialDutyHrDecisions  OfficialDutyRequest[] @relation("OfficialDutyHrDecider")
@@ -99,6 +100,26 @@ model Employee {
   @@index([floor])
   @@index([isFloorManager])
   @@index([managerScope])
+}
+
+model PasswordResetOtp {
+  id                  String    @id @default(cuid())
+  employeeId          String
+  mobile              String
+  otpHash             String
+  expiresAt           DateTime
+  attempts            Int       @default(0)
+  verifiedAt          DateTime?
+  resetTokenHash      String?
+  resetTokenExpiresAt DateTime?
+  usedAt              DateTime?
+  createdAt           DateTime  @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, createdAt])
+  @@index([mobile, createdAt])
+  @@index([expiresAt])
 }
 
 model EmploymentHistory {
