@@ -100,7 +100,7 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bOfficial Duty Request\b/g, "आधिकारिक कार्य अनुरोध"],
   [/\bOfficial Duty Requests\b/g, "आधिकारिक कार्य अनुरोध"],
   [/\bSent By Type\b/g, "किसने भेजा"],
-  [/\bOwner Name\b/g, "मालिक का नाम"],
+  [/\bManagement Name\b/g, "प्रबंधन का नाम"],
   [/\bSelect HR\b/g, "एचआर चुनें"],
   [/\bSelect Senior\b/g, "वरिष्ठ चुनें"],
   [/\bApproval Flow\b/g, "स्वीकृति प्रक्रिया"],
@@ -1206,7 +1206,7 @@ useEffect(() => {
         </button>
       </div>
       <button className="primary">Login</button>
-      {forgotEligible && <button type="button" onClick={() => setShowForgotPassword(true)} style={{ marginTop: 10, border: 0, background: "transparent", color: "#0b6fb8", fontWeight: 800, cursor: "pointer", textDecoration: "underline", width: "100%" }}>Forgot Password?</button>}
+      <button type="button" onClick={() => setShowForgotPassword(true)} style={{ marginTop: 10, border: 0, background: "transparent", color: "#0b6fb8", fontWeight: 800, cursor: "pointer", textDecoration: "underline", width: "100%" }}>Forgot Password?</button>
       {loginErr && <div className={loginErr.includes("Logging in") ? "msg warn" : "msg error"}>{loginErr}</div>}
     </form>
     {showForgotPassword && <ForgotPasswordModal mobile={login.username} onClose={() => setShowForgotPassword(false)} />}
@@ -5644,10 +5644,10 @@ function OfficialDutyPanel({ session }: { session: User }) {
           <select value={form.sentByType} onChange={e => setForm({ ...form, sentByType: e.target.value, sentById: "", ownerName: "" })}>
             <option value="SENIOR">Senior - Team Head / Floor Manager</option>
             <option value="HR">HR</option>
-            <option value="OWNER">Owner</option>
+            <option value="OWNER">Management</option>
           </select>
         </label>
-        {form.sentByType === "OWNER" ? <label>Owner Name<input value={form.ownerName} onChange={e => setForm({ ...form, ownerName: e.target.value })} placeholder="Enter owner's name" required /></label> : <label>{form.sentByType === "HR" ? "Select HR" : "Select Senior"}
+        {form.sentByType === "OWNER" ? <label>Management Name<input value={form.ownerName} onChange={e => setForm({ ...form, ownerName: e.target.value })} placeholder="Enter management name" required /></label> : <label>{form.sentByType === "HR" ? "Select HR" : "Select Senior"}
           <select value={form.sentById} onChange={e => setForm({ ...form, sentById: e.target.value })} required>
             <option value="">{form.sentByType === "HR" ? "Select HR" : "Select Team Head / Floor Manager"}</option>
             {(form.sentByType === "HR" ? hrApprovers : seniorApprovers).map((person: any) => <option key={person.id} value={person.id}>{person.name}{person.designation ? ` - ${person.designation}` : ""}</option>)}
@@ -5686,7 +5686,7 @@ function OfficialDutyPanel({ session }: { session: User }) {
         </div>
         <div className="official-duty-meta">
           <div><small>Work Purpose</small><b>{request.purpose}</b></div>
-          <div><small>Sent By</small><b>{request.sentByType === "OWNER" ? `Owner - ${request.ownerName || "-"}` : request.sentBy?.name || "-"}</b></div>
+          <div><small>Sent By</small><b>{request.sentByType === "OWNER" ? `Management - ${request.ownerName || "-"}` : request.sentBy?.name || "-"}</b></div>
           <div><small>Approval Flow</small><b>{request.approvalMode === "ONE_STEP" ? "1-Step" : "2-Step"}</b></div>
           <div><small>Senior Approval</small><b>{request.approvalMode === "ONE_STEP" ? "Not Required" : statusLabel(request.senderStatus)}</b></div>
           <div><small>HR Approval</small><b>{statusLabel(request.hrStatus)}</b></div>
