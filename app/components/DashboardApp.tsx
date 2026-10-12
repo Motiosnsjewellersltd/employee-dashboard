@@ -1648,10 +1648,75 @@ floorTeam: "My Team",
   />
 )}
     {profilePhotoPreview && (
-      <div className="profile-photo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${profilePhotoPreview.name} profile photo`} onClick={() => setProfilePhotoPreview(null)}>
-        <div className="profile-photo-preview-dialog" onClick={event => event.stopPropagation()}>
-          <button className="profile-photo-preview-close" type="button" aria-label="Close profile photo" onClick={() => setProfilePhotoPreview(null)}>×</button>
-          <img src={profilePhotoPreview.src} alt={`${profilePhotoPreview.name} profile`} />
+      <div
+        className="profile-photo-preview-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${profilePhotoPreview.name} profile photo`}
+        onClick={() => setProfilePhotoPreview(null)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 12000,
+          background: "rgba(7, 27, 43, 0.72)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 18,
+          overflow: "hidden"
+        }}
+      >
+        <div
+          className="profile-photo-preview-dialog"
+          onClick={event => event.stopPropagation()}
+          style={{
+            position: "relative",
+            width: "min(92vw, 720px)",
+            maxHeight: "88vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#fff",
+            borderRadius: 20,
+            padding: 14,
+            boxShadow: "0 24px 70px rgba(0,0,0,.35)",
+            overflow: "hidden"
+          }}
+        >
+          <button
+            className="profile-photo-preview-close"
+            type="button"
+            aria-label="Close profile photo"
+            onClick={() => setProfilePhotoPreview(null)}
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              zIndex: 2,
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              border: "1px solid #ffd0d0",
+              background: "#fff1f1",
+              color: "#d92d2d",
+              fontSize: 24,
+              fontWeight: 900,
+              cursor: "pointer"
+            }}
+          >×</button>
+          <img
+            src={profilePhotoPreview.src}
+            alt={`${profilePhotoPreview.name} profile`}
+            style={{
+              display: "block",
+              maxWidth: "100%",
+              maxHeight: "calc(88vh - 28px)",
+              width: "auto",
+              height: "auto",
+              objectFit: "contain",
+              borderRadius: 14
+            }}
+          />
         </div>
       </div>
     )}

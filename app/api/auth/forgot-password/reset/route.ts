@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { clearAuthCookie } from "@/lib/auth";
 import { hashResetToken } from "@/lib/passwordReset";
 import { ok } from "@/lib/utils";
 
@@ -12,9 +13,15 @@ export async function POST(req: NextRequest) {
     const password = String(body.password || "");
     const confirmPassword = String(body.confirmPassword || "");
 
-    if (!requestId || !resetToken) return NextResponse.json({ ok: false, error: "Password reset session is invalid." }, { status: 400 });
-    if (password.length !== 6) return NextResponse.json({ ok: false, error: "Password must be exactly 6 characters." }, { status: 400 });
-    if (password !== confirmPassword) return NextResponse.json({ ok: false, error: "New password and confirm password do not match." }, { status: 400 });
+    if (!requestId || !resetToken) {
+      return NextResponse.json({ ok: false, error: "Password reset session is invalid." }, { status: 400 });
+    }
+    if (password.length !== 6) {
+      return NextResponse.json({ ok: false, error: "Password must be exactly 6 characters." }, { status: 400 });
+    }
+    if (password !== confirmPassword) {
+      return NextResponse.json({ ok: false, error: "New password and confirm password do not match." }, { status: 400 });
+    }
 
     const record = await (prisma as any).passwordResetOtp.findUnique({ where: { id: requestId } });
     if (!record || record.usedAt || !record.verifiedAt || !record.resetTokenHash || !record.resetTokenExpiresAt) {
@@ -35,17 +42,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Please complete first login password setup instead." }, { status: 400 });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    await prisma.$transaction([
-      (prisma as any).employee.update({
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await prisma.$transaction(async tx => {
+      await tx.employee.update({
         where: { id: employee.id },
-        data: { password: passwordHash, mustChangePassword: false }
-      }),
-      (prisma as any).passwordResetOtp.update({
-        where: { id: record.id },
+        data: {
+          password: passwordHash,
+          mustChangePassword: false
+        }
+      });
+
+      await (tx as any).passwordResetOtp.updateMany({
+        where: {
+          employeeId: employee.id,
+          usedAt: null
+        },
         data: { usedAt: new Date() }
-      })
-    ]);
+      });
+    });
+
+    // Verify the exact password that was just saved before reporting success.
+    const refreshed = await prisma.employee.findUnique({
+      where: { id: employee.id },
+      select: { password: true, mustChangePassword: true }
+    });
+    const savedOk = Boolean(refreshed?.password?.startsWith("$2")) && await bcrypt.compare(password, refreshed!.password);
+    if (!savedOk || refreshed?.mustChangePassword) {
+      return NextResponse.json({ ok: false, error: "Password could not be saved. Please try again." }, { status: 500 });
+    }
+
+    // Remove any existing web session on this browser so the next access must use the new password.
+    await clearAuthCookie();
 
     return ok({ reset: true });
   } catch (error: any) {
