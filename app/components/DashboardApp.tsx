@@ -3036,7 +3036,8 @@ function ProfileContent({
           const previousBalance = index > 0 ? Number(leaves.balance.rows[index - 1]?.balance || 0) : 0;
           const availableThisMonth = previousBalance + Number(r.earned || 0);
           const isOverused = Number(r.used || 0) > availableThisMonth;
-          return <tr key={r.monthYear} style={isOverused ? { backgroundColor: "#fff8d8" } : undefined}><td data-label="Month/Year">{r.monthYear}</td><td data-label="Earned">{r.earned}</td><td data-label="Used">{r.used}</td><td data-label="Balance" className="green">{r.balance}</td></tr>;
+          const overuseCellStyle = isOverused ? { backgroundColor: "#fff8d8" } : undefined;
+          return <tr key={r.monthYear}><td style={overuseCellStyle} data-label="Month/Year">{r.monthYear}</td><td style={overuseCellStyle} data-label="Earned">{r.earned}</td><td style={overuseCellStyle} data-label="Used">{r.used}</td><td style={overuseCellStyle} data-label="Balance" className="green">{r.balance}</td></tr>;
         })}</tbody></table></div>}
         {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
       </>}
@@ -4974,6 +4975,10 @@ function EmployeeNotes({
         minute: "2-digit"
       }
     );
+  }
+
+  if (!loading && !canAdd && notes.length === 0 && !msg) {
+    return null;
   }
 
   return (
