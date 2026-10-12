@@ -3033,9 +3033,9 @@ function ProfileContent({
       {leaves && <>
         <div className="cards small"><div className="stat"><span>Financial Year</span><b>{leaves.balance.financialYear}</b></div><div className="stat"><span>Earned Till Current Month</span><b>{leaves.balance.earned}</b></div><div className="stat"><span>Used Leaves till Last Month</span><b>{leaves.balance.used}</b></div><div className={leaves.balance.negativeBalanceWarning ? "stat negative-balance-stat" : "stat"}><span>Current Balance till Month</span><b>{leaves.balance.currentBalance}</b></div></div>
         {leaves.balance.rows.length > 0 && <div className="mobile-cards-table leave-balance-table"><table><thead><tr><th>Month/Year</th><th>Earned</th><th>Used</th><th>Balance</th></tr></thead><tbody>{leaves.balance.rows.map((r, index) => {
-          const cumulativeEarned = leaves.balance.rows.slice(0, index + 1).reduce((sum, row) => sum + Number(row.earned || 0), 0);
-          const cumulativeUsed = leaves.balance.rows.slice(0, index + 1).reduce((sum, row) => sum + Number(row.used || 0), 0);
-          const isOverused = cumulativeUsed > cumulativeEarned;
+          const previousBalance = index > 0 ? Number(leaves.balance.rows[index - 1]?.balance || 0) : 0;
+          const availableThisMonth = previousBalance + Number(r.earned || 0);
+          const isOverused = Number(r.used || 0) > availableThisMonth;
           return <tr key={r.monthYear} style={isOverused ? { backgroundColor: "#fff8d8" } : undefined}><td data-label="Month/Year">{r.monthYear}</td><td data-label="Earned">{r.earned}</td><td data-label="Used">{r.used}</td><td data-label="Balance" className="green">{r.balance}</td></tr>;
         })}</tbody></table></div>}
         {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
