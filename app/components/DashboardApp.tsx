@@ -161,6 +161,7 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bNot Assigned\b/g, "निर्धारित नहीं"],
   [/\bLeave Balance\b/g, "अवकाश शेष"],
   [/\bEarned Till Current Month\b/g, "वर्तमान माह तक अर्जित"],
+  [/\bUsed Leaves till Last Month\b/g, "पिछले माह तक उपयोग किए गए अवकाश"],
   [/\bUsed Leaves\b/g, "उपयोग किए गए अवकाश"],
   [/\bMonthwise Leaves\b/g, "माहवार अवकाश"],
   [/\bMonth\/Year\b/g, "माह/वर्ष"],
@@ -190,6 +191,7 @@ const HINDI_UI_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bShow All Requests\b/g, "सभी अनुरोध दिखाएँ"],
   [/\bCurrent FY Leave\b/g, "वर्तमान वित्तीय वर्ष का अवकाश"],
   [/\bFinancial Year\b/g, "वित्तीय वर्ष"],
+  [/\bCurrent Balance till Month\b/g, "वर्तमान माह तक शेष"],
   [/\bCurrent Balance\b/g, "वर्तमान शेष"],
   [/\bNo employees found\b/g, "कोई कर्मचारी नहीं मिला"],
   [/\bNo employee found\b/g, "कोई कर्मचारी नहीं मिला"],
@@ -3029,9 +3031,8 @@ function ProfileContent({
       <h2>Leave Balance</h2>
       {loading && <div className="profile-loading"><SkeletonCards count={4} /><div className="skeleton-table"><span /><span /><span /><span /></div></div>}
       {leaves && <>
-        <div className="cards small"><div className="stat"><span>Financial Year</span><b>{leaves.balance.financialYear}</b></div><div className="stat"><span>Earned Till Current Month</span><b>{leaves.balance.earned}</b></div><div className="stat"><span>Used Leaves</span><b>{leaves.balance.used}</b></div><div className={leaves.balance.negativeBalanceWarning ? "stat negative-balance-stat" : "stat"}><span>Current Balance</span><b>{leaves.balance.currentBalance}</b></div></div>
-        {leaves.balance.negativeBalanceWarning && <div className="negative-balance-warning print-exclude">⚠ Leave usage exceeded the available balance by {leaves.balance.excessUsed || 0} leave(s) in the current financial year.</div>}
-        {leaves.balance.rows.length > 0 && <div className="mobile-cards-table leave-balance-table"><table><thead><tr><th>Month/Year</th><th>Earned</th><th>Used</th><th>Balance</th></tr></thead><tbody>{leaves.balance.rows.map(r => <tr key={r.monthYear}><td data-label="Month/Year">{r.monthYear}</td><td data-label="Earned">{r.earned}</td><td data-label="Used">{r.used}</td><td data-label="Balance" className="green">{r.balance}</td></tr>)}</tbody></table></div>}
+        <div className="cards small"><div className="stat"><span>Financial Year</span><b>{leaves.balance.financialYear}</b></div><div className="stat"><span>Earned Till Current Month</span><b>{leaves.balance.earned}</b></div><div className="stat"><span>Used Leaves till Last Month</span><b>{leaves.balance.used}</b></div><div className={leaves.balance.negativeBalanceWarning ? "stat negative-balance-stat" : "stat"}><span>Current Balance till Month</span><b>{leaves.balance.currentBalance}</b></div></div>
+        {leaves.balance.rows.length > 0 && <div className="mobile-cards-table leave-balance-table"><table><thead><tr><th>Month/Year</th><th>Earned</th><th>Used</th><th>Balance</th></tr></thead><tbody>{leaves.balance.rows.map(r => <tr key={r.monthYear} style={Number(r.used) > Number(r.earned) ? { backgroundColor: "#fff8d8" } : undefined}><td data-label="Month/Year">{r.monthYear}</td><td data-label="Earned">{r.earned}</td><td data-label="Used">{r.used}</td><td data-label="Balance" className="green">{r.balance}</td></tr>)}</tbody></table></div>}
         {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
       </>}
     </>}
