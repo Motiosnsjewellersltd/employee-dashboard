@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
   let matchedUser: any = null;
   let deviceToken = "";
   let needsFirstLoginSupport = false;
+  let countFirstLoginInvalidAttempt = false;
   const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || null;
   const userAgent = req.headers.get("user-agent") || null;
 
@@ -44,12 +45,14 @@ export async function POST(req: NextRequest) {
       where: { deletedAt: null, OR: [{ mobile: username }, { name: username }] }
     });
     if (!matchedUser) {
-      // A wrong mobile/username can still be a first-login setup issue.
-      // Temporary password guidance is shown in English as requested.
-      needsFirstLoginSupport = true;
+      // For an unknown mobile/username, first guide the user to use the temporary
+      // first-login password. Only attempts made with 1234 count toward the
+      // first-login support popup.
       if (password !== "1234") {
         throw new Error("For first login, please use temporary password: 1234");
       }
+      needsFirstLoginSupport = true;
+      countFirstLoginInvalidAttempt = true;
       throw new Error("Invalid login.");
     }
 
@@ -57,9 +60,12 @@ export async function POST(req: NextRequest) {
     const plainOk = matchedUser.password === password;
     const hashOk = matchedUser.password.startsWith("$2") ? await bcrypt.compare(password, matchedUser.password) : false;
     if (!plainOk && !hashOk) {
-      needsFirstLoginSupport = firstLoginPending;
       if (firstLoginPending && password !== "1234") {
         throw new Error("For first login, please use temporary password: 1234");
+      }
+      if (firstLoginPending && password === "1234") {
+        needsFirstLoginSupport = true;
+        countFirstLoginInvalidAttempt = true;
       }
       throw new Error("Invalid login.");
     }
@@ -136,7 +142,8 @@ export async function POST(req: NextRequest) {
       {
         ok: false,
         error: e?.message || "Login failed.",
-        needsFirstLoginSupport
+        needsFirstLoginSupport,
+        countFirstLoginInvalidAttempt
       },
       { status: 401 }
     );
