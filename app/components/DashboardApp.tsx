@@ -1590,6 +1590,129 @@ floorTeam: "My Team",
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}
       {section === "changePassword" && <PasswordChangePanel session={session} onChanged={setSession} />}
     </main>
+
+
+<style>{`
+@media (max-width: 900px) {
+  .app-shell .mobile-bottom-nav {
+    position: fixed !important;
+    display: flex !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    height: 70px !important;
+    padding: 0 5px 4px !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(11, 111, 184, .08) !important;
+    border-radius: 26px !important;
+    box-shadow: 0 12px 30px rgba(7, 51, 82, .18) !important;
+    align-items: stretch !important;
+    justify-content: space-around !important;
+    overflow: visible !important;
+    z-index: 1100 !important;
+  }
+
+  .app-shell .mobile-bottom-nav .mobile-nav-item {
+    position: relative !important;
+    display: flex !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    gap: 0 !important;
+  }
+
+  .app-shell .mobile-bottom-nav .mobile-nav-item::before {
+    content: "";
+    position: absolute;
+    top: -23px;
+    left: 50%;
+    width: 74px;
+    height: 42px;
+    background: #ffffff;
+    border-radius: 45px 45px 0 0;
+    opacity: 0;
+    transform: translateX(-50%) scale(.7);
+    transition: opacity .3s ease, transform .4s ease;
+    pointer-events: none;
+  }
+
+  .app-shell .mobile-bottom-nav .mobile-nav-item.active::before {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+
+  .app-shell .mobile-bottom-nav .mobile-nav-item > span {
+    position: absolute !important;
+    z-index: 1;
+    top: 0 !important;
+    left: 50% !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 58px !important;
+    height: 58px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    border: 6px solid transparent !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    color: #526a80 !important;
+    font-size: 25px !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+    transform: translate(-50%, 0) scale(.78) !important;
+    transition:
+      transform .42s cubic-bezier(.2,.85,.2,1),
+      background-color .35s ease,
+      border-color .35s ease,
+      color .35s ease,
+      box-shadow .35s ease !important;
+  }
+
+  .app-shell .mobile-bottom-nav .mobile-nav-item.active > span {
+    background: #0b6fb8 !important;
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+    box-shadow: 0 9px 20px rgba(11,111,184,.3) !important;
+    transform: translate(-50%, -25px) scale(1) !important;
+  }
+
+  .app-shell .mobile-bottom-nav .mobile-nav-item > b {
+    display: block !important;
+    position: relative !important;
+    z-index: 2;
+    width: 100% !important;
+    margin: 0 0 4px !important;
+    text-align: center !important;
+    font-size: clamp(8px, 2.15vw, 10px) !important;
+    line-height: 1.25 !important;
+    font-weight: 600 !important;
+    color: #617185 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transform: none !important;
+  }
+
+  .app-shell .mobile-bottom-nav .mobile-nav-item.active > b {
+    color: #0b6fb8 !important;
+    font-weight: 700 !important;
+  }
+}
+`}</style>
+
+
+
+
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
       {isAdmin ? <>
         {showDashboard && <MobileNavItem label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
