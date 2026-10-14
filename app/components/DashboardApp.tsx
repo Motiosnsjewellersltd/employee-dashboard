@@ -1683,7 +1683,7 @@ floorTeam: "My Team",
     color: #ffffff !important;
     border-color: #ffffff !important;
     box-shadow: 0 9px 20px rgba(11,111,184,.3) !important;
-    transform: translate(-50%, -25px) scale(1) !important;
+    transform: translate(-50%, -12px) scale(1) !important;
   }
 
   .app-shell .mobile-bottom-nav .mobile-nav-item > b {
