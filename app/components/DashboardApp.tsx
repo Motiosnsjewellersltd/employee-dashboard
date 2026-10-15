@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PushNotificationSetup from "./PushNotificationSetup";
+import SchemeIncentives from "./SchemeIncentives";
 
 type User = {
   id: string;
@@ -56,6 +57,7 @@ type Section =
   | "recycle"
   | "systemHealth"
   | "profile"
+  | "schemes"
   | "changePassword";
 
 
@@ -712,6 +714,7 @@ function DashboardAppInner() {
   const [profileLeaves, setProfileLeaves] = useState<LeaveInfo | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [schemeVisibleEmployeeId, setSchemeVisibleEmployeeId] = useState("");
   const [notice, setNotice] = useState("");
   const [employeeFeatures, setEmployeeFeatures] = useState({ profileLeavesVisible: false, employeeChatVisible: false });
 const [
@@ -887,6 +890,34 @@ hrCanManageReports: "true",
       document.body.style.touchAction = previousTouchAction;
     };
   }, [menuOpen]);
+
+  // Feature starts HIDDEN for every employee until Admin grants permission.
+  // Visibility is checked against the backend, including when the browser regains focus.
+  useEffect(() => {
+    if (!session || session.role !== "EMPLOYEE" || session.mustChangePassword) {
+      setSchemeVisibleEmployeeId("");
+      return;
+    }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await fetch("/api/permissions/schemes/access", { cache: "no-store" });
+        const json = await response.json();
+        const visible = Boolean(response.ok && json?.ok && json?.data?.visible);
+        if (!active) return;
+        setSchemeVisibleEmployeeId(visible ? session.id : "");
+        if (!visible) setSection(current => current === "schemes" ? "profile" : current);
+      } catch {
+        if (!active) return;
+        setSchemeVisibleEmployeeId("");
+        setSection(current => current === "schemes" ? "profile" : current);
+      }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [session?.id, session?.role, session?.mustChangePassword]);
 
   useEffect(() => {
     if (!session || session.mustChangePassword) return;
@@ -1307,6 +1338,7 @@ const showHelpTickets =
   const showReminder = hrAllowed("hrMenuReminder");
   const showNotifications = session.role === "EMPLOYEE" || hrAllowed("hrMenuNotifications");
   const showChat = session.role === "EMPLOYEE" ? employeeFeatures.employeeChatVisible : hrAllowed("hrMenuChat");
+  const showSchemes = session.role === "EMPLOYEE" && schemeVisibleEmployeeId === session.id;
   const showResetPassword = hrAllowed("hrMenuResetPassword");
   const showLoginExport = hrAllowed("hrMenuLoginExport");
   const showRecycleBin = hrAllowed("hrMenuRecycleBin");
@@ -1356,7 +1388,7 @@ const canManageReports =
   const sectionTitles: Record<Section, string> = {
     dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders",
     notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login / Export",
-    export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile", changePassword: "Change Password",helpTickets: "Help Tickets",
+    export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile", schemes: "Scheme & Incentives", changePassword: "Change Password",helpTickets: "Help Tickets",
 reporting: session.role === "EMPLOYEE"
   ? "My Reports"
   : "Reporting Management",
@@ -1503,6 +1535,7 @@ floorTeam: "My Team",
 )}
 
         {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
+        {showSchemes && <MenuItem label="Scheme & Incentives" icon="₹" active={section === "schemes"} onClick={() => goto("schemes")} />}
         <MenuItem label="Change Password" icon="🔒" active={section === "changePassword"} onClick={() => goto("changePassword")} />
         <MenuItem label="Logout" icon="ↄ" active={false} onClick={logout} />
       </nav>
@@ -1588,131 +1621,9 @@ floorTeam: "My Team",
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}
+      {section === "schemes" && showSchemes && <SchemeIncentives salespersonName={session.name} onAccessRevoked={() => { setSchemeVisibleEmployeeId(""); goto("profile"); }} />}
       {section === "changePassword" && <PasswordChangePanel session={session} onChanged={setSession} />}
     </main>
-
-
-<style>{`
-@media (max-width: 900px) {
-  .app-shell .mobile-bottom-nav {
-    position: fixed !important;
-    display: flex !important;
-    left: 12px !important;
-    right: 12px !important;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
-    width: auto !important;
-    height: 70px !important;
-    padding: 0 5px 4px !important;
-    background: #ffffff !important;
-    border: 1px solid rgba(11, 111, 184, .08) !important;
-    border-radius: 26px !important;
-    box-shadow: 0 12px 30px rgba(7, 51, 82, .18) !important;
-    align-items: stretch !important;
-    justify-content: space-around !important;
-    overflow: visible !important;
-    z-index: 1100 !important;
-  }
-
-  .app-shell .mobile-bottom-nav .mobile-nav-item {
-    position: relative !important;
-    display: flex !important;
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    height: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    gap: 0 !important;
-  }
-
-  .app-shell .mobile-bottom-nav .mobile-nav-item::before {
-    content: "";
-    position: absolute;
-    top: -23px;
-    left: 50%;
-    width: 74px;
-    height: 42px;
-    background: #ffffff;
-    border-radius: 45px 45px 0 0;
-    opacity: 0;
-    transform: translateX(-50%) scale(.7);
-    transition: opacity .3s ease, transform .4s ease;
-    pointer-events: none;
-  }
-
-  .app-shell .mobile-bottom-nav .mobile-nav-item.active::before {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
-
-  .app-shell .mobile-bottom-nav .mobile-nav-item > span {
-    position: absolute !important;
-    z-index: 1;
-    top: 0 !important;
-    left: 50% !important;
-    display: grid !important;
-    place-items: center !important;
-    width: 58px !important;
-    height: 58px !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
-    border: 6px solid transparent !important;
-    border-radius: 50% !important;
-    background: transparent !important;
-    color: #526a80 !important;
-    font-size: 25px !important;
-    line-height: 1 !important;
-    box-shadow: none !important;
-    transform: translate(-50%, 0) scale(.78) !important;
-    transition:
-      transform .42s cubic-bezier(.2,.85,.2,1),
-      background-color .35s ease,
-      border-color .35s ease,
-      color .35s ease,
-      box-shadow .35s ease !important;
-  }
-
-  .app-shell .mobile-bottom-nav .mobile-nav-item.active > span {
-    background: #0b6fb8 !important;
-    color: #ffffff !important;
-    border-color: #ffffff !important;
-    box-shadow: 0 9px 20px rgba(11,111,184,.3) !important;
-    transform: translate(-50%, -12px) scale(1) !important;
-  }
-
-  .app-shell .mobile-bottom-nav .mobile-nav-item > b {
-    display: block !important;
-    position: relative !important;
-    z-index: 2;
-    width: 100% !important;
-    margin: 0 0 4px !important;
-    text-align: center !important;
-    font-size: clamp(8px, 2.15vw, 10px) !important;
-    line-height: 1.25 !important;
-    font-weight: 600 !important;
-    color: #617185 !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transform: none !important;
-  }
-
-  .app-shell .mobile-bottom-nav .mobile-nav-item.active > b {
-    color: #0b6fb8 !important;
-    font-weight: 700 !important;
-  }
-}
-`}</style>
-
-
-
-
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
       {isAdmin ? <>
         {showDashboard && <MobileNavItem label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
@@ -1753,7 +1664,7 @@ floorTeam: "My Team",
   )}
 
       {!isAdmin && showChat && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
-      {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
+      {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : showSchemes ? <MobileNavItem label="Schemes" icon="₹" active={section === "schemes"} onClick={() => goto("schemes")} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
     {profileUser && section !== "profile" && (
@@ -3626,7 +3537,59 @@ function PermissionsPanel({ session }: { session: User }) {
   ];
   const permissionRow = ([key, label]: string[]) => <label className="permission-row" key={key}><span>{label}</span><select disabled={session.role !== "ADMIN"} value={permissions[key] ?? "false"} onChange={e => setPermissions({ ...permissions, [key]: e.target.value })}><option value="true">Show / Allow</option><option value="false">Hide / Block</option></select></label>;
 
-  return <section className="panel permission-panel"><h1>Role Permission Control</h1><p className="permission-help">Control HR rights and employee chat access.</p><div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div><div><h2>Chat Access Control</h2>{chatAccessRows.map(permissionRow)}<p className="hint">Block = normal employees cannot chat with other normal employees. They can still chat with their Team Head / Floor Manager / HR / Admin. Allow = same-department employee-to-employee chat is enabled; cross-department chat stays blocked.</p></div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
+  return <section className="panel permission-panel"><h1>Role Permission Control</h1><p className="permission-help">Control HR rights and employee chat access.</p>{session.role === "ADMIN" && <SchemeVisibilityPermissions />}<div className="permission-groups"><div><h2>Menu Visibility</h2>{menuRows.map(permissionRow)}</div><div><h2>Action Rights</h2>{actionRows.map(permissionRow)}</div><div><h2>Chat Access Control</h2>{chatAccessRows.map(permissionRow)}<p className="hint">Block = normal employees cannot chat with other normal employees. They can still chat with their Team Head / Floor Manager / HR / Admin. Allow = same-department employee-to-employee chat is enabled; cross-department chat stays blocked.</p></div></div>{session.role === "ADMIN" && <button className="primary permission-save" onClick={save}>Save Permissions</button>}{msg && <div className="msg warn">{msg}</div>}</section>;
+}
+
+// Employee-specific opt-in; controls are separate from HR role permissions.
+function SchemeVisibilityPermissions() {
+  type Entry = { id: string; name: string; employeeCode?: string | null; branch?: string | null; designation?: string | null; visible: boolean };
+  const [employees, setEmployees] = useState<Entry[]>([]);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState("");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    fetch("/api/permissions/schemes", { cache: "no-store" })
+      .then(async r => { const json = await r.json(); if (!r.ok || !json.ok) throw new Error(json.error || "Cannot load employees"); return json.data.employees as Entry[]; })
+      .then(rows => { if (active) setEmployees(rows); })
+      .catch(e => { if (active) setError(String(e?.message || e)); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+  async function change(employee: Entry, visible: boolean) {
+    setSavingId(employee.id);
+    setError("");
+    try {
+      const response = await fetch("/api/permissions/schemes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: employee.id, visible })
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) throw new Error(json.error || "Unable to update permission");
+      setEmployees(current => current.map(row => row.id === employee.id ? { ...row, visible } : row));
+      showToast(`${employee.name}: Scheme & Incentives ${visible ? "shown" : "hidden"}.`, "success");
+    } catch (e: any) {
+      setError(e?.message || "Unable to update permission");
+    } finally { setSavingId(""); }
+  }
+  const matched = employees.filter(e => `${e.name} ${e.employeeCode || ""} ${e.branch || ""}`.toLowerCase().includes(query.trim().toLowerCase()));
+  return <div className="panel" style={{ marginBottom: 16 }}>
+    <h2>Scheme &amp; Incentives — Employee Visibility</h2>
+    <p className="hint">Default: Hidden for everyone. Show permission only for selected employees. Changes save immediately.</p>
+    <input aria-label="Search employee scheme visibility" placeholder="Search employee name / ID / branch" value={query} onChange={e => setQuery(e.target.value)} style={{ maxWidth: 420, marginBottom: 10 }} />
+    {loading && <p>Loading employees...</p>}
+    {error && <p className="msg error" role="alert">{error}</p>}
+    {!loading && <div style={{ maxHeight: 360, overflowY: "auto", border: "1px solid #cee2ef", borderRadius: 12 }}>
+      {matched.map(e => <div key={e.id} className="permission-row" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderBottom: "1px solid #e2ebf2" }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}><b>{e.name}</b> <small>({e.employeeCode || "—"} · {e.branch || "—"})</small></span>
+        <select aria-label={`Scheme visibility for ${e.name}`} value={e.visible ? "show" : "hide"} disabled={savingId !== ""} onChange={event => change(e, event.target.value === "show")} style={{ width: 132, minWidth: 110 }}>
+          <option value="hide">Hide</option><option value="show">Show</option>
+        </select>
+      </div>)}
+      {!matched.length && <p style={{ padding: 14 }}>No matching employees.</p>}
+    </div>}
+  </div>;
 }
 
 function ReportingPanel({
