@@ -101,8 +101,8 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
         <div className={styles.tableWrap}>
           <table><thead><tr><th>Customer Name</th><th>Installment Amount</th><th>Paid Installments</th><th>Incentive</th></tr></thead>
             <tbody>{report.customers.map(c => <tr key={c.customerKey}>
-              <td>{c.customerName}</td><td>{rupees(c.installmentAmount)}</td>
-              <td>{c.paidInstallments} / 10</td><td>{rupees(c.incentive)}</td>
+              <td data-label="Customer Name">{c.customerName}</td><td data-label="Installment Amount">{rupees(c.installmentAmount)}</td>
+              <td data-label="Paid Installments">{c.paidInstallments} / 10</td><td data-label="Incentive">{rupees(c.incentive)}</td>
             </tr>)}
               {!report.customers.length && <tr><td colSpan={4} className={styles.empty}>No customers assigned to your name and branch in this scheme.</td></tr>}
             </tbody>
@@ -129,7 +129,7 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
           <div className={styles.tableWrap}>
             <table><thead><tr><th>Customer</th><th>3rd Paid Date</th><th>Monthly Installment</th><th>Incentive (7.5%)</th></tr></thead>
               <tbody>{currentMonth.items.map(c => <tr key={c.customerKey}>
-                <td>{c.customerName}</td><td>{dateText(c.thirdPaidDate)}</td><td>{rupees(c.installmentAmount)}</td><td>{rupees(c.incentive)}</td>
+                <td data-label="Customer">{c.customerName}</td><td data-label="3rd Paid Date">{dateText(c.thirdPaidDate)}</td><td data-label="Monthly Installment">{rupees(c.installmentAmount)}</td><td data-label="Incentive (7.5%)">{rupees(c.incentive)}</td>
               </tr>)}
                 {!currentMonth.items.length && <tr><td colSpan={4} className={styles.empty}>No eligible customer installments in this month.</td></tr>}
               </tbody>
@@ -140,7 +140,7 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
             <div className={styles.tableWrap}>
               <table><thead><tr><th>Customer</th><th>Reason</th><th>Deduction</th></tr></thead>
                 <tbody>{currentMonth.deductionRows.map(item => <tr key={item.id}>
-                  <td>{item.customerName || "—"}</td><td>{item.reason || "—"}</td><td>{rupees(item.amount)}</td>
+                  <td data-label="Customer">{item.customerName || "—"}</td><td data-label="Reason">{item.reason || "—"}</td><td data-label="Deduction">{rupees(item.amount)}</td>
                 </tr>)}</tbody>
               </table>
             </div>

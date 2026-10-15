@@ -10,9 +10,12 @@ const SHEETS: SheetKind[] = ["DATA", "INSTALLMENTS", "CUSTOMER_STATUS", "INCENTI
 // Source spreadsheet IDs from the links supplied by the user.
 // Vercel environment variables override these, if the sheet is ever moved.
 const DEFAULT_SHEET_IDS: Record<Source, string> = {
-  gold: "11Y6IjtAGEKg36an_7iRShG4aAwRkf376E9q1imZIhDk",
+  gold: "1IY6IjtAGEKg36an_7iRShG4aAwRkf376E9q1imZIhDk",
   bonus: "1ZC8b4suFgSYV-7yTBM2jsa-RAGftqhBYySySXauCtgo"
 };
+// A previous patch accidentally substituted digit 1 for capital I in Gold's ID.
+// Normalize that *exact* known typo, including an old Vercel env override.
+const OLD_GOLD_ID_TYPO = "11Y6IjtAGEKg36an_7iRShG4aAwRkf376E9q1imZIhDk";
 const CACHE_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 12_000;
 const cache = new Map<string, { expires: number; rows: SheetRow[] }>();
@@ -55,7 +58,9 @@ async function getAccessToken(): Promise<string> {
 }
 
 function sourceId(source: Source): string {
-  const id = (source === "gold" ? process.env.NEEV_GOLD_SPREADSHEET_ID : process.env.NEEV_BONUS_SPREADSHEET_ID)?.trim() || DEFAULT_SHEET_IDS[source];
+  const configuredId = (source === "gold" ? process.env.NEEV_GOLD_SPREADSHEET_ID : process.env.NEEV_BONUS_SPREADSHEET_ID)?.trim();
+  const rawId = configuredId || DEFAULT_SHEET_IDS[source];
+  const id = source === "gold" && rawId === OLD_GOLD_ID_TYPO ? DEFAULT_SHEET_IDS.gold : rawId;
   if (!id) throw new Error(`${source === "gold" ? "Neev Gold" : "Neev Bonus"} Sheet ID is not configured.`);
   if (!/^[\w-]+$/.test(id)) throw new Error("Google Sheet ID is invalid.");
   return id;
@@ -79,6 +84,9 @@ async function readSheet(source: Source, kind: SheetKind): Promise<SheetRow[]> {
       if (response.status === 400 && (kind === "CUSTOMER_STATUS" || kind === "INCENTIVE_DEDUCTIONS")) {
         const message = JSON.stringify(await response.json().catch(() => ({})));
         if (/Unable to parse range|does not exist/i.test(message)) return [];
+      }
+      if (response.status === 404 && source === "gold") {
+        throw new Error("Neev Gold Google Sheet not accessible (404). Check that the Gold Sheet is shared as Viewer with the Google service-account email and verify NEEV_GOLD_SPREADSHEET_ID in Vercel.");
       }
       throw new Error(`Unable to read ${source === "gold" ? "Neev Gold" : "Neev Bonus"} ${kind} sheet (${response.status}). Check sharing and API access.`);
     }
