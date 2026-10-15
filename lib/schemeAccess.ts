@@ -4,8 +4,19 @@ import { prisma } from "@/lib/prisma";
 // Default is always HIDDEN, including for newly created employees.
 const keyForEmployee = (employeeId: string) => `employeeSchemeVisible:${employeeId}`;
 
+export function isEligibleSchemeDepartment(value: string | null | undefined): boolean {
+  const department = String(value || "").trim().toUpperCase().replace(/[._-]+/g, " ").replace(/\s+/g, " ");
+  return department === "SALES" || department === "SALES DEPARTMENT" ||
+    department === "CASH COUNTER" || department === "ACCOUNTS" || department === "ACCOUNT";
+}
+
 export async function hasSchemeAccess(employeeId: string, role: string): Promise<boolean> {
   if (role !== "EMPLOYEE") return false;
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { department: true, deletedAt: true, status: true }
+  });
+  if (!employee || employee.deletedAt || employee.status !== "ACTIVE" || !isEligibleSchemeDepartment(employee.department)) return false;
   const setting = await prisma.permissionSetting.findUnique({
     where: { key: keyForEmployee(employeeId) },
     select: { value: true }

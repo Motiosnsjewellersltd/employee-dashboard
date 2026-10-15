@@ -39,7 +39,7 @@ const rupees = (value: number) => `₹${(value || 0).toLocaleString("en-IN", { m
 const dateText = (date?: string | null) => date ? new Date(`${date}T12:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }) : "—";
 const monthText = (month: string) => new Date(`${month}-01T12:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
 
-export default function SchemeIncentives({ salespersonName, onAccessRevoked }: { salespersonName: string; onAccessRevoked: () => void }) {
+export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked: () => void }) {
   const revokedRef = useRef(onAccessRevoked);
   revokedRef.current = onAccessRevoked;
   const [scheme, setScheme] = useState<"gold" | "bonus">("gold");
@@ -84,7 +84,6 @@ export default function SchemeIncentives({ salespersonName, onAccessRevoked }: {
   return <section className={styles.page}>
     <div className={styles.heading}>
       <h1>Scheme &amp; Incentives</h1>
-      <p>Salesperson: <strong>{salespersonName}</strong></p>
     </div>
     <div className={styles.tabs} role="tablist" aria-label="Scheme selection">
       <button type="button" role="tab" aria-selected={scheme === "gold"} className={scheme === "gold" ? styles.selected : ""} onClick={() => setScheme("gold")}>Neev Gold</button>

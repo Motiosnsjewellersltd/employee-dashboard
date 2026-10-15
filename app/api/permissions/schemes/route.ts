@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addAuditLog } from "@/lib/audit";
-import { keyForEmployee } from "@/lib/schemeAccess";
+import { isEligibleSchemeDepartment, keyForEmployee } from "@/lib/schemeAccess";
 import { fail, ok } from "@/lib/utils";
 
 const PREFIX = "employeeSchemeVisible:";
@@ -13,8 +13,8 @@ export async function GET() {
     if (session.role !== "ADMIN") throw new Error("Only Admin allowed.");
     const [employees, settings] = await Promise.all([
       prisma.employee.findMany({
-        where: { role: "EMPLOYEE", deletedAt: null },
-        select: { id: true, name: true, employeeCode: true, designation: true, branch: true, status: true },
+        where: { role: "EMPLOYEE", deletedAt: null, status: "ACTIVE", exitDate: null },
+        select: { id: true, name: true, employeeCode: true, designation: true, department: true, branch: true, status: true },
         orderBy: { name: "asc" }
       }),
       prisma.permissionSetting.findMany({
@@ -23,7 +23,7 @@ export async function GET() {
       })
     ]);
     const allowed = new Set(settings.filter(x => x.value === "true").map(x => x.key));
-    return ok({ employees: employees.map(e => ({ ...e, visible: allowed.has(keyForEmployee(e.id)) })) });
+    return ok({ employees: employees.filter(e => isEligibleSchemeDepartment(e.department)).map(e => ({ ...e, visible: allowed.has(keyForEmployee(e.id)) })) });
   } catch (e) {
     return fail(e, 403);
   }
@@ -39,10 +39,10 @@ export async function POST(req: NextRequest) {
       throw new Error("Invalid employee or visibility value.");
     }
     const employee = await prisma.employee.findFirst({
-      where: { id: employeeId, role: "EMPLOYEE", deletedAt: null },
-      select: { id: true, name: true }
+      where: { id: employeeId, role: "EMPLOYEE", deletedAt: null, status: "ACTIVE", exitDate: null },
+      select: { id: true, name: true, department: true }
     });
-    if (!employee) throw new Error("Employee not found.");
+    if (!employee || !isEligibleSchemeDepartment(employee.department)) throw new Error("Employee is not eligible for Scheme & Incentives access.");
 
     // Revoking deletes the grant; absence is interpreted as Hidden.
     const key = keyForEmployee(employee.id);

@@ -7,7 +7,14 @@ type SheetKind = "DATA" | "INSTALLMENTS" | "CUSTOMER_STATUS" | "INCENTIVE_DEDUCT
 type SheetRow = Array<string | number | boolean | null>;
 
 const SHEETS: SheetKind[] = ["DATA", "INSTALLMENTS", "CUSTOMER_STATUS", "INCENTIVE_DEDUCTIONS"];
+// Source spreadsheet IDs from the links supplied by the user.
+// Vercel environment variables override these, if the sheet is ever moved.
+const DEFAULT_SHEET_IDS: Record<Source, string> = {
+  gold: "11Y6IjtAGEKg36an_7iRShG4aAwRkf376E9q1imZIhDk",
+  bonus: "1ZC8b4suFgSYV-7yTBM2jsa-RAGftqhBYySySXauCtgo"
+};
 const CACHE_MS = 60_000;
+const REQUEST_TIMEOUT_MS = 12_000;
 const cache = new Map<string, { expires: number; rows: SheetRow[] }>();
 const pending = new Map<string, Promise<SheetRow[]>>();
 let tokenCache: { accessToken: string; expires: number } | null = null;
@@ -37,7 +44,8 @@ async function getAccessToken(): Promise<string> {
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
       assertion
     }).toString(),
-    cache: "no-store"
+    cache: "no-store",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
   });
   if (!response.ok) throw new Error("Google Sheets authentication failed. Check server credentials.");
   const data = await response.json();
@@ -47,7 +55,7 @@ async function getAccessToken(): Promise<string> {
 }
 
 function sourceId(source: Source): string {
-  const id = source === "gold" ? process.env.NEEV_GOLD_SPREADSHEET_ID : process.env.NEEV_BONUS_SPREADSHEET_ID;
+  const id = (source === "gold" ? process.env.NEEV_GOLD_SPREADSHEET_ID : process.env.NEEV_BONUS_SPREADSHEET_ID)?.trim() || DEFAULT_SHEET_IDS[source];
   if (!id) throw new Error(`${source === "gold" ? "Neev Gold" : "Neev Bonus"} Sheet ID is not configured.`);
   if (!/^[\w-]+$/.test(id)) throw new Error("Google Sheet ID is invalid.");
   return id;
@@ -65,7 +73,7 @@ async function readSheet(source: Source, kind: SheetKind): Promise<SheetRow[]> {
     const token = await getAccessToken();
     const range = `${kind}!A:${kind === "DATA" ? "J" : kind === "INSTALLMENTS" ? "L" : kind === "CUSTOMER_STATUS" ? "G" : "I"}`;
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/${encodeURIComponent(range)}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`;
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     if (!response.ok) {
       // Optional sheets might not have been created by the tracker yet.
       if (response.status === 400 && (kind === "CUSTOMER_STATUS" || kind === "INCENTIVE_DEDUCTIONS")) {

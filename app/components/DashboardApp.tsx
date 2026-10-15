@@ -1621,9 +1621,52 @@ floorTeam: "My Team",
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}
-      {section === "schemes" && showSchemes && <SchemeIncentives salespersonName={session.name} onAccessRevoked={() => { setSchemeVisibleEmployeeId(""); goto("profile"); }} />}
+      {section === "schemes" && showSchemes && <SchemeIncentives onAccessRevoked={() => { setSchemeVisibleEmployeeId(""); goto("profile"); }} />}
       {section === "changePassword" && <PasswordChangePanel session={session} onChanged={setSession} />}
     </main>
+    {/* Employee-only Magic Navigation: keep existing nav sizing, order and click handlers. */}
+    <style>{`@media (max-width:900px) {
+      .employee-shell .mobile-bottom-nav {
+        overflow:visible!important;
+        background:#fff!important;
+        border-radius:24px!important;
+      }
+      .employee-shell .mobile-bottom-nav .mobile-nav-item {
+        position:relative!important;
+        overflow:visible!important;
+      }
+      .employee-shell .mobile-bottom-nav .mobile-nav-item.active {
+        background:transparent!important;
+        color:#d74440!important;
+      }
+      .employee-shell .mobile-bottom-nav .mobile-nav-item.active > span {
+        position:absolute!important;
+        top:-15px!important;
+        left:50%!important;
+        transform:translateX(-50%)!important;
+        height:46px!important;
+        width:46px!important;
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        color:#fff!important;
+        background:#d74440!important;
+        border-radius:50%!important;
+        font-size:23px!important;
+        line-height:1!important;
+        z-index:3!important;
+        box-shadow:0 5px 14px rgba(215,68,64,.35)!important;
+        transition:background-color .22s ease,box-shadow .22s ease!important;
+      }
+      .employee-shell .mobile-bottom-nav .mobile-nav-item.active > b {
+        position:absolute!important;
+        bottom:3px!important;
+        left:0!important;
+        right:0!important;
+        text-align:center!important;
+        color:#a93431!important;
+      }
+    }`}</style>
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
       {isAdmin ? <>
         {showDashboard && <MobileNavItem label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
