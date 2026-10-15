@@ -3520,3 +3520,77 @@ html,body{width:100%;min-height:100%;max-width:100%;}
 /* Leave conflict warning shown only in approver/review views. */
 .leave-conflict-alert{display:block;margin-top:7px;padding:7px 9px;border:1px solid #f0c36b;border-radius:9px;background:#fff6dc;color:#8a5a00;font-size:11px;font-weight:700;line-height:1.35;white-space:normal}
 .leave-conflict-alert b{color:#a65b00}
+
+/* Employee mobile nav: floating active icon.
+   Keep the existing pill dimensions, columns, labels and positioning unchanged.
+   Only visual state of the active icon is changed; do not affect admin/HR. */
+@media (max-width: 900px) {
+  .employee-shell .mobile-bottom-nav {
+    overflow: visible !important; /* a raised circle cannot render through overflow:hidden */
+  }
+  .employee-shell .mobile-bottom-nav .mobile-nav-item {
+    overflow: visible !important;
+  }
+  .employee-shell .mobile-bottom-nav .mobile-nav-item.active {
+    background: transparent !important;
+    color: #075f9e !important;
+  }
+  .employee-shell .mobile-bottom-nav .mobile-nav-item.active > span {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+    display: inline-grid !important;
+    place-items: center;
+    color: #fff !important;
+    transform: translateY(-12px) !important;
+    transition: transform 240ms ease, color 180ms ease;
+  }
+  .employee-shell .mobile-bottom-nav .mobile-nav-item.active > span::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: 50%;
+    top: 50%;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #0b6fb8;
+    box-shadow: 0 7px 14px rgba(11, 111, 184, .3);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+}
+
+/* Employee mobile topbar scroll-overlap fix.
+   Keep the Official Duty / notification buttons in their existing top positions,
+   but mask scrolled page content behind an opaque, compact toolbar. This does
+   not touch the bottom navigation, desktop view, or Admin/HR layout. */
+@media(max-width:900px){
+  .employee-shell .app-topbar{
+    top:0!important;
+    left:0!important;
+    right:0!important;
+    box-sizing:border-box;
+    min-height:60px;
+    padding:7px 8px 6px!important;
+    background:#eaf8ff!important;
+    border-bottom:1px solid #cde7f7!important;
+    box-shadow:0 3px 9px rgba(7,86,137,.07);
+    isolation:isolate;
+    z-index:65;
+    flex-wrap:nowrap;
+    gap:8px;
+  }
+  .employee-shell .app-topbar .official-duty-top-action{
+    position:relative;
+    flex:0 1 auto;
+    min-width:0;
+    max-width:calc(100vw - 76px);
+    white-space:nowrap;
+  }
+  .employee-shell .app-topbar .notification-bell{
+    position:relative;
+    flex:0 0 44px;
+    margin:0;
+  }
+}

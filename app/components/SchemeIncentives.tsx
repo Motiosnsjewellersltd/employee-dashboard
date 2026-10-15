@@ -99,12 +99,13 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
       <div className={styles.panel}>
         <h2>Customer Details</h2>
         <div className={styles.tableWrap}>
-          <table><thead><tr><th>Customer Name</th><th>Installment Amount</th><th>Paid Installments</th><th>Incentive</th></tr></thead>
+          <table className={styles.customerTable}><thead><tr><th>Customer Name</th><th>Installment Amount</th><th>Paid Installments</th><th>Incentive</th><th>Status</th></tr></thead>
             <tbody>{report.customers.map(c => <tr key={c.customerKey}>
               <td data-label="Customer Name">{c.customerName}</td><td data-label="Installment Amount">{rupees(c.installmentAmount)}</td>
               <td data-label="Paid Installments">{c.paidInstallments} / 10</td><td data-label="Incentive">{rupees(c.incentive)}</td>
+              <td data-label="Status"><span className={`${styles.status} ${c.status === "CLOSED" ? styles.statusClosed : c.status === "CANCELLED" ? styles.statusCancelled : styles.statusRunning}`}>{c.status}</span></td>
             </tr>)}
-              {!report.customers.length && <tr><td colSpan={4} className={styles.empty}>No customers assigned to your name and branch in this scheme.</td></tr>}
+              {!report.customers.length && <tr><td colSpan={5} className={styles.empty}>No customers assigned to your name and branch in this scheme.</td></tr>}
             </tbody>
           </table>
         </div>
