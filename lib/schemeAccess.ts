@@ -4,10 +4,10 @@ import { prisma } from "@/lib/prisma";
 // Default is always HIDDEN, including for newly created employees.
 const keyForEmployee = (employeeId: string) => `employeeSchemeVisible:${employeeId}`;
 
-export function isEligibleSchemeDepartment(value: string | null | undefined): boolean {
-  const department = String(value || "").trim().toUpperCase().replace(/[._-]+/g, " ").replace(/\s+/g, " ");
-  return department === "SALES" || department === "SALES DEPARTMENT" ||
-    department === "CASH COUNTER" || department === "ACCOUNTS" || department === "ACCOUNT";
+export function isEligibleSchemeDepartment(
+  _value: string | null | undefined
+): boolean {
+  return true;
 }
 
 export async function hasSchemeAccess(employeeId: string, role: string): Promise<boolean> {
