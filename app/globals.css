@@ -3561,36 +3561,46 @@ html,body{width:100%;min-height:100%;max-width:100%;}
   }
 }
 
-/* Employee mobile topbar scroll-overlap fix.
-   Keep the Official Duty / notification buttons in their existing top positions,
-   but mask scrolled page content behind an opaque, compact toolbar. This does
-   not touch the bottom navigation, desktop view, or Admin/HR layout. */
-@media(max-width:900px){
-  .employee-shell .app-topbar{
-    top:0!important;
-    left:0!important;
-    right:0!important;
-    box-sizing:border-box;
-    min-height:60px;
-    padding:7px 8px 6px!important;
-    background:#eaf8ff!important;
-    border-bottom:1px solid #cde7f7!important;
-    box-shadow:0 3px 9px rgba(7,86,137,.07);
-    isolation:isolate;
-    z-index:65;
-    flex-wrap:nowrap;
-    gap:8px;
+/* Employee mobile topbar: scroll together with page content.
+   Only EMPLOYEE mobile view is affected. Official Duty and the notification bell
+   remain in their existing horizontal row; no fixed/sticky/hero toolbar.
+   Admin/HR views and the bottom navigation stay unchanged. */
+@media (max-width: 900px) {
+  .employee-shell .main {
+    padding-top: 12px !important; /* no reserved space for a fixed topbar */
   }
-  .employee-shell .app-topbar .official-duty-top-action{
-    position:relative;
-    flex:0 1 auto;
-    min-width:0;
-    max-width:calc(100vw - 76px);
-    white-space:nowrap;
+  .employee-shell .app-topbar {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 48px;
+    margin: 0 0 12px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    isolation: auto;
+    z-index: auto;
   }
-  .employee-shell .app-topbar .notification-bell{
-    position:relative;
-    flex:0 0 44px;
-    margin:0;
+  .employee-shell .app-topbar .official-duty-top-action {
+    position: relative;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: calc(100vw - 76px);
+    white-space: nowrap;
+  }
+  .employee-shell .app-topbar .notification-bell {
+    position: relative;
+    flex: 0 0 44px;
+    margin: 0;
   }
 }
