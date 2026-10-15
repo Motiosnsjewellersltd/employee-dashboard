@@ -34,10 +34,10 @@
 .tableWrap{overscroll-behavior-x:contain}
 .customerTable{min-width:650px!important}
 .scrollHint{display:none;margin:0 0 9px;color:#64788b;font-size:12px}
-.breakdown{margin-top:12px;border:1px solid #cde0ef;border-radius:12px;background:#f4faff}
-.breakdown>summary{cursor:pointer;list-style:revert;padding:12px;font-size:13px;font-weight:750;color:#075f9e}
-.breakdownBody{padding:0 12px 12px;min-width:0}
-.breakdownBody h3{margin:10px 0 8px}
+/* Two compact view tabs under the totals: Customer Details is the default. */
+.viewTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+.viewTabs button{min-width:0;min-height:42px;background:white;color:#075f9e;border:1px solid #cde0ef;border-radius:12px;padding:9px 6px;font-size:13px;font-weight:700;cursor:pointer}
+.viewTabs button.viewTabSelected{background:#0b6fb8;color:white;border-color:#0b6fb8}
 .status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:750;white-space:nowrap;background:#e9f6ff;color:#075f9e}
 .statusRunning{background:#e9f6ff;color:#075f9e}
 .statusClosed{background:#e6f7eb;color:#15743a}
@@ -54,5 +54,6 @@
   .scrollHint{display:block}
   .monthHeading{align-items:flex-start}
   .monthHeading select{min-width:138px;max-width:160px}
-  .breakdownBody{padding:0 10px 10px}
 }
+
+@media(max-width:600px){.viewTabs button{font-size:12px;min-height:40px;padding:8px 4px}}
