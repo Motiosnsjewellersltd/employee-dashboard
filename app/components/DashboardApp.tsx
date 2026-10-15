@@ -1637,7 +1637,7 @@ floorTeam: "My Team",
       }
       .employee-shell .mobile-bottom-nav .mobile-nav-item.active {
         background:transparent!important;
-        color:#d74440!important;
+        color:#075f9e!important;
       }
       .employee-shell .mobile-bottom-nav .mobile-nav-item.active > span {
         position:absolute!important;
@@ -1650,12 +1650,12 @@ floorTeam: "My Team",
         align-items:center!important;
         justify-content:center!important;
         color:#fff!important;
-        background:#d74440!important;
+        background:#0b6fb8!important;
         border-radius:50%!important;
         font-size:23px!important;
         line-height:1!important;
         z-index:3!important;
-        box-shadow:0 5px 14px rgba(215,68,64,.35)!important;
+        box-shadow:0 5px 14px rgba(11,111,184,.35)!important;
         transition:background-color .22s ease,box-shadow .22s ease!important;
       }
       .employee-shell .mobile-bottom-nav .mobile-nav-item.active > b {
@@ -1664,7 +1664,7 @@ floorTeam: "My Team",
         left:0!important;
         right:0!important;
         text-align:center!important;
-        color:#a93431!important;
+        color:#075f9e!important;
       }
     }`}</style>
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
