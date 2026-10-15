@@ -10,12 +10,12 @@ const SHEETS: SheetKind[] = ["DATA", "INSTALLMENTS", "CUSTOMER_STATUS", "INCENTI
 // Source spreadsheet IDs from the links supplied by the user.
 // Vercel environment variables override these, if the sheet is ever moved.
 const DEFAULT_SHEET_IDS: Record<Source, string> = {
-  gold: "1IY6IjtAGEKg36an_7iRShG4aAwRkf376E9q1imZIhDk",
+  gold: "11Y6IjtAGEKg36an_7iRShG4aAwRkf376E9q1imZIhDk",
   bonus: "1ZC8b4suFgSYV-7yTBM2jsa-RAGftqhBYySySXauCtgo"
 };
-// A previous patch accidentally substituted digit 1 for capital I in Gold's ID.
-// Normalize that *exact* known typo, including an old Vercel env override.
-const OLD_GOLD_ID_TYPO = "11Y6IjtAGEKg36an_7iRShG4aAwRkf376E9q1imZIhDk";
+// An earlier patch used capital I rather than digit 1 in the Gold ID.
+// Correct that exact known mismatch, including when an old Vercel override remains.
+const OLD_GOLD_ID_TYPO = "1IY6IjtAGEKg36an_7iRShG4aAwRkf376E9q1imZIhDk";
 const CACHE_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 12_000;
 const cache = new Map<string, { expires: number; rows: SheetRow[] }>();

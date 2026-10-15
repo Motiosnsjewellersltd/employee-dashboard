@@ -28,39 +28,31 @@
 .hint{font-size:12px;color:#687b8d;line-height:1.5;margin:0}
 @media(max-width:600px){.page{gap:12px}.heading h1{font-size:21px}.panel{padding:12px}.stat{padding:13px}.stat strong{font-size:21px}.monthStats strong{font-size:14px}.monthStats small{font-size:10px}.tabs button{font-size:13px}}
 
-/* On small screens replace wide tables with aligned customer cards.
-   Desktop tables, the dashboard shell and floating mobile navbar are untouched. */
-@media(max-width:600px){
-  .tableWrap{overflow-x:visible;border:0;max-width:100%}
-  .tableWrap table{display:block;min-width:0;width:100%;font-size:13px}
-  .tableWrap thead{display:none}
-  .tableWrap tbody{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
-  .tableWrap tbody tr,
-  .tableWrap tbody tr:nth-child(even){
-    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:11px 12px;min-width:0;padding:12px;
-    background:#f7fbff;border:1px solid #dcebf5;border-radius:12px;
-  }
-  .tableWrap td{display:block;min-width:0;max-width:100%;padding:0;border:0;
-    font-size:13px;font-weight:650;line-height:1.4;overflow-wrap:anywhere;word-break:normal}
-  .tableWrap td::before{content:attr(data-label);display:block;font-size:11px;font-weight:600;
-    color:#667e91;line-height:1.35;margin-bottom:3px}
-  .tableWrap td:first-child{grid-column:1/-1;padding-bottom:7px;
-    border-bottom:1px solid #e0ebf3;font-weight:750}
-  .tableWrap td:nth-child(4){grid-column:1/-1}
-  .tableWrap td.empty{grid-column:1/-1;padding:8px!important;font-weight:500}
-  .tableWrap td.empty::before{display:none}
-}
 
-/* Customer status is sourced from each scheme's CUSTOMER_STATUS sheet. */
+/* Mobile: restore the compact horizontal-scroll tables requested by the user.
+   Only tables scroll sideways, not the page or bottom navigation. */
+.tableWrap{overscroll-behavior-x:contain}
+.customerTable{min-width:650px!important}
+.scrollHint{display:none;margin:0 0 9px;color:#64788b;font-size:12px}
+.breakdown{margin-top:12px;border:1px solid #cde0ef;border-radius:12px;background:#f4faff}
+.breakdown>summary{cursor:pointer;list-style:revert;padding:12px;font-size:13px;font-weight:750;color:#075f9e}
+.breakdownBody{padding:0 12px 12px;min-width:0}
+.breakdownBody h3{margin:10px 0 8px}
 .status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:750;white-space:nowrap;background:#e9f6ff;color:#075f9e}
 .statusRunning{background:#e9f6ff;color:#075f9e}
 .statusClosed{background:#e6f7eb;color:#15743a}
 .statusCancelled{background:#fff0ef;color:#ad342f}
-
-/* Only the customer table has five fields; keep both bottom cells side by side
-   inside its mobile card. Other incentive tables preserve their existing layout. */
 @media(max-width:600px){
-  .tableWrap .customerTable td:nth-child(4){grid-column:auto}
-  .tableWrap .customerTable td:nth-child(5){grid-column:auto}
+  .tableWrap{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+  .tableWrap table{min-width:540px;width:100%;display:table}
+  .tableWrap thead{display:table-header-group}
+  .tableWrap tbody{display:table-row-group}
+  .tableWrap tr{display:table-row}
+  .tableWrap th,.tableWrap td{font-size:12px;line-height:1.3;padding:9px 10px;white-space:nowrap}
+  .tableWrap td:first-child{white-space:normal;min-width:125px}
+  .tableWrap .customerTable{min-width:650px}
+  .scrollHint{display:block}
+  .monthHeading{align-items:flex-start}
+  .monthHeading select{min-width:138px;max-width:160px}
+  .breakdownBody{padding:0 10px 10px}
 }
