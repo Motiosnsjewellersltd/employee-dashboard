@@ -3108,7 +3108,7 @@ function ProfileContent({
       <h2>Leave Balance</h2>
       {loading && <div className="profile-loading"><SkeletonCards count={4} /><div className="skeleton-table"><span /><span /><span /><span /></div></div>}
       {leaves && <>
-        <div className="cards small"><div className="stat"><span>Financial Year</span><b>{leaves.balance.financialYear}</b></div><div className="stat"><span>Earned Till Current Month</span><b>{leaves.balance.earned}</b></div><div className="stat"><span>Used Leaves till Last Month</span><b>{leaves.balance.used}</b></div><div className={leaves.balance.negativeBalanceWarning ? "stat negative-balance-stat" : "stat"}><span>Current Balance till Month</span><b>{leaves.balance.currentBalance}</b></div></div>
+        <div className="cards small"><div className="stat"><span>Financial Year</span><b>{leaves.balance.financialYear}</b></div><div className="stat"><span>Earned Till Current Month</span><b>{leaves.balance.earned}</b></div><div className="stat"><span>Used Leaves till Last Month</span><b>{leaves.balance.used}</b></div><div className="stat" style={{ borderColor: "#b9e4cd" }}><span>Current Balance till Month</span><b className="green">{leaves.balance.currentBalance}</b></div></div>
         {leaves.balance.rows.length > 0 && <div className="mobile-cards-table leave-balance-table"><table><thead><tr><th>Month/Year</th><th>Earned</th><th>Used</th><th>Balance</th></tr></thead><tbody>{leaves.balance.rows.map((r, index) => {
           const previousBalance = index > 0 ? Number(leaves.balance.rows[index - 1]?.balance || 0) : 0;
           const availableThisMonth = previousBalance + Number(r.earned || 0);
