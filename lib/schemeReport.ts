@@ -132,7 +132,11 @@ export async function makeSchemeReport(source: SchemeSource, salesperson: string
       incentive, status
     });
     if (!incentive || !thirdPaidDate) continue;
-    const month = monthFor(thirdPaidDate.slice(0, 7));
+    const [paidYear, paidMonth] = thirdPaidDate.slice(0, 7).split("-").map(Number);
+const incentiveMonth = paidMonth === 12
+  ? `${paidYear + 1}-01`
+  : `${paidYear}-${String(paidMonth + 1).padStart(2, "0")}`;
+const month = monthFor(incentiveMonth);
     month.gross = rounded(month.gross + incentive);
     month.items.push({
       customerKey: entry.key, customerName: entry.customerName,
