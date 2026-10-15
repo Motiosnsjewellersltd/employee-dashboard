@@ -112,7 +112,7 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
       <button type="button" role="tab" aria-selected={scheme === "bonus"} className={scheme === "bonus" ? styles.selected : ""} onClick={() => { setScheme("bonus"); setActiveView("customers"); }}>Neev Bonus</button>
     </div>
     {loading && !report ? <div className={styles.message} role="status">Loading scheme data...</div> : null}
-    {error && !report ? <p className={styles.error} role="alert">{error}</p> : null}
+    {error && !report ? <p className={styles.error} role="alert">{scheme === "gold" ? "Neev Gold data load nahi ho paaya." : "Neev Bonus data load nahi ho paaya."}</p> : null}
     {report && <>
       <div className={styles.stats}>
         <div className={styles.stat}><small>Total Customers</small><strong>{report.totalCustomers}</strong></div>
@@ -131,7 +131,6 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
       </div>
       {activeView === "customers" ? <div className={styles.panel} role="tabpanel">
         <h2>Customer Details</h2>
-        <p className={styles.scrollHint}>Swipe table left/right to see all columns.</p>
         <div className={styles.tableWrap}>
           <table className={styles.customerTable}><thead><tr><th>Customer Name</th><th>Installment Amount</th><th>Paid Installments</th><th>Incentive</th><th>Status</th></tr></thead>
             <tbody>{report.customers.map(c => <tr key={c.customerKey}>
@@ -160,7 +159,6 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
             <div><small>Final Incentive</small><strong>{rupees(currentMonth.net)}</strong></div>
           </div>
           <h3>Customer Details</h3>
-          <p className={styles.scrollHint}>Swipe table left/right to see all columns.</p>
           <div className={styles.tableWrap}>
             <table><thead><tr><th>Customer</th><th>3rd Paid Date</th><th>Monthly Installment</th><th>Incentive (7.5%)</th></tr></thead>
               <tbody>{currentMonth.items.map(c => <tr key={c.customerKey}>
@@ -183,7 +181,6 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
         </> : <p className={styles.empty}>No month-wise incentive earned yet.</p>}
       </div>}
       {report.warnings.length > 0 && <p className={styles.warning}>{report.warnings.join(" ")}</p>}
-      <p className={styles.hint}>Incentive is counted only once per customer per scheme, in the month the 3rd installment was actually paid. Data is read-only.</p>
     </>}
   </section>;
 }

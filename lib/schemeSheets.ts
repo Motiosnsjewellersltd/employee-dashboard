@@ -58,11 +58,24 @@ async function getAccessToken(): Promise<string> {
 }
 
 function sourceId(source: Source): string {
-  const configuredId = (source === "gold" ? process.env.NEEV_GOLD_SPREADSHEET_ID : process.env.NEEV_BONUS_SPREADSHEET_ID)?.trim();
-  const rawId = configuredId || DEFAULT_SHEET_IDS[source];
-  const id = source === "gold" && rawId === OLD_GOLD_ID_TYPO ? DEFAULT_SHEET_IDS.gold : rawId;
-  if (!id) throw new Error(`${source === "gold" ? "Neev Gold" : "Neev Bonus"} Sheet ID is not configured.`);
-  if (!/^[\w-]+$/.test(id)) throw new Error("Google Sheet ID is invalid.");
+  // Vercel accepts either the plain spreadsheet ID or the whole Google Sheets URL.
+  // Quotes, gid query parameters and copied /edit suffixes are not part of the ID.
+  const configured = source === "gold" ? process.env.NEEV_GOLD_SPREADSHEET_ID : process.env.NEEV_BONUS_SPREADSHEET_ID;
+  let value = String(configured || DEFAULT_SHEET_IDS[source]).trim();
+  for (let n = 0; n < 2; n++) {
+    const unquoted = value.replace(/^[\s`'"“”‘’]+|[\s`'"“”‘’]+$/g, "").trim();
+    if (unquoted === value) break;
+    value = unquoted;
+  }
+  // Also tolerate a pasted NAME=VALUE line instead of just VALUE.
+  value = value.replace(/^NEEV_(?:GOLD|BONUS)_SPREADSHEET_ID\s*=\s*/i, "").trim();
+  const linkMatch = value.match(/(?:^|\/)spreadsheets\/d\/([A-Za-z0-9_-]+)/i);
+  const directMatch = value.match(/^([A-Za-z0-9_-]+)(?:\/edit(?:[/?#].*)?|[?#].*)?$/);
+  let id = linkMatch?.[1] || directMatch?.[1] || "";
+  if (source === "gold" && id === OLD_GOLD_ID_TYPO) id = DEFAULT_SHEET_IDS.gold;
+  if (!/^[A-Za-z0-9_-]{25,200}$/.test(id)) {
+    throw new Error(`${source === "gold" ? "Neev Gold" : "Neev Bonus"} Sheet ID is invalid. Paste only the Sheet ID or its complete Google Sheets URL in Vercel.`);
+  }
   return id;
 }
 
