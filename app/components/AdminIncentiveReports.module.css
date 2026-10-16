@@ -1,0 +1,27 @@
+.page { color: #163854; }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.heading h1 { margin: 0; }
+.hint { color: #526e83; font-size: 13px; }
+.filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.filters label { display: grid; gap: 6px; font-weight: 600; min-width: 0; }
+.filters select { width: 100%; min-width: 0; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.stats > div { background: #edf7ff; border: 1px solid #cae3f5; border-radius: 12px; padding: 14px; }
+.stats small, .stats strong { display: block; }
+.stats strong { color: #075f9e; margin-top: 5px; font-size: 22px; overflow-wrap: anywhere; }
+.tableWrap { overflow-x: auto; width: 100%; }
+.page table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+.page th, .page td { text-align: left; padding: 10px; border-bottom: 1px solid #dbe9f3; }
+.page th { background: #edf7ff; color: #075f9e; }
+.details { margin-top: 18px; border: 1px solid #cae3f5; border-radius: 12px; padding: 12px; }
+.details summary { cursor: pointer; font-weight: 700; color: #075f9e; }
+.details h3 { margin: 16px 0 8px; }
+.warning { color: #874b0c; background: #fff7e9; padding: 10px; border-radius: 8px; }
+.error { color: #b42318; }
+.empty { color: #526e83; padding: 16px; }
+@media (max-width: 700px) {
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .stats { gap: 6px; }
+  .stats > div { padding: 9px; }
+  .stats strong { font-size: 17px; }
+}

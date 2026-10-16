@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PushNotificationSetup from "./PushNotificationSetup";
 import SchemeIncentives from "./SchemeIncentives";
-import WeekOffManagement, { WeekOffProfile } from "./WeekOffManagement";
+import AdminIncentiveReports from "./AdminIncentiveReports";
 
 type User = {
   id: string;
@@ -59,7 +59,7 @@ type Section =
   | "systemHealth"
   | "profile"
   | "schemes"
-  | "weekOff"
+  | "incentiveReports"
   | "changePassword";
 
 
@@ -388,7 +388,7 @@ function initialSection(user: User): Section {
 }
 
 function hrSectionAllowed(section: Section, permissions: Record<string, string>) {
-  if (section === "weekOff") return true;
+  if (section === "incentiveReports") return false;
   const enabled = (key: string) => permissions[key] === "true";
   const rules: Partial<Record<Section, boolean>> = {
     dashboard: enabled("hrMenuDashboard"),
@@ -1389,7 +1389,7 @@ const canManageReports =
     ? employeeRows.filter(e => `${e.employeeCode || ""} ${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(globalSearch.trim().toLowerCase())).slice(0, 8)
     : [];
   const sectionTitles: Record<Section, string> = {
-    dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders", weekOff: "Employee Week Off",
+    dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders", incentiveReports: "Incentive Reports",
     notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login / Export",
     export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile", schemes: "Scheme & Incentives", changePassword: "Change Password",helpTickets: "Help Tickets",
 reporting: session.role === "EMPLOYEE"
@@ -1511,7 +1511,7 @@ floorTeam: "My Team",
         {showChat && <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
         {isAdmin && showResetPassword && canResetPassword && <MenuItem label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
         {isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <MenuItem label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
-        {isAdmin && <MenuItem label="Employee Week Off" icon="◷" active={section === "weekOff"} onClick={() => goto("weekOff")} />}
+        {session.role === "ADMIN" && <MenuItem label="Incentive Reports" icon="₹" active={section === "incentiveReports"} onClick={() => goto("incentiveReports")} />}
         {isSuperAdmin && <MenuItem label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
         {isAdmin && showRecycleBin && canManageRecycleBin && <MenuItem label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
 
@@ -1623,7 +1623,7 @@ floorTeam: "My Team",
       {section === "reset" && isAdmin && showResetPassword && canResetPassword && <ResetPassword employees={activeEmployeeRows} />}
       {section === "loginHistory" && isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <LoginExportCenter canViewLoginHistory={canViewLoginHistory} canExportData={canExportData} />}
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
-      {section === "weekOff" && isAdmin && <WeekOffManagement />}
+      {section === "incentiveReports" && session.role === "ADMIN" && <AdminIncentiveReports />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}
       {section === "schemes" && showSchemes && <SchemeIncentives onAccessRevoked={() => { setSchemeVisibleEmployeeId(""); goto("profile"); }} />}
@@ -3090,7 +3090,7 @@ function ProfileContent({
     <div className="profile-head">{avatar(user, true)}<div><h1>{user.name}</h1><p>{user.designation} | {user.department}{user.branch ? ` | ${user.branch}` : ""}</p></div><button className="light print-btn" onClick={() => window.print()}><span>▣</span> Print / PDF</button></div>
     <div className="profile-grid">
       <Info label="Employee ID" value={user.employeeCode || "-"} /><Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} />
-      <Info label="Working Period" value={totalWorkingPeriod(employmentHistory, user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><WeekOffProfile employeeId={user.id} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
+      <Info label="Working Period" value={totalWorkingPeriod(employmentHistory, user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
 {(user.floor || "").trim().toLowerCase() !== "support / non-floor" && <Info label="Floor" value={user.floor || "-"} />}
     </div>
 {!viewer.isFloorManager && (

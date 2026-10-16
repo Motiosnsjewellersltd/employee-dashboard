@@ -46,8 +46,8 @@ const normalizedKey = (value: unknown): string => {
   return date ? keyOf(key.slice(0, sep), date) : "";
 };
 
-export async function makeSchemeReport(source: SchemeSource, salesperson: string, branch: string) {
-  const sheets = await readSchemeSheets(source);
+export async function makeSchemeReport(source: SchemeSource, salesperson: string, branch: string, snapshot?: Awaited<ReturnType<typeof readSchemeSheets>>) {
+  const sheets = snapshot ?? await readSchemeSheets(source);
   const salespersonKey = sameName(salesperson);
   const branchKey = str(branch).toUpperCase();
   if (!salespersonKey || !branchKey) {
@@ -132,11 +132,11 @@ export async function makeSchemeReport(source: SchemeSource, salesperson: string
       incentive, status
     });
     if (!incentive || !thirdPaidDate) continue;
-    const [paidYear, paidMonth] = thirdPaidDate.slice(0, 7).split("-").map(Number);
-const incentiveMonth = paidMonth === 12
-  ? `${paidYear + 1}-01`
-  : `${paidYear}-${String(paidMonth + 1).padStart(2, "0")}`;
-const month = monthFor(incentiveMonth);
+    const paidYear = Number(thirdPaidDate.slice(0, 4));
+    const paidMonth = Number(thirdPaidDate.slice(5, 7));
+    // Calendar rollover also handles December -> January without day overflow.
+    const incentiveMonth = new Date(Date.UTC(paidYear, paidMonth, 1)).toISOString().slice(0, 7);
+    const month = monthFor(incentiveMonth);
     month.gross = rounded(month.gross + incentive);
     month.items.push({
       customerKey: entry.key, customerName: entry.customerName,
