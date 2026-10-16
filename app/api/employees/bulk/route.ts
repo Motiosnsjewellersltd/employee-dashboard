@@ -1,3 +1,4 @@
+import { notifyProfileBatch, profileNotificationSelect } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
         role: { not: "ADMIN" },
         deletedAt: null
       },
-      select: { id: true, name: true, branch: true }
+      select: profileNotificationSelect
     });
     const eligibleIds = eligible.map(e => e.id);
     if (!eligibleIds.length) throw new Error("No eligible employees selected.");
@@ -102,6 +103,10 @@ export async function POST(req: NextRequest) {
       notificationText = `${affected} employee${affected === 1 ? "" : "s"} moved to Recycle Bin in bulk by ${session.name}.`;
     } else {
       throw new Error("Invalid bulk action.");
+    }
+
+    if (action !== "DELETE" && affected) {
+      await notifyProfileBatch({ actorId: session.id, before: eligible });
     }
 
     await addAuditLog({

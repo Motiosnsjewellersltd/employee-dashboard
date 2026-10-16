@@ -1,3 +1,4 @@
+import { notifyProfileChanges, profileNotificationSelect } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -89,19 +90,9 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     await requireHrPermission(session.role, "hrCanEditEmployee", "HR is not allowed to edit employees.");
     if (data.password) await requireHrPermission(session.role, "hrCanResetPassword", "HR is not allowed to reset passwords.");
     const before = await prisma.employee.findFirst({
-  where: { id, deletedAt: null },
-  select: {
-    status: true,
-    branch: true,
-    floor: true,
-    isFloorManager: true,
-managerScope: true,
-    doj: true,
-    exitDate: true,
-    designation: true,
-    department: true
-  }
-});
+      where: { id, deletedAt: null },
+      select: profileNotificationSelect
+    });
     if (!before) throw new Error("Employee not found.");
     const employeeCode = cleanEmployeeCode(data.employeeCode);
     if (employeeCode) {
@@ -198,6 +189,7 @@ managerScope,
       }
       return saved;
     });
+    await notifyProfileChanges({ actorId: session.id, employeeId: id, before, after: employee });
     await addAuditLog({
   actorId: session.id,
   actorName: session.name,

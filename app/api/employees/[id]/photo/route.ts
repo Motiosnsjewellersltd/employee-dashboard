@@ -1,3 +1,4 @@
+import { notifyProfileChanges } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       throw new Error("Photo required.");
     }
 
-    const active = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
+    const active = await prisma.employee.findFirst({ where: { id, deletedAt: null }, select: { id: true, photoUrl: true } });
     if (!active) throw new Error("Employee not found.");
 
     const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -34,6 +35,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       where: { id },
       data: { photoUrl }
     });
+
+    await notifyProfileChanges({ actorId: session.id, employeeId: id, before: active, after: employee });
 
     return ok({ employee: employeeSelect(employee) });
   } catch (e) {

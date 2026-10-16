@@ -1,3 +1,4 @@
+import { notifyProfileChanges } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -168,6 +169,9 @@ managerScope,
       }
       return saved;
     });
+    if (existing) {
+      await notifyProfileChanges({ actorId: session.id, employeeId: employee.id, before: existing, after: employee });
+    }
     await addAuditLog({ actorId: session.id, actorName: session.name, action: existing ? "UPDATE_EMPLOYEE" : "ADD_EMPLOYEE", target: employee.name, details: {
   employeeCode: employee.employeeCode,
   mobile: employee.mobile,

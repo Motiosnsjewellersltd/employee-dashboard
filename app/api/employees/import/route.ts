@@ -1,3 +1,4 @@
+import { notifyProfileChanges } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import ExcelJS from "exceljs";
 import bcrypt from "bcryptjs";
@@ -75,14 +76,18 @@ export async function POST(req: NextRequest) {
         exitDate,
         status: exitDate || String(excelCell(r, ["Status"]) || "Active").toLowerCase().includes("inactive") ? "INACTIVE" as const : "ACTIVE" as const
       };
-      await prisma.$transaction(async tx => {
+      const saved = await prisma.$transaction(async tx => {
         const employee = old
           ? await tx.employee.update({ where: { id: old.id }, data })
           : await tx.employee.create({ data });
         if (old && (old.branch || null) !== data.branch) {
           await tx.branchTransfer.create({ data: { employeeId: employee.id, fromBranch: old.branch || null, toBranch: data.branch || "UNASSIGNED", changedById: session.id, changedByName: session.name } });
         }
+        return employee;
       });
+      if (old) {
+        await notifyProfileChanges({ actorId: session.id, employeeId: saved.id, before: old, after: saved });
+      }
       old ? updated++ : added++;
     }
 

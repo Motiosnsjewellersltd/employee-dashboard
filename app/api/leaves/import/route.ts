@@ -1,3 +1,4 @@
+import { notifyProfileRecords } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -69,8 +70,9 @@ export async function POST(req: NextRequest) {
     const months = Array.from(new Set(items.map(x => x.monthYear)));
     const existing = items.length ? await prisma.leaveRecord.findMany({
       where: { employeeId: { in: employeeIds }, monthYear: { in: months }, deletedAt: null },
-      select: { employeeId: true, monthYear: true }
+      select: { employeeId: true, monthYear: true, leave: true }
     }) : [];
+    const existingValues = new Map(existing.map(row => [`${row.employeeId}|${row.monthYear}`, Number(row.leave)]));
     const existingKeys = new Set(existing.map(x => `${x.employeeId}|${x.monthYear}`));
     const updated = items.filter(x => existingKeys.has(`${x.employeeId}|${x.monthYear}`)).length;
     const added = items.length - updated;
@@ -83,6 +85,15 @@ export async function POST(req: NextRequest) {
         create: item
       })));
     }
+
+    const changedEmployeeIds = items.filter(item =>
+      !existingValues.has(`${item.employeeId}|${item.monthYear}`) ||
+      existingValues.get(`${item.employeeId}|${item.monthYear}`) !== Number(item.leave)
+    ).map(item => item.employeeId);
+    await notifyProfileRecords({
+      actorId: session.id, employeeIds: changedEmployeeIds,
+      title: "Leave Details Updated", text: "Your profile leave details have been uploaded or updated."
+    });
 
     await addAuditLog({
       actorId: session.id,

@@ -1,3 +1,4 @@
+import { addEmployeeNotification, notifyProfileRecords } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -117,6 +118,14 @@ export async function POST(req: NextRequest) {
       details: { monthYear, addedLeave: leave, totalLeave: newLeave, reason: reason || null, source: "manual", restoredFromRecycleBin: !!existing?.deletedAt }
     });
 
+    if (!activeExisting || Number(activeExisting.leave) !== Number(record.leave) ||
+        (activeExisting.reason || "") !== (record.reason || "")) {
+      await addEmployeeNotification({
+        actorId: session.id, employeeId,
+        action: "EMPLOYEE_PROFILE_UPDATED", title: "Leave Details Updated",
+        text: `Your profile leave details for ${monthYear} have been updated.`
+      });
+    }
     return ok({ record, updated: !!activeExisting, employeeName: employee.name, monthYear, negativeBalance });
   } catch (e) {
     return fail(e);
@@ -148,6 +157,13 @@ export async function PUT(req: NextRequest) {
       target: before.employee.name,
       details: { monthYear: before.monthYear, oldLeave: before.leave, newLeave: leave, oldReason: before.reason, newReason: reason }
     });
+    if (Number(before.leave) !== Number(record.leave) || (before.reason || "") !== (record.reason || "")) {
+      await addEmployeeNotification({
+        actorId: session.id, employeeId: before.employeeId,
+        action: "EMPLOYEE_PROFILE_UPDATED", title: "Leave Details Updated",
+        text: `Your profile leave details for ${before.monthYear} have been updated.`
+      });
+    }
     return ok({ record, negativeBalance });
   } catch (e) {
     return fail(e);
@@ -172,19 +188,28 @@ export async function DELETE(req: NextRequest) {
       if (!before) throw new Error("Leave record not found.");
       await prisma.leaveRecord.update({ where: { id }, data: deleteData });
       await addAuditLog({ actorId: session.id, actorName: session.name, action: "DELETE_LEAVE", target: before.employee.name, details: { monthYear: before.monthYear, leave: before.leave, reason: before.reason, softDelete: true } });
+      await addEmployeeNotification({
+        actorId: session.id, employeeId: before.employeeId,
+        action: "EMPLOYEE_PROFILE_UPDATED", title: "Leave Details Updated",
+        text: `A leave record for ${before.monthYear} has been removed from your profile.`
+      });
       return ok({ deleted: 1 });
     }
 
     if (monthRaw) {
       const monthYear = normalizeMonthYear(monthRaw);
       if (!monthYear) throw new Error("Valid Month/Year required.");
+      const affected = await prisma.leaveRecord.findMany({ where: { monthYear, deletedAt: null }, select: { employeeId: true }, distinct: ["employeeId"] });
       const result = await prisma.leaveRecord.updateMany({ where: { monthYear, deletedAt: null }, data: deleteData });
+      await notifyProfileRecords({ actorId: session.id, employeeIds: affected.map(row => row.employeeId), title: "Leave Details Updated", text: `Leave records for ${monthYear} have been removed from your profile.` });
       await addAuditLog({ actorId: session.id, actorName: session.name, action: "DELETE_MONTH_LEAVES", target: monthYear, details: { deleted: result.count, softDelete: true } });
       return ok({ deleted: result.count, monthYear });
     }
 
     if (deleteAll) {
+      const affected = await prisma.leaveRecord.findMany({ where: { deletedAt: null }, select: { employeeId: true }, distinct: ["employeeId"] });
       const result = await prisma.leaveRecord.updateMany({ where: { deletedAt: null }, data: deleteData });
+      await notifyProfileRecords({ actorId: session.id, employeeIds: affected.map(row => row.employeeId), title: "Leave Details Updated", text: "Your profile leave records have been removed." });
       await addAuditLog({ actorId: session.id, actorName: session.name, action: "DELETE_ALL_LEAVES", target: "All leave records", details: { deleted: result.count, softDelete: true } });
       return ok({ deleted: result.count });
     }

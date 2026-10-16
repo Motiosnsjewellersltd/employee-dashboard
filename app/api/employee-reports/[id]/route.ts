@@ -1,3 +1,4 @@
+import { addEmployeeNotification } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -350,6 +351,16 @@ if (
           updatedAt: true
         }
       });
+
+    if (data.fileData || current.title !== report.title ||
+        current.fromDate.getTime() !== report.fromDate.getTime() ||
+        current.toDate.getTime() !== report.toDate.getTime()) {
+      await addEmployeeNotification({
+        actorId: session.id, employeeId: current.employeeId,
+        action: "EMPLOYEE_REPORT_UPDATED", title: "Report Updated",
+        text: `Your report has been updated: ${report.title} (${report.fromDate.toISOString().slice(0, 10)} to ${report.toDate.toISOString().slice(0, 10)}).`
+      });
+    }
 
     await addAuditLog({
       actorId: session.id,

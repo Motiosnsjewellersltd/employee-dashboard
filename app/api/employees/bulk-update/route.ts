@@ -1,3 +1,4 @@
+import { notifyProfileBatch, profileNotificationSelect } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
@@ -149,9 +150,10 @@ export async function POST(req: NextRequest) {
     const uniqueIds = Array.from(new Set(rows.map(row => row.id)));
     const employees = await prisma.employee.findMany({
       where: { id: { in: uniqueIds, not: session.id }, role: { not: "ADMIN" }, deletedAt: null },
-      select: { id: true, name: true, employeeCode: true, branch: true }
+      select: profileNotificationSelect
     });
     const employeeMap = new Map(employees.map(employee => [employee.id, employee]));
+    const updatedProfiles: typeof employees = [];
     const seen = new Set<string>();
     const seenEmployeeCodes = new Set<string>();
     const errors: string[] = [];
@@ -201,12 +203,15 @@ export async function POST(req: NextRequest) {
           if (!exitDate) throw new Error("use valid dd-mm-yyyy date");
           await prisma.employee.update({ where: { id: employee.id }, data: { exitDate, status: "INACTIVE" } });
         }
+        updatedProfiles.push(employee);
         updated++;
       } catch (error) {
         skipped++;
         errors.push(`Row ${row.row} (${employee.name}): ${error instanceof Error ? error.message : "invalid value"}.`);
       }
     }
+
+    await notifyProfileBatch({ actorId: session.id, before: updatedProfiles });
 
     if (!updated && errors.length) throw new Error(errors[0]);
     await addAuditLog({ actorId: session.id, actorName: session.name, action: `EXCEL_${action}`, target: `${updated} employees`, details: { updated, blank, skipped, errors: errors.slice(0, 20) } });

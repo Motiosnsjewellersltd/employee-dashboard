@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { requireHrPermission } from "@/lib/permissions";
 import { addAuditLog } from "@/lib/audit";
-import { sendPushToEmployees } from "@/lib/webPush";
+import { addEmployeeNotification } from "@/lib/employeeNotifications";
 import { fail, ok } from "@/lib/utils";
 
 const reportSelect = {
@@ -424,48 +424,11 @@ fileData:
     const period =
       `${fromDateText} to ${toDateText}`;
 
-    await prisma.notificationBlast.create({
-      data: {
-        type: "INFORMATION",
-
-        text:
-          `New report uploaded: ${title} (${period}).`,
-
-        filterType:
-          "SYSTEM",
-
-        filterValue:
-          "EMPLOYEE_REPORT",
-
-        createdById:
-          session.id,
-
-        recipients: {
-          create: [
-            {
-              employeeId
-            }
-          ]
-        }
-      }
+    await addEmployeeNotification({
+      actorId: session.id, employeeId,
+      action: "EMPLOYEE_REPORT", title: "New Report Uploaded",
+      text: `New report uploaded: ${title} (${period}).`
     });
-
-    await sendPushToEmployees(
-      [employeeId],
-      {
-        title:
-          "New Report Uploaded",
-
-        body:
-          `${title} (${period})`,
-
-        url:
-          "/?section=reporting",
-
-        tag:
-          `employee-report-${report.id}`
-      }
-    );
 
     await addAuditLog({
       actorId: session.id,

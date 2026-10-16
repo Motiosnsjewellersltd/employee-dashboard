@@ -1,3 +1,4 @@
+import { addEmployeeNotification } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -97,6 +98,11 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     if (!transfer) throw new Error("Branch transfer record not found.");
     await prisma.branchTransfer.delete({ where: { id: transferId } });
     await addAuditLog({ actorId: session.id, actorName: session.name, action: "DELETE_BRANCH_TRANSFER_HISTORY", target: transfer.employee.name, details: { fromBranch: transfer.fromBranch, toBranch: transfer.toBranch, transferredAt: transfer.transferredAt } });
+    await addEmployeeNotification({
+      actorId: session.id, employeeId,
+      action: "EMPLOYEE_PROFILE_UPDATED", title: "Profile Updated",
+      text: "Your branch / store transfer history has been updated."
+    });
     return ok({ deleted: 1 });
   } catch (e) { return fail(e); }
 }

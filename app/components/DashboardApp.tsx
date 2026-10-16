@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PushNotificationSetup from "./PushNotificationSetup";
 import SchemeIncentives from "./SchemeIncentives";
+import { employeeNotificationTarget } from "@/lib/notificationTargets";
 import AdminIncentiveReports from "./AdminIncentiveReports";
 
 type User = {
@@ -6723,6 +6724,13 @@ function Notifications({ session, employees, onNavigate }: { session: User; empl
       }
     } catch {
       // Navigation should still work even if marking the notification as read fails.
+    }
+
+    const directTarget = employeeNotificationTarget(row?.filterValue);
+    if (session.role === "EMPLOYEE" && directTarget) {
+      // Reload the destination so profile/report data cannot remain stale.
+      window.location.assign(directTarget);
+      return;
     }
 
     const target = targetSectionForNotification(row);

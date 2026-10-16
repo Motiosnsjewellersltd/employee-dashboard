@@ -1,3 +1,4 @@
+import { addEmployeeNotification } from "@/lib/employeeNotifications";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -476,6 +477,12 @@ export async function POST(
       }
     });
 
+    await addEmployeeNotification({
+      actorId: session.id, employeeId: target.id,
+      action: "EMPLOYEE_PROFILE_UPDATED", title: "Profile Note Added",
+      text: "A new note has been added to your profile."
+    });
+
     return ok({
       note: created
     });
@@ -574,6 +581,12 @@ export async function DELETE(
         originalCreatedAt:
           current.createdAt
       }
+    });
+
+    await addEmployeeNotification({
+      actorId: session.id, employeeId: current.employeeId,
+      action: "EMPLOYEE_PROFILE_UPDATED", title: "Profile Note Removed",
+      text: "A note has been removed from your profile."
     });
 
     return ok({
