@@ -5,6 +5,7 @@ import PushNotificationSetup from "./PushNotificationSetup";
 import SchemeIncentives from "./SchemeIncentives";
 import { employeeNotificationTarget } from "@/lib/notificationTargets";
 import AdminIncentiveReports from "./AdminIncentiveReports";
+import EmployeeWelcome from "./EmployeeWelcome";
 
 type User = {
   id: string;
@@ -703,6 +704,7 @@ function DashboardAppInner() {
   const [forgotEligible, setForgotEligible] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [welcomeEmployee, setWelcomeEmployee] = useState<User | null>(null);
   const [section, setSection] = useState<Section>("dashboard");
   const [dashboardFilter, setDashboardFilter] = useState("All Employees");
   const [dashboardQuick, setDashboardQuick] = useState({ q: "", status: "All", designation: "All", department: "All" });
@@ -1135,6 +1137,7 @@ useEffect(() => {
       const data = json.data;
       if (data.loginAttemptId) sessionStorage.setItem("motisons-login-attempt-id", String(data.loginAttemptId));
       if (data.deviceId) localStorage.setItem("motisons-device-id", String(data.deviceId));
+      setWelcomeEmployee(data.user.role === "EMPLOYEE" ? data.user : null);
       setMenuOpen(false);
       setSession(data.user);
       setLoginErr("");
@@ -1320,6 +1323,10 @@ useEffect(() => {
       </div>
     )}
     {isOffline && <OfflineNotice onRetry={retryConnection} />}</div></>;
+  }
+
+  if (welcomeEmployee) {
+    return <EmployeeWelcome employee={welcomeEmployee} onComplete={() => setWelcomeEmployee(null)} />;
   }
 
   if (session.mustChangePassword) {

@@ -1,0 +1,78 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: 110px 24px 56px;
+  box-sizing: border-box;
+  color: #075f9e;
+  text-align: center;
+  background: radial-gradient(ellipse at 10% 0%, #e6f7ff 0%, transparent 65%),
+    linear-gradient(125deg, #c6ecff 0%, #a1ddfa 50%, #68bdf0 100%);
+}
+.waves { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.waves path { stroke: #fff; stroke-width: 1.4; stroke-opacity: .65; fill: none; }
+.waves path:first-child { fill: white; stroke: none; }
+.brand {
+  position: absolute;
+  top: max(8vh, env(safe-area-inset-top));
+  left: 24px;
+  right: 24px;
+  display: flex;
+  justify-content: center;
+  gap: 13px;
+  color: #246e9c;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 6px;
+}
+.content { position: relative; width: min(100%, 760px); animation: appear .35s ease-out both; }
+.photo {
+  width: 170px;
+  height: 170px;
+  margin: 0 auto 27px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 5px;
+  background: #d8ecf7;
+  box-shadow: 0 5px 22px rgb(7 95 158 / 8%);
+}
+.photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.photo > span { font-size: 58px; font-weight: 700; }
+.content h1 { margin: 0 0 17px; font-size: clamp(30px, 3.4vw, 48px); font-weight: 800; line-height: 1.2; text-transform: uppercase; overflow-wrap: anywhere; color: #075f9e; }
+.content h2 { margin: 0 0 13px; font-size: clamp(25px, 2.7vw, 36px); font-weight: 600; line-height: 1.25; color: #075f9e; }
+.content p { margin: 0; font-size: 20px; line-height: 1.5; font-weight: 400; color: #327aa6; }
+.progress { width: 160px; height: 4px; margin: 38px auto 0; overflow: hidden; border-radius: 99px; background: rgb(8 116 187 / 15%); }
+.progress span { display: block; width: 100%; height: 100%; background: #0874bb; border-radius: inherit; transform-origin: left; animation: progress 2.5s linear both; }
+@keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes appear { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) {
+  .screen { padding: 125px 24px 64px; }
+  .brand { top: max(10vh, env(safe-area-inset-top)); flex-direction: column; gap: 7px; font-size: 11px; letter-spacing: 5px; }
+  .photo { width: 136px; height: 136px; margin-bottom: 26px; }
+  .photo > span { font-size: 46px; }
+  .content h1 { font-size: clamp(24px, 7.2vw, 31px); margin-bottom: 15px; }
+  .content h2 { font-size: 25px; margin-bottom: 15px; }
+  .content p { font-size: 17px; }
+  .content p span { display: block; }
+  .progress { width: 105px; height: 3px; margin-top: 28px; }
+}
+@media (max-height: 500px) {
+  .screen { padding-top: 72px; padding-bottom: 24px; }
+  .brand { top: 20px; flex-direction: row; font-size: 10px; letter-spacing: 3px; }
+  .photo { width: 96px; height: 96px; margin-bottom: 12px; }
+  .content h1 { font-size: 25px; margin-bottom: 8px; }
+  .content h2 { font-size: 22px; margin-bottom: 8px; }
+  .content p { font-size: 15px; }
+  .content p span { display: inline; }
+  .progress { margin-top: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .content, .progress span { animation: none; }
+}
