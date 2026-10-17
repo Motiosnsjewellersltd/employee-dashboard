@@ -68,8 +68,8 @@
 .calendar td.future { background: #f3f5f7; border-color: #e6ebef; color: #8c99a6; }
 .calendar td.future span { display: inline-block; opacity: .5; filter: blur(1px); }
 .calendar td.statusP, .legend i.statusP { background: #dcf5e3; border-color: #addbb9; color: #166534; }
-.calendar td.statusA, .legend i.statusA { background: #b91c1c; border-color: #991b1b; color: #ffffff; }
-.calendar td.statusH, .legend i.statusH { background: #fee2e2; border-color: #f3b7b7; color: #991b1b; }
+.calendar td.statusA, .legend i.statusA { background: #fbd5df; border-color: #eda6ba; color: #922b4d; }
+.calendar td.statusH, .legend i.statusH { background: #fff0df; border-color: #efc59b; color: #875323; }
 .calendar td.statusR, .legend i.statusR { background: #eae0f6; border-color: #cfbce7; color: #643a88; }
 .calendar td.statusSL, .legend i.statusSL { background: #dbeeff; border-color: #93c5fd; color: #164e8b; }
 .code { display: block; font-size: 10px; font-weight: 700; line-height: 1.2; }
