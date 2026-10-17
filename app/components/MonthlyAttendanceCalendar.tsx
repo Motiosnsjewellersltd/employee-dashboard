@@ -124,6 +124,12 @@ function MonthPopup({ employee, monthYear, onClose }: {
     const day = index - firstWeekday + 1;
     return day >= 1 && day <= daysInMonth ? day : null;
   });
+  const counts: Record<AttendanceCode, number> = { P: 0, A: 0, H: 0, R: 0, SL: 0 };
+  for (let day = 1; day <= daysInMonth; day++) {
+    if (year * 10000 + month * 100 + day > todayKey) continue;
+    const code = days[String(day)];
+    if (code && Object.prototype.hasOwnProperty.call(counts, code)) counts[code]++;
+  }
 
   return createPortal(<div className={styles.backdrop} onMouseDown={event => {
     event.stopPropagation();
@@ -135,6 +141,11 @@ function MonthPopup({ employee, monthYear, onClose }: {
         <button type="button" className={styles.close} aria-label="Close attendance calendar" onClick={onClose}>×</button>
       </header>
       <h3 className={styles.month}>{monthLabel}</h3>
+      {!loading && !error && <dl className={styles.summary} aria-label="Monthly attendance counts">
+        {(["P", "A", "H", "SL", "R"] as AttendanceCode[]).map(code => <div key={code} className={styles[`status${code}`]}>
+          <dt>{labels[code]} ({code})</dt><dd>{counts[code]}</dd>
+        </div>)}
+      </dl>}
       {loading && <p className={styles.message} role="status">Loading attendance…</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
       {notice && <p className={styles.message} role="status">{notice}</p>}
