@@ -6,6 +6,7 @@ import SchemeIncentives from "./SchemeIncentives";
 import { employeeNotificationTarget } from "@/lib/notificationTargets";
 import AdminIncentiveReports from "./AdminIncentiveReports";
 import EmployeeWelcome from "./EmployeeWelcome";
+import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
 
 type User = {
   id: string;
@@ -3127,9 +3128,9 @@ function ProfileContent({
           const availableThisMonth = previousBalance + Number(r.earned || 0);
           const isOverused = Number(r.used || 0) > availableThisMonth;
           const overuseCellStyle = isOverused ? { backgroundColor: "#fff8d8" } : undefined;
-          return <tr key={r.monthYear}><td style={overuseCellStyle} data-label="Month/Year">{r.monthYear}</td><td style={overuseCellStyle} data-label="Earned">{r.earned}</td><td style={overuseCellStyle} data-label="Used">{r.used}</td><td style={overuseCellStyle} data-label="Balance" className="green">{r.balance}</td></tr>;
+          return <tr key={r.monthYear}><td style={overuseCellStyle} data-label="Month/Year">{viewer.role === "ADMIN" || viewer.role === "HR" ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td style={overuseCellStyle} data-label="Earned">{r.earned}</td><td style={overuseCellStyle} data-label="Used">{r.used}</td><td style={overuseCellStyle} data-label="Balance" className="green">{r.balance}</td></tr>;
         })}</tbody></table></div>}
-        {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
+        {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{viewer.role === "ADMIN" || viewer.role === "HR" ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
       </>}
     </>}
   </div>;
