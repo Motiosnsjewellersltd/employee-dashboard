@@ -7,6 +7,7 @@ import { employeeNotificationTarget } from "@/lib/notificationTargets";
 import AdminIncentiveReports from "./AdminIncentiveReports";
 import EmployeeWelcome from "./EmployeeWelcome";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
+import BranchAvailability from "./BranchAvailability";
 
 type User = {
   id: string;
@@ -2145,6 +2146,7 @@ function EmployeeTable({ title, employees, allEmployees, clickable, onProfile, o
         {canExport && <option value="EXPORT_SELECTED">Export Selected</option>}
         {canDelete && <option value="DELETE">Delete Selected</option>}
       </select>
+      <BranchAvailability />
       {bulkAction && !["ACTIVATE", "DEACTIVATE", "DELETE", "EXPORT_SELECTED"].includes(bulkAction) && <div className="bulk-value-editor">
         <button className="light" type="button" onClick={exportBulkUpdateTemplate}>Export Excel</button>
         <button className="primary" type="button" disabled={bulkUploadBusy} onClick={() => bulkUpdateFileRef.current?.click()}>{bulkUploadBusy ? "Uploading..." : "Upload Excel"}</button>
