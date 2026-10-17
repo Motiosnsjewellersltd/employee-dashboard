@@ -6,16 +6,16 @@
 .header h2 { margin: 0; font-size: 24px; color: #075f9e; overflow-wrap: anywhere; }
 .close { flex: 0 0 38px; width: 38px; height: 38px; padding: 0; margin: 0; border: 1px solid #cce5f6; border-radius: 9px; background: #edf8ff; color: #075f9e; font-size: 27px; cursor: pointer; }
 .filters { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin: 12px 0; }
-.filters label { display: flex; flex: 1 1 150px; min-width: 0; flex-direction: column; gap: 5px; font-size: 14px; font-weight: 600; }
+.filters label { display: flex; flex: 1 1 150px; min-width: 0; margin: 0; flex-direction: column; gap: 5px; font-size: 14px; font-weight: 600; line-height: 1.35; }
 .filters input, .filters select, .search { box-sizing: border-box; min-width: 0; width: 100%; max-width: 100%; height: 40px; border: 1px solid #bdddf3; border-radius: 8px; padding: 6px 9px; background: #f8fcff; color: #052a4d; font: inherit; font-size: 15px; }
 .search { flex: 0 0 auto; margin: 0 0 10px; }
-.refresh { width: auto; height: 40px; margin: 0; border: 1px solid #bdddf3; border-radius: 8px; padding: 6px 12px; background: #edf8ff; color: #075f9e; font-size: 15px; cursor: pointer; }
+.refresh { box-sizing: border-box; align-self: flex-end; display: flex; align-items: center; justify-content: center; width: auto; height: 40px; margin: 0; border: 1px solid #bdddf3; border-radius: 8px; padding: 6px 12px; background: #edf8ff; color: #075f9e; font-size: 15px; cursor: pointer; }
 .refresh:disabled { opacity: .6; cursor: wait; }
 .notice { margin: 8px 0; color: #52718b; font-size: 14px; line-height: 1.4; }
 .error { flex: 0 0 auto; margin: 8px 0; color: #a21e1e; font-size: 14px; overflow-wrap: anywhere; }
 .roster { min-height: 0; overflow-y: auto; overflow-x: hidden; }
 .rosterHeader, .rosterRow { display: grid; grid-template-columns: minmax(160px, 2fr) repeat(6, minmax(0, 1fr)); align-items: center; gap: 6px; }
-.rosterHeader { position: sticky; top: 0; z-index: 1; padding: 9px 8px; border-radius: 7px; background: #eaf8ff; color: #075f9e; font-size: 13px; text-align: center; }
+.rosterHeader { position: sticky; top: 0; z-index: 1; padding: 10px 8px; border-radius: 7px; background: #eaf8ff; color: #075f9e; font-size: 15px; line-height: 1.35; text-align: center; overflow-wrap: anywhere; }
 .rosterHeader > span:first-child { text-align: left; }
 .rosterRow { padding: 8px; margin-top: 5px; border: 1px solid #deedf7; border-radius: 8px; background: #fbfdff; }
 .rosterRow h3 { display: flex; justify-content: space-between; align-items: center; gap: 7px; min-width: 0; margin: 0; font-size: 14px; line-height: 1.4; color: #075f9e; overflow-wrap: anywhere; }
@@ -51,7 +51,7 @@
   .rosterRow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 7px; }
   .rosterRow h3 { grid-column: 1 / -1; font-size: 14px; }
   .count { display: flex; justify-content: space-between; align-items: center; gap: 3px; padding: 5px; }
-  .count span { display: inline; font-size: 11px; line-height: 1.3; }
+  .count span { display: inline; min-width: 0; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
   .count strong { font-size: 17px; }
   .detailDialog { max-height: calc(100dvh - 32px); }
 }

@@ -10,7 +10,7 @@ type Result = { date: string; branch: string; future: boolean; today: string; to
 type Detail = { item: DesignationAvailability; group: AvailabilityGroup };
 const order: AvailabilityGroup[] = ["available", "pending", "approved", "weekOff", "absent", "unrecorded"];
 const labels: Record<AvailabilityGroup, string> = {
-  available: "Present", pending: "Pending", approved: "Approved",
+  available: "Present", pending: "Leave Request Pending", approved: "Leave Request Approved",
   weekOff: "Week Off", absent: "Absent", unrecorded: "Not Recorded"
 };
 function groupTitle(group: AvailabilityGroup, future: boolean) {
