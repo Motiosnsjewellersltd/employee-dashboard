@@ -29,6 +29,13 @@ export function availabilityDate(value: string) {
   return date;
 }
 
+// Factory is a department-only view in this popup, not a stored branch.
+export function availabilityScopeMatches(employee: Pick<AvailabilityPerson, "branch" | "department">, scope: string) {
+  const factory = employee.department?.trim().toUpperCase() === "FACTORY";
+  if (scope === "FACTORY") return factory;
+  return employee.branch?.trim().toUpperCase() === scope && !(scope === "MT" && factory);
+}
+
 export function buildBranchAvailability(
   employees: AvailabilityEmployee[], leaves: AvailabilityLeave[],
   records: Array<{ employeeId: string; days: unknown }>, dateKey: string, branch: string, today = indiaDateKey()
@@ -46,7 +53,7 @@ export function buildBranchAvailability(
   }
   const groups: AvailabilityGroups = { available: [], pending: [], approved: [], weekOff: [], absent: [], unrecorded: [] };
   for (const employee of employees) {
-    if (employee.status !== "ACTIVE" || employee.branch?.trim().toUpperCase() !== branch) continue;
+    if (employee.status !== "ACTIVE" || !availabilityScopeMatches(employee, branch)) continue;
     if (employee.doj && employee.doj.toISOString().slice(0, 10) > dateKey) continue;
     if (employee.exitDate && employee.exitDate.toISOString().slice(0, 10) <= dateKey) continue;
     const stored = attendance.get(employee.id);

@@ -55,7 +55,7 @@ function EmployeeCountPopup({ detail, date, branch, future, onClose, returnFocus
   }}>
     <div ref={dialog} className={`${styles.dialog} ${styles.detailDialog}`} role="dialog" aria-modal="true" aria-labelledby="availability-detail-title">
       <header className={styles.header}>
-        <div><h2 id="availability-detail-title">{detail.item.designation}</h2><p className={styles.detailMeta}>{date.split("-").reverse().join("/")} · {branch} · {groupTitle(detail.group, future)} <strong>{people.length}</strong></p></div>
+        <div><h2 id="availability-detail-title">{detail.item.designation}</h2><p className={styles.detailMeta}>{date.split("-").reverse().join("/")} · {branch === "FACTORY" ? "Factory" : branch} · {groupTitle(detail.group, future)} <strong>{people.length}</strong></p></div>
         <button type="button" className={styles.close} aria-label="Close employee list" onClick={onClose}>×</button>
       </header>
       <input className={styles.search} type="search" aria-label="Search employee list" placeholder="Search name, ID or department" value={query} onChange={event => setQuery(event.target.value)} />
@@ -156,7 +156,7 @@ function AvailabilityPopup({ onClose }: { onClose: () => void }) {
         <header className={styles.header}><h2 id="branch-availability-title">Employee Availability</h2><button className={styles.close} type="button" aria-label="Close availability calendar" onClick={onClose}>×</button></header>
         <div className={styles.filters}>
           <label>Date<input type="date" value={date} onChange={event => { setDate(event.target.value); resetFilters(); }} /></label>
-          <label>Branch<select value={branch} onChange={event => { setBranch(event.target.value); resetFilters(); }}><option value="">Select branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select></label>
+          <label>Branch<select value={branch} onChange={event => { setBranch(event.target.value); resetFilters(); }}><option value="">Select branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option><option value="FACTORY">Factory</option></select></label>
           <button type="button" className={styles.refresh} disabled={loading || !date || !branch} onClick={() => setVersion(value => value + 1)}>Refresh</button>
         </div>
         {!branch && <p className={styles.notice}>Select branch.</p>}
