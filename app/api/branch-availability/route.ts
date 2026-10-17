@@ -14,10 +14,10 @@ export async function GET(req: NextRequest) {
     const date = availabilityDate(dateKey);
     const branch = (req.nextUrl.searchParams.get("branch") || "").trim().toUpperCase();
     if (!["MT", "JB", "VN"].includes(branch)) throw new Error("Select MT, JB or VN branch.");
-    const employees = (await prisma.employee.findMany({
-      where: { deletedAt: null, status: "ACTIVE", role: "EMPLOYEE", branch },
+    const employees = await prisma.employee.findMany({
+      where: { deletedAt: null, status: "ACTIVE", role: { not: "ADMIN" }, branch },
       select: { id: true, name: true, employeeCode: true, department: true, designation: true, branch: true, status: true, doj: true, exitDate: true }
-    })).filter(employee => employee.designation?.trim().toLowerCase() === "sales executive");
+    });
     const ids = employees.map(employee => employee.id);
     const monthYear = `${dateKey.slice(5, 7)}/${dateKey.slice(0, 4)}`;
     const [leaves, records] = ids.length ? await prisma.$transaction([

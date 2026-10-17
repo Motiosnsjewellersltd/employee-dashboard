@@ -12,6 +12,7 @@ export type AvailabilityLeave = {
 };
 export type AvailabilityEntry = AvailabilityPerson & { note: string };
 export type AvailabilityGroups = Record<AvailabilityGroup, AvailabilityEntry[]>;
+export type DesignationAvailability = { key: string; designation: string; total: number; groups: AvailabilityGroups };
 
 export function indiaDateKey(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -45,8 +46,7 @@ export function buildBranchAvailability(
   }
   const groups: AvailabilityGroups = { available: [], pending: [], approved: [], weekOff: [], absent: [], unrecorded: [] };
   for (const employee of employees) {
-    // Match the dashboard's existing Salesperson category (not Senior/Supporting Sales).
-    if (employee.status !== "ACTIVE" || employee.designation?.trim().toLowerCase() !== "sales executive" || employee.branch?.trim().toUpperCase() !== branch) continue;
+    if (employee.status !== "ACTIVE" || employee.branch?.trim().toUpperCase() !== branch) continue;
     if (employee.doj && employee.doj.toISOString().slice(0, 10) > dateKey) continue;
     if (employee.exitDate && employee.exitDate.toISOString().slice(0, 10) <= dateKey) continue;
     const stored = attendance.get(employee.id);
@@ -86,5 +86,19 @@ export function buildBranchAvailability(
     groups[group].push({ id, name, employeeCode, department, designation, branch: employeeBranch, note });
   }
   for (const entries of Object.values(groups)) entries.sort((a, b) => a.name.localeCompare(b.name, "en"));
-  return { date: dateKey, branch, future, today, groups, total: Object.values(groups).reduce((count, entries) => count + entries.length, 0) };
+  const byDesignation = new Map<string, DesignationAvailability>();
+  for (const [group, people] of Object.entries(groups) as [AvailabilityGroup, AvailabilityEntry[]][]) {
+    for (const person of people) {
+      const name = person.designation?.trim().replace(/\s+/g, " ") || "Not Assigned";
+      const key = person.designation?.trim().replace(/\s+/g, " ").toLowerCase() || "";
+      let item = byDesignation.get(key);
+      if (!item) {
+        item = { key, designation: name, total: 0, groups: { available: [], pending: [], approved: [], weekOff: [], absent: [], unrecorded: [] } };
+        byDesignation.set(key, item);
+      }
+      item.total++; item.groups[group].push(person);
+    }
+  }
+  const designations = Array.from(byDesignation.values()).sort((a, b) => a.designation.localeCompare(b.designation, "en"));
+  return { date: dateKey, branch, future, today, groups, designations, total: Object.values(groups).reduce((count, entries) => count + entries.length, 0) };
 }

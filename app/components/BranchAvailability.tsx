@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { indiaDateKey } from "@/lib/branchAvailability";
-import type { AvailabilityGroup, AvailabilityGroups } from "@/lib/branchAvailability";
+import type { AvailabilityGroup, AvailabilityGroups, DesignationAvailability } from "@/lib/branchAvailability";
 import styles from "./BranchAvailability.module.css";
 
-type Result = { date: string; branch: string; future: boolean; today: string; total: number; groups: AvailabilityGroups };
+type Result = { date: string; branch: string; future: boolean; today: string; total: number; groups: AvailabilityGroups; designations: DesignationAvailability[] };
 const order: AvailabilityGroup[] = ["available", "pending", "approved", "weekOff", "absent", "unrecorded"];
 const labels: Record<AvailabilityGroup, string> = {
   available: "Recorded Present", pending: "Pending Leave", approved: "Approved Leave",
@@ -21,6 +21,7 @@ function AvailabilityPopup({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
+  const [selectedDesignation, setSelectedDesignation] = useState<string | null>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
@@ -74,6 +75,8 @@ function AvailabilityPopup({ onClose }: { onClose: () => void }) {
 
   // Never show a previous date/branch response under newly selected filters.
   const current = result?.date === date && result.branch === branch ? result : null;
+  const activeDesignation = current?.designations.find(item => item.key === selectedDesignation) || current?.designations[0];
+  const chooseCount = (key: string, group: AvailabilityGroup) => { setSelectedDesignation(key); setSelected(group); };
   const title = (group: AvailabilityGroup) => group === "available" && current?.future ? "Expected Available"
     : group === "absent" && current?.future ? "Marked Absent" : labels[group];
 
@@ -81,31 +84,42 @@ function AvailabilityPopup({ onClose }: { onClose: () => void }) {
     event.stopPropagation(); if (event.target === event.currentTarget) onClose();
   }}>
     <div ref={dialog} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="branch-availability-title">
-      <header className={styles.header}><h2 id="branch-availability-title">Salesperson Availability</h2><button className={styles.close} type="button" aria-label="Close availability calendar" onClick={onClose}>×</button></header>
-      <p className={styles.scope}>Sales Executive designation · Current active team and branch assignments</p>
+      <header className={styles.header}><h2 id="branch-availability-title">Employee Availability</h2><button className={styles.close} type="button" aria-label="Close availability calendar" onClick={onClose}>×</button></header>
       <div className={styles.filters}>
-        <label>Date<input type="date" value={date} onChange={event => { setDate(event.target.value); setSelected("available"); }} /></label>
-        <label>Branch<select value={branch} onChange={event => { setBranch(event.target.value); setSelected("available"); }}><option value="">Select branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select></label>
+        <label>Date<input type="date" value={date} onChange={event => { setDate(event.target.value); setSelected("available"); setSelectedDesignation(null); }} /></label>
+        <label>Branch<select value={branch} onChange={event => { setBranch(event.target.value); setSelected("available"); setSelectedDesignation(null); }}><option value="">Select branch</option><option value="MT">MT</option><option value="JB">JB</option><option value="VN">VN</option></select></label>
         <button type="button" className={styles.refresh} disabled={loading || !date || !branch} onClick={() => setVersion(value => value + 1)}>Refresh</button>
       </div>
       {!branch && <p className={styles.notice}>Select a branch to see counts.</p>}
       {loading && <p className={styles.notice} role="status">Loading availability…</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
       {current && <>
-        <p className={styles.notice}>{current.future ? "Expected availability: pending leave is shown separately. Future attendance is an estimate." : "Presence is based on recorded attendance. Missing attendance is shown as Not Recorded."} Approved leave, including half-day requests, is excluded from the available count.</p>
-        <div className={styles.counts} aria-label="Salesperson availability counts">
-          {order.map(group => <button key={group} type="button" className={`${styles.count} ${styles[group]} ${selected === group ? styles.selected : ""}`} aria-pressed={selected === group} onClick={() => setSelected(group)}>
-            <span>{title(group)}</span><strong>{current.groups[group].length}</strong>
-          </button>)}
-        </div>
-        <h3 className={styles.listTitle}>{title(selected)} · {current.groups[selected].length}<small>Total eligible salespersons: {current.total}</small></h3>
-        <div className={styles.people}>
-          {current.groups[selected].length === 0 ? <p className={styles.notice}>No employees in this category.</p> : current.groups[selected].map(person => <article key={person.id} className={styles.person}>
-            <h4>{person.name}{person.employeeCode && <small> · {person.employeeCode}</small>}</h4>
-            <dl><div><dt>Department</dt><dd>{person.department || "—"}</dd></div><div><dt>Designation</dt><dd>{person.designation || "—"}</dd></div></dl>
-            <p className={selected === "pending" ? styles.pendingText : styles.personNote}>{selected === "pending" && <strong>Pending · </strong>}{person.note}</p>
+        <div className={styles.counts} aria-label="Availability by designation">
+          {current.designations.map(item => <article key={item.key} className={`${styles.designationCard} ${activeDesignation?.key === item.key ? styles.activeDesignation : ""}`}>
+            <h3>{item.designation}<small>Total: {item.total}</small></h3>
+            <button type="button" className={`${styles.designationMain} ${styles.available}`} aria-label={`${item.designation}: ${title("available")} ${item.groups.available.length}`} onClick={() => chooseCount(item.key, "available")}><span>{title("available")}</span><strong>{item.groups.available.length}</strong></button>
+            <div className={styles.designationLeaveCounts}>
+              <button type="button" className={styles.pending} aria-label={`${item.designation}: Pending Leave ${item.groups.pending.length}`} onClick={() => chooseCount(item.key, "pending")}>Pending <strong>{item.groups.pending.length}</strong></button>
+              <button type="button" className={styles.approved} aria-label={`${item.designation}: Approved Leave ${item.groups.approved.length}`} onClick={() => chooseCount(item.key, "approved")}>Approved <strong>{item.groups.approved.length}</strong></button>
+            </div>
           </article>)}
         </div>
+        {!activeDesignation ? <p className={styles.notice}>No eligible employees for this branch and date.</p> : <>
+        <h3 className={styles.listTitle}>{activeDesignation.designation}</h3>
+        <div className={styles.categoryTabs} aria-label={`${activeDesignation.designation} attendance categories`}>
+          {order.map(group => <button key={group} type="button" className={`${styles[group]} ${selected === group ? styles.selected : ""}`} aria-pressed={selected === group} onClick={() => setSelected(group)}>{title(group)} <strong>{activeDesignation.groups[group].length}</strong></button>)}
+        </div>
+        <h4 className={styles.categoryTitle}>{title(selected)} · {activeDesignation.groups[selected].length}</h4>
+        <div className={styles.people}>
+          {activeDesignation.groups[selected].length === 0 ? <p className={styles.notice}>No employees in this category.</p> : activeDesignation.groups[selected].map(person => <article key={person.id} className={styles.person}>
+            <h4>{person.name}{person.employeeCode && <small> · {person.employeeCode}</small>}</h4>
+            <dl><div><dt>Department</dt><dd>{person.department || "—"}</dd></div><div><dt>Designation</dt><dd>{person.designation || "—"}</dd></div></dl>
+            {(selected === "pending" || /half.day|short leave/i.test(person.note)) && <p className={selected === "pending" ? styles.pendingText : styles.personNote}>
+              {[selected === "pending" ? person.note.includes("final HR") ? "Pending HR" : "Pending" : "", /half.day/i.test(person.note) ? "Half Day" : "", /short leave/i.test(person.note) ? "Short Leave" : ""].filter(Boolean).join(" · ")}
+            </p>}
+          </article>)}
+        </div>
+        </>}
       </>}
     </div>
   </div>, document.body);
