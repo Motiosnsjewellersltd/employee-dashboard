@@ -146,7 +146,6 @@ function MonthPopup({ employee, monthYear, onClose }: {
           <dt>Present</dt>
           <dd>
             <strong className={styles.summaryTotal}>{counts.P + counts.H + counts.SL}</strong>
-            <span className={styles.summaryHint}>Includes Half Day &amp; Short Leave</span>
             <dl className={styles.summaryBreakdown} aria-label="Included in Present">
               <div className={styles.statusH}><dt>Half Day</dt><dd>{counts.H}</dd></div>
               <div className={styles.statusSL}><dt>Short Leave</dt><dd>{counts.SL}</dd></div>

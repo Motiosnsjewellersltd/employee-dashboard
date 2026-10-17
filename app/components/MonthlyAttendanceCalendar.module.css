@@ -72,16 +72,15 @@
 .calendar td.statusH, .legend i.statusH, .summary .statusH { background: #fff0df; border-color: #efc59b; color: #875323; }
 .calendar td.statusR, .legend i.statusR, .summary .statusR { background: #eae0f6; border-color: #cfbce7; color: #643a88; }
 .calendar td.statusSL, .legend i.statusSL, .summary .statusSL { background: #dbeeff; border-color: #93c5fd; color: #164e8b; }
-.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 4px 14px; }
-.summary > div { min-width: 0; padding: 10px 8px; border: 1px solid; border-radius: 8px; text-align: center; }
-.summary > div > dt { font-size: 13px; font-weight: 600; line-height: 1.4; }
-.summary dd { margin: 3px 0 0; }
-.summaryTotal { display: block; font-size: 25px; line-height: 1.2; }
-.summaryHint { display: block; margin-top: 5px; font-size: 10px; line-height: 1.4; }
-.summaryBreakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin: 8px 0 0; }
-.summaryBreakdown > div { min-width: 0; padding: 6px 3px; border: 1px solid; border-radius: 6px; }
-.summaryBreakdown dt { font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
-.summaryBreakdown dd { font-size: 16px; font-weight: 700; line-height: 1.2; }
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 4px 10px; }
+.summary > div { min-width: 0; padding: 6px; border: 1px solid; border-radius: 8px; text-align: center; }
+.summary > div > dt { font-size: 12px; font-weight: 600; line-height: 1.4; }
+.summary dd { margin: 2px 0 0; }
+.summaryTotal { display: block; font-size: 21px; line-height: 1.2; }
+.summaryBreakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 5px 0 0; }
+.summaryBreakdown > div { display: flex; justify-content: center; align-items: center; gap: 4px; min-width: 0; padding: 4px 2px; border: 1px solid; border-radius: 6px; }
+.summaryBreakdown dt { font-size: 9px; line-height: 1.4; overflow-wrap: anywhere; }
+.summaryBreakdown dd { margin: 0; font-size: 13px; font-weight: 700; line-height: 1.2; }
 .code { display: block; font-size: 10px; font-weight: 700; line-height: 1.2; }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 12px 4px; font-size: 12px; }
 .legend > span { display: inline-flex; align-items: center; gap: 5px; }
