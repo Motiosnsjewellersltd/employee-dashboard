@@ -17,6 +17,7 @@
 .rosterHeader, .rosterRow { display: grid; grid-template-columns: minmax(160px, 2fr) repeat(6, minmax(0, 1fr)); align-items: center; gap: 6px; }
 .rosterHeader { position: sticky; top: 0; z-index: 1; padding: 10px 8px; border-radius: 7px; background: #eaf8ff; color: #075f9e; font-size: 15px; line-height: 1.35; text-align: center; overflow-wrap: anywhere; }
 .rosterHeader > span:first-child { text-align: left; }
+.headerTotal { display: block; margin-top: 4px; font-size: 20px; line-height: 1.2; }
 .rosterRow { padding: 8px; margin-top: 5px; border: 1px solid #deedf7; border-radius: 8px; background: #fbfdff; }
 .rosterRow h3 { display: flex; justify-content: space-between; align-items: center; gap: 7px; min-width: 0; margin: 0; font-size: 14px; line-height: 1.4; color: #075f9e; overflow-wrap: anywhere; }
 .rosterRow h3 small { flex-shrink: 0; border-radius: 5px; padding: 2px 5px; background: #edf5fb; color: #52718b; font-size: 12px; font-weight: 400; }
@@ -47,7 +48,9 @@
   .dialog { padding: 14px 10px; max-height: calc(100dvh - 20px); border-radius: 14px; }
   .header h2 { font-size: 21px; }
   .filters label { flex-basis: 110px; }
-  .rosterHeader { display: none; }
+  .rosterHeader { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 5px; padding: 8px 5px; font-size: 12px; }
+  .rosterHeader > span:first-child { display: none; }
+  .headerTotal { margin-top: 3px; font-size: 18px; }
   .rosterRow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 7px; }
   .rosterRow h3 { grid-column: 1 / -1; font-size: 14px; }
   .count { display: flex; justify-content: space-between; align-items: center; gap: 3px; padding: 5px; }

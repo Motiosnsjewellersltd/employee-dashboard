@@ -165,7 +165,7 @@ function AvailabilityPopup({ onClose }: { onClose: () => void }) {
         {current && <>
           <input className={styles.search} type="search" aria-label="Search designation" placeholder="Search designation" value={query} onChange={event => setQuery(event.target.value)} />
           <div className={styles.roster} aria-label="Availability by designation">
-            <div className={styles.rosterHeader}><span>Designation</span>{order.map(group => <span key={group}>{groupTitle(group, current.future)}</span>)}</div>
+            <div className={styles.rosterHeader} aria-label="Selected branch totals"><span>Designation</span>{order.map(group => <span key={group}>{groupTitle(group, current.future)}<strong className={styles.headerTotal}>{current.groups[group].length}</strong></span>)}</div>
             {designations.length === 0 ? <p className={styles.notice}>No designations found.</p> : designations.map(item => <article key={item.key} className={styles.rosterRow}>
               <h3>{item.designation}<small>{item.total}</small></h3>
               {order.map(group => <button key={group} type="button" className={`${styles.count} ${styles[group]}`} aria-haspopup="dialog" aria-label={`${item.designation}: ${groupTitle(group, current.future)} ${item.groups[group].length}`} onClick={() => setDetail({ item, group })}>
