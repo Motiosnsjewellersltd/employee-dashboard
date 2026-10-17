@@ -12,7 +12,7 @@ type CalendarEmployee = {
 };
 
 type AttendanceCode = "P" | "A" | "R" | "H" | "SL";
-type UploadResult = { matched: number; skipped: number; issues: Array<{ row: number; name: string; reason: string }> };
+type UploadResult = { matched: number; skipped: number; saved: boolean; issues: Array<{ sheet: string; row: number; employeeCode: string; name: string; reason: string }> };
 const labels: Record<AttendanceCode, string> = { P: "Present", A: "Absent", H: "Half Day", R: "Week Off", SL: "Short Leave" };
 
 function indiaTodayKey() {
@@ -39,6 +39,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
   const [notice, setNotice] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<UploadResult | null>(null);
+  const [reportFile, setReportFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const canonicalMonth = monthYear.replace(/^(\d)\//, "0$1/");
   closeRef.current = onClose;
@@ -69,7 +70,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || "Attendance upload failed.");
       setPreview(result.data);
-      if (action === "import") {
+      if (action === "import" && result.data.saved) {
         setFile(null);
         if (fileInput.current) fileInput.current.value = "";
         setNotice(`Attendance saved for ${result.data.matched} employees. ${result.data.skipped} rows skipped.`);
@@ -79,6 +80,26 @@ function MonthPopup({ employee, monthYear, onClose }: {
         setDays(refreshed.data.days);
       }
     } catch (e) { setError(e instanceof Error ? e.message : "Attendance upload failed."); }
+    finally { setBusy(false); }
+  }
+
+  async function downloadUnmatched() {
+    if (!reportFile) return;
+    setBusy(true); setError("");
+    try {
+      const form = new FormData();
+      form.append("file", reportFile); form.append("monthYear", canonicalMonth); form.append("action", "unmatched");
+      const response = await fetch("/api/attendance-calendar", { method: "POST", body: form });
+      if (!response.ok || !response.headers.get("content-type")?.includes("spreadsheetml")) {
+        const result = await response.json();
+        throw new Error(result.error || "Could not download unmatched rows.");
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url; link.download = `Attendance_Unmatched_${canonicalMonth.replace("/", "-")}.xlsx`;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not download unmatched rows."); }
     finally { setBusy(false); }
   }
 
@@ -184,15 +205,18 @@ function MonthPopup({ employee, monthYear, onClose }: {
         <label htmlFor="attendance-file">Upload {monthLabel} Excel — all employees in the file</label>
         <input ref={fileInput} id="attendance-file" type="file" accept=".xlsx" disabled={busy} onChange={event => {
           const selected = event.target.files?.[0] || null;
-          setFile(selected); setPreview(null); setNotice("");
+          setFile(selected); setReportFile(selected); setPreview(null); setNotice("");
           if (selected) void upload("preview", selected);
         }} />
-        <p>Matches by employee code. Re-upload replaces that month’s attendance for matched employees only. Blank dates remain unmarked.</p>
+        <p>Matches by code + name, or exact name when the Excel code is blank. Re-upload replaces that month for matched employees only.</p>
         {busy && <p role="status">Processing attendance…</p>}
         {preview && <>
           <p>{preview.matched} matched · {preview.skipped} skipped</p>
-          {preview.issues.length > 0 && <div className={styles.issues}>{preview.issues.map((issue, index) => <p key={index}>Row {issue.row} · {issue.name}: {issue.reason}</p>)}</div>}
-          {file && <button className={styles.importButton} type="button" disabled={busy} onClick={() => void upload("import", file)}>Import attendance for {preview.matched} employees</button>}
+          {preview.issues.length > 0 && <>
+            <div className={styles.issues}>{preview.issues.map((issue, index) => <p key={index}>{issue.sheet} · Row {issue.row} · {issue.name || "Missing name"}{issue.employeeCode ? ` · ${issue.employeeCode}` : ""}: {issue.reason}</p>)}</div>
+            <button className={styles.importButton} type="button" disabled={busy || !reportFile} onClick={() => void downloadUnmatched()}>Download Unmatched Excel ({preview.skipped})</button>
+          </>}
+          {file && preview.matched > 0 && <button className={styles.importButton} type="button" disabled={busy} onClick={() => void upload("import", file)}>Import attendance for {preview.matched} employees</button>}
         </>}
       </section>}
     </div>

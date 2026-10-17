@@ -1,9 +1,9 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireHrPermission } from "@/lib/permissions";
 import { fail, ok } from "@/lib/utils";
-import { matchAttendanceRows, parseAttendanceExcel } from "@/lib/attendanceImport";
+import { matchAttendanceRows, parseAttendanceExcel, unmatchedAttendanceExcel } from "@/lib/attendanceImport";
 
 export const runtime = "nodejs";
 
@@ -34,13 +34,22 @@ export async function POST(req: NextRequest) {
     const file = form.get("file");
     const monthYear = String(form.get("monthYear") || "");
     const action = String(form.get("action") || "");
-    if (action !== "preview" && action !== "import") throw new Error("Invalid upload action.");
+    if (action !== "preview" && action !== "import" && action !== "unmatched") throw new Error("Invalid upload action.");
     if (!(file instanceof File)) throw new Error("Attendance Excel file required.");
     const parsed = await parseAttendanceExcel(file, monthYear);
-    const employees = await prisma.employee.findMany({ where: { deletedAt: null, role: { not: "ADMIN" } }, select: { id: true, employeeCode: true } });
+    const employees = await prisma.employee.findMany({ where: { deletedAt: null, role: { not: "ADMIN" } }, select: { id: true, employeeCode: true, name: true } });
     const matched = matchAttendanceRows(parsed.rows, employees, parsed.issues);
-    if (!matched.length) throw new Error("No valid employee codes matched. Check employee codes and attendance values.");
-    if (action === "import") {
+    parsed.issues.sort((a, b) => a.sheet.localeCompare(b.sheet) || a.row - b.row);
+    if (action === "unmatched") {
+      if (!parsed.issues.length) throw new Error("No unmatched/skipped rows to download.");
+      const bytes = await unmatchedAttendanceExcel(file, monthYear, parsed.issues);
+      return new NextResponse(new Uint8Array(bytes), { headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="Attendance_Unmatched_${monthYear.replace("/", "-")}.xlsx"`,
+        "Cache-Control": "no-store"
+      } });
+    }
+    if (action === "import" && matched.length) {
       // One atomic import; only matched employees in the selected month change.
       // Separate storage: leave totals, employee profiles and notifications are untouched.
       await prisma.$transaction(matched.map(row => prisma.monthlyAttendance.upsert({
@@ -49,6 +58,6 @@ export async function POST(req: NextRequest) {
         update: { days: row.days, sourceName: file.name.slice(0, 255) }
       })));
     }
-    return ok({ matched: matched.length, skipped: parsed.issues.length, issues: parsed.issues, saved: action === "import" });
+    return ok({ matched: matched.length, skipped: parsed.issues.length, issues: parsed.issues, saved: action === "import" && matched.length > 0 });
   } catch (e) { return fail(e); }
 }
