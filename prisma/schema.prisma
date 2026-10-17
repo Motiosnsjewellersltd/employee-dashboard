@@ -66,6 +66,7 @@ model Employee {
   deletedByName     String?
 
   leaves                  LeaveRecord[]
+  monthlyAttendance       MonthlyAttendance[]
   comments                ManagementComment[]
   performances            PerformanceRecord[]
   sentMessages            ChatMessage[]       @relation("SentChatMessages")
@@ -100,6 +101,17 @@ model Employee {
   @@index([floor])
   @@index([isFloorManager])
   @@index([managerScope])
+}
+
+model MonthlyAttendance {
+  employeeId String
+  monthYear  String
+  days       Json
+  sourceName String
+  updatedAt  DateTime @updatedAt
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, monthYear])
 }
 
 model PasswordResetOtp {
