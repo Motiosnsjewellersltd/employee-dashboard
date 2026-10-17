@@ -11,6 +11,14 @@ type CalendarEmployee = {
   branch?: string | null;
 };
 
+function indiaTodayKey() {
+  const parts = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date());
+  const value = (type: string) => Number(parts.find(part => part.type === type)?.value);
+  return value("year") * 10000 + value("month") * 100 + value("day");
+}
+
 function MonthPopup({ employee, monthYear, onClose }: {
   employee: CalendarEmployee;
   monthYear: string;
@@ -18,6 +26,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
+  const [todayKey, setTodayKey] = useState(indiaTodayKey);
   closeRef.current = onClose;
 
   useEffect(() => {
@@ -25,6 +34,9 @@ function MonthPopup({ employee, monthYear, onClose }: {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const refreshDate = () => setTodayKey(indiaTodayKey());
+    const dateTimer = window.setInterval(refreshDate, 60000);
+    window.addEventListener("focus", refreshDate);
 
     function handleKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -43,6 +55,8 @@ function MonthPopup({ employee, monthYear, onClose }: {
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKey, true);
+      window.clearInterval(dateTimer);
+      window.removeEventListener("focus", refreshDate);
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
     };
   }, []);
@@ -70,9 +84,13 @@ function MonthPopup({ employee, monthYear, onClose }: {
       <table className={styles.calendar} aria-label={monthLabel}>
         <thead><tr>{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <th scope="col" key={day}>{day}</th>)}</tr></thead>
         <tbody>{Array.from({ length: cells.length / 7 }, (_, week) => <tr key={week}>
-          {cells.slice(week * 7, week * 7 + 7).map((day, index) => <td key={index} className={day === null ? styles.blank : undefined}>
-            {day !== null && <span>{day}</span>}
-          </td>)}
+          {cells.slice(week * 7, week * 7 + 7).map((day, index) => {
+            const future = day !== null && year * 10000 + month * 100 + day > todayKey;
+            return <td key={index} className={day === null ? styles.blank : future ? styles.future : undefined}
+              aria-label={future ? `${day} ${monthLabel} — upcoming date` : undefined}>
+              {day !== null && <span>{day}</span>}
+            </td>;
+          })}
         </tr>)}</tbody>
       </table>
     </div>
