@@ -65,6 +65,8 @@
 .calendar th { padding: 9px 0; background: #eaf8ff; color: #075f9e; border: 0; border-radius: 7px; text-align: center; font-size: 13px; }
 .calendar td { height: 58px; padding: 0; border: 1px solid #deedf7; border-radius: 8px; text-align: center; vertical-align: middle; background: #f8fcff; font-size: 17px; }
 .calendar td.blank { border-color: transparent; background: transparent; }
+.calendar td.future { background: #f3f5f7; border-color: #e6ebef; color: #8c99a6; }
+.calendar td.future span { display: inline-block; opacity: .5; filter: blur(1px); }
 @media (max-width: 480px) {
   .backdrop { padding: 10px; }
   .dialog { padding: 16px 10px; border-radius: 15px; max-height: calc(100dvh - 20px); }
