@@ -142,9 +142,25 @@ function MonthPopup({ employee, monthYear, onClose }: {
       </header>
       <h3 className={styles.month}>{monthLabel}</h3>
       {!loading && !error && <dl className={styles.summary} aria-label="Monthly attendance counts">
-        {(["P", "A", "H", "SL", "R"] as AttendanceCode[]).map(code => <div key={code} className={styles[`status${code}`]}>
-          <dt>{labels[code]} ({code})</dt><dd>{counts[code]}</dd>
-        </div>)}
+        <div className={styles.statusP}>
+          <dt>Present</dt>
+          <dd>
+            <strong className={styles.summaryTotal}>{counts.P + counts.H + counts.SL}</strong>
+            <span className={styles.summaryHint}>Includes Half Day &amp; Short Leave</span>
+            <dl className={styles.summaryBreakdown} aria-label="Included in Present">
+              <div className={styles.statusH}><dt>Half Day</dt><dd>{counts.H}</dd></div>
+              <div className={styles.statusSL}><dt>Short Leave</dt><dd>{counts.SL}</dd></div>
+            </dl>
+          </dd>
+        </div>
+        <div className={styles.statusA}>
+          <dt>Absent</dt>
+          <dd><strong className={styles.summaryTotal}>{counts.A}</strong></dd>
+        </div>
+        <div className={styles.statusR}>
+          <dt>Week Off (R)</dt>
+          <dd><strong className={styles.summaryTotal}>{counts.R}</strong></dd>
+        </div>
       </dl>}
       {loading && <p className={styles.message} role="status">Loading attendance…</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
