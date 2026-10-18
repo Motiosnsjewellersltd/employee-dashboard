@@ -8,6 +8,7 @@ import AdminIncentiveReports from "./AdminIncentiveReports";
 import EmployeeWelcome from "./EmployeeWelcome";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
 import BranchAvailability from "./BranchAvailability";
+import hrHeader from "./HrHeaderActions.module.css";
 
 type User = {
   id: string;
@@ -1477,9 +1478,9 @@ floorTeam: "My Team",
       <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div><button className="mobile-tools-close" type="button" aria-label="Close tools" onClick={() => setMenuOpen(false)}>×</button></div>
       <nav>
         {isAdmin && showDashboard && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} mobileBottomDuplicate />}
-        {isAdmin && showEmployees && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} mobileBottomDuplicate />}
+        {isAdmin && !isHr && showEmployees && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} mobileBottomDuplicate />}
         {isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <MenuItem label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
-{showLeaveRequests && (
+{!isHr && showLeaveRequests && (
   <MenuItem
     label="Leave Requests"
     icon="✓"
@@ -1494,7 +1495,7 @@ floorTeam: "My Team",
   active={section === "officialDuty"}
   onClick={() => goto("officialDuty")}
 />
-        {showHelpTickets && (
+        {!isHr && showHelpTickets && (
   <MenuItem
     label="Help Tickets"
     icon="?"
@@ -1557,7 +1558,7 @@ floorTeam: "My Team",
     {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
 
     <main className="main">
-      <div className={`app-topbar print-exclude${isHr && section !== "dashboard" ? " hr-no-global-search" : ""}`}>
+      <div className={`app-topbar print-exclude${isHr ? ` ${hrHeader.topbar}` : ""}${isHr && section !== "dashboard" ? " hr-no-global-search" : ""}`}>
         <div className="topbar-title"><span>Motisons Employee System</span><b>{sectionTitles[section]}</b></div>
         {session.role !== "EMPLOYEE" && (!isHr || section === "dashboard") && <div className="global-search-wrap">
           <span className="global-search-icon">⌕</span>
@@ -1568,6 +1569,11 @@ floorTeam: "My Team",
           </div>}
         </div>}
         {isAdmin && <button className="desktop-admin-tools" type="button" onClick={() => setMenuOpen(value => !value)}><span>☰</span><b>Tools</b></button>}
+        {isHr && <div className={hrHeader.actions}>
+          {showHelpTickets && <button className={`${hrHeader.action}${section === "helpTickets" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("helpTickets")}><span>?</span><b>Help Tickets</b></button>}
+          {showLeaveRequests && <button className={`${hrHeader.action}${section === "leaveRequests" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("leaveRequests")}><span>✓</span><b>Leave Requests</b></button>}
+          {showEmployees && <button className={`${hrHeader.action}${section === "employees" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("employees")}><span>☷</span><b>Employees Details</b></button>}
+        </div>}
         <button className={`official-duty-top-action${section === "officialDuty" ? " active" : ""}`} type="button" onClick={() => goto("officialDuty")}><span>⌖</span><b>Official Duty</b></button>
         {showNotifications && <NotificationBell onOpen={() => goto("notifications")} />}
       </div>
