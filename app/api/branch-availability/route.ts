@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     if (!["MT", "JB", "VN", "FACTORY"].includes(branch)) throw new Error("Select MT, JB, VN or Factory.");
     const employees = (await prisma.employee.findMany({
       where: { deletedAt: null, status: "ACTIVE", role: { not: "ADMIN" }, ...(branch === "FACTORY" ? {} : { branch }) },
-      select: { id: true, name: true, employeeCode: true, department: true, designation: true, branch: true, status: true, doj: true, exitDate: true }
+      select: { id: true, name: true, employeeCode: true, department: true, designation: true, branch: true, floor: true, status: true, doj: true, exitDate: true }
     })).filter(employee => availabilityScopeMatches(employee, branch));
     const ids = employees.map(employee => employee.id);
     const monthYear = `${dateKey.slice(5, 7)}/${dateKey.slice(0, 4)}`;

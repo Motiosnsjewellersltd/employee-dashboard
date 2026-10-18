@@ -7,7 +7,7 @@ import type { AvailabilityGroup, AvailabilityGroups, DesignationAvailability } f
 import styles from "./BranchAvailability.module.css";
 
 type Result = { date: string; branch: string; future: boolean; today: string; total: number; groups: AvailabilityGroups; designations: DesignationAvailability[] };
-type Detail = { item: DesignationAvailability; group: AvailabilityGroup };
+type Detail = { item: DesignationAvailability; group: AvailabilityGroup; allDesignations?: boolean };
 const order: AvailabilityGroup[] = ["available", "pending", "approved", "weekOff", "absent", "unrecorded"];
 const labels: Record<AvailabilityGroup, string> = {
   available: "Present", pending: "Leave Request Pending", approved: "Leave Request Approved",
@@ -28,7 +28,7 @@ function EmployeeCountPopup({ detail, date, branch, future, onClose, returnFocus
   const [query, setQuery] = useState("");
   const people = detail.item.groups[detail.group];
   const term = query.trim().toLowerCase();
-  const visible = people.filter(person => `${person.name} ${person.employeeCode || ""} ${person.department || ""}`.toLowerCase().includes(term));
+  const visible = people.filter(person => `${person.name} ${person.employeeCode || ""} ${person.department || ""} ${person.floor || ""} ${person.designation || ""}`.toLowerCase().includes(term));
 
   useEffect(() => {
     const previous = document.activeElement;
@@ -58,11 +58,11 @@ function EmployeeCountPopup({ detail, date, branch, future, onClose, returnFocus
         <div><h2 id="availability-detail-title">{detail.item.designation}</h2><p className={styles.detailMeta}>{date.split("-").reverse().join("/")} · {branch === "FACTORY" ? "Factory" : branch} · {groupTitle(detail.group, future)} <strong>{people.length}</strong></p></div>
         <button type="button" className={styles.close} aria-label="Close employee list" onClick={onClose}>×</button>
       </header>
-      <input className={styles.search} type="search" aria-label="Search employee list" placeholder="Search name, ID or department" value={query} onChange={event => setQuery(event.target.value)} />
+      <input className={styles.search} type="search" aria-label="Search employee list" placeholder={detail.allDesignations ? "Search name, ID, floor or designation" : "Search name, ID or department"} value={query} onChange={event => setQuery(event.target.value)} />
       <div className={styles.people}>
         {visible.length === 0 ? <p className={styles.notice}>No employees found.</p> : visible.map(person => <article key={person.id} className={styles.person}>
           <h3>{person.name}{person.employeeCode && <small> · {person.employeeCode}</small>}</h3>
-          <dl><div><dt>Department</dt><dd>{person.department || "—"}</dd></div><div><dt>Designation</dt><dd>{person.designation || "—"}</dd></div></dl>
+          <dl><div><dt>{detail.allDesignations ? "Floor" : "Department"}</dt><dd>{(detail.allDesignations ? person.floor : person.department) || "—"}</dd></div><div><dt>Designation</dt><dd>{person.designation || "—"}</dd></div></dl>
           {(detail.group === "pending" || /half.day|short leave/i.test(person.note)) && <p className={detail.group === "pending" ? styles.pendingText : styles.personNote}>
             {[detail.group === "pending" ? person.note.includes("final HR") ? "Pending HR" : "Pending" : "", /half.day/i.test(person.note) ? "Half Day" : "", /short leave/i.test(person.note) ? "Short Leave" : ""].filter(Boolean).join(" · ")}
           </p>}
@@ -132,6 +132,7 @@ function AvailabilityPopup({ onClose }: { onClose: () => void }) {
           setResult(next);
           setDetail(previous => {
             if (!previous) return null;
+            if (previous.allDesignations) return { ...previous, item: { key: "", designation: "All Designations", total: next.total, groups: next.groups } };
             const item = next.designations.find(entry => entry.key === previous.item.key);
             return item ? { item, group: previous.group } : null;
           });
@@ -165,7 +166,7 @@ function AvailabilityPopup({ onClose }: { onClose: () => void }) {
         {current && <>
           <input className={styles.search} type="search" aria-label="Search designation" placeholder="Search designation" value={query} onChange={event => setQuery(event.target.value)} />
           <div className={styles.roster} aria-label="Availability by designation">
-            <div className={styles.rosterHeader} aria-label="Selected branch totals"><span>Designation</span>{order.map(group => <span key={group}>{groupTitle(group, current.future)}<strong className={styles.headerTotal}>{current.groups[group].length}</strong></span>)}</div>
+            <div className={styles.rosterHeader} aria-label="Selected branch totals"><span>Designation</span>{order.map(group => <button key={group} type="button" className={styles.headerCount} aria-haspopup="dialog" aria-label={`All designations: ${groupTitle(group, current.future)} ${current.groups[group].length}`} onClick={() => setDetail({ item: { key: "", designation: "All Designations", total: current.total, groups: current.groups }, group, allDesignations: true })}>{groupTitle(group, current.future)}<strong className={styles.headerTotal}>{current.groups[group].length}</strong></button>)}</div>
             {designations.length === 0 ? <p className={styles.notice}>No designations found.</p> : designations.map(item => <article key={item.key} className={styles.rosterRow}>
               <h3>{item.designation}<small>{item.total}</small></h3>
               {order.map(group => <button key={group} type="button" className={`${styles.count} ${styles[group]}`} aria-haspopup="dialog" aria-label={`${item.designation}: ${groupTitle(group, current.future)} ${item.groups[group].length}`} onClick={() => setDetail({ item, group })}>

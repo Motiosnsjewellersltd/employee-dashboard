@@ -1,7 +1,7 @@
 export type AvailabilityGroup = "available" | "pending" | "approved" | "weekOff" | "absent" | "unrecorded";
 export type AvailabilityPerson = {
   id: string; name: string; employeeCode: string | null; department: string | null;
-  designation: string | null; branch: string | null;
+  designation: string | null; branch: string | null; floor: string | null;
 };
 export type AvailabilityEmployee = AvailabilityPerson & {
   status: string; doj: Date | null; exitDate: Date | null;
@@ -89,8 +89,8 @@ export function buildBranchAvailability(
     } else {
       group = "unrecorded"; note = "Attendance not recorded; presence not confirmed";
     }
-    const { id, name, employeeCode, department, designation, branch: employeeBranch } = employee;
-    groups[group].push({ id, name, employeeCode, department, designation, branch: employeeBranch, note });
+    const { id, name, employeeCode, department, designation, floor, branch: employeeBranch } = employee;
+    groups[group].push({ id, name, employeeCode, department, designation, floor, branch: employeeBranch, note });
   }
   for (const entries of Object.values(groups)) entries.sort((a, b) => a.name.localeCompare(b.name, "en"));
   const byDesignation = new Map<string, DesignationAvailability>();
