@@ -4,21 +4,25 @@ import { prisma } from "@/lib/prisma";
 import { requireHrPermission } from "@/lib/permissions";
 import { fail, ok } from "@/lib/utils";
 import { matchAttendanceRows, parseAttendanceExcel, unmatchedAttendanceExcel } from "@/lib/attendanceImport";
+import { canViewAttendanceCalendar } from "@/lib/attendanceCalendarAccess";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
-    if (!["ADMIN", "HR"].includes(session.role)) return fail("Only Admin/HR allowed.", 403);
     const employeeId = req.nextUrl.searchParams.get("employeeId") || "";
+    if (!["ADMIN", "HR"].includes(session.role) && (session.role !== "EMPLOYEE" || session.id !== employeeId)) {
+      return fail("Attendance calendar access is not enabled for this employee.", 403);
+    }
     const monthYear = req.nextUrl.searchParams.get("monthYear") || "";
     if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(monthYear)) throw new Error("Invalid month.");
-    const employee = await prisma.employee.findFirst({ where: { id: employeeId, deletedAt: null }, select: { id: true } });
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, deletedAt: null }, select: { id: true, employeeCode: true } });
     if (!employee) return fail("Employee not found.", 404);
+    if (!canViewAttendanceCalendar(session, employee)) return fail("Attendance calendar access is not enabled for this employee.", 403);
     const record = await prisma.monthlyAttendance.findUnique({ where: { employeeId_monthYear: { employeeId, monthYear } } });
     let canUpload = session.role === "ADMIN";
-    if (!canUpload) {
+    if (session.role === "HR") {
       try { await requireHrPermission(session.role, "hrCanUploadLeaves"); canUpload = true; } catch { /* Keep read access. */ }
     }
     return ok({ days: record?.days ?? {}, sourceName: record?.sourceName ?? "", canUpload });
