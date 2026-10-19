@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireHrPermission } from "@/lib/permissions";
 import { fail, ok } from "@/lib/utils";
 import { matchAttendanceRows, parseAttendanceExcel, unmatchedAttendanceExcel } from "@/lib/attendanceImport";
-import { canViewAttendanceCalendar } from "@/lib/attendanceCalendarAccess";
+import { canViewAttendanceCalendar, isAttendanceMonthAvailable } from "@/lib/attendanceCalendarAccess";
 
 export const runtime = "nodejs";
 
@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     }
     const monthYear = req.nextUrl.searchParams.get("monthYear") || "";
     if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(monthYear)) throw new Error("Invalid month.");
+    if (!isAttendanceMonthAvailable(monthYear)) return fail("Attendance calendar is available from April 2026 onwards.", 403);
     const employee = await prisma.employee.findFirst({ where: { id: employeeId, deletedAt: null }, select: { id: true, employeeCode: true } });
     if (!employee) return fail("Employee not found.", 404);
     if (!canViewAttendanceCalendar(session, employee)) return fail("Attendance calendar access is not enabled for this employee.", 403);

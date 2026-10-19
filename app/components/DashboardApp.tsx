@@ -9,7 +9,7 @@ import EmployeeWelcome from "./EmployeeWelcome";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
 import BranchAvailability from "./BranchAvailability";
 import hrHeader from "./HrHeaderActions.module.css";
-import { canViewAttendanceCalendar } from "@/lib/attendanceCalendarAccess";
+import { attendanceCalendarMonths, canViewAttendanceCalendar } from "@/lib/attendanceCalendarAccess";
 
 type User = {
   id: string;
@@ -727,6 +727,11 @@ function DashboardAppInner() {
   const [schemeVisibleEmployeeId, setSchemeVisibleEmployeeId] = useState("");
   const [notice, setNotice] = useState("");
   const [employeeFeatures, setEmployeeFeatures] = useState({ profileLeavesVisible: false, employeeChatVisible: false });
+  useEffect(() => {
+    if (session?.role !== "ADMIN" || session.mustChangePassword) return;
+    // The server deduplicates this approved, one-time employee announcement.
+    api("/api/attendance-calendar/announcement", { method: "POST" }).catch(error => setNotice(`Calendar announcement: ${error.message || "Could not send notification."}`));
+  }, [session?.id, session?.role, session?.mustChangePassword]);
 const [
   employeeReportingEnabled,
   setEmployeeReportingEnabled
@@ -3084,6 +3089,10 @@ function ProfileContent({
   showProfileLeaveData?: boolean;
 }) {
   const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
+  const attendanceMonths = viewer.role === "EMPLOYEE" && canViewAttendanceCalendar(viewer, user)
+    ? attendanceCalendarMonths().filter(monthYear => !showProfileLeaveData ||
+      !leaves?.balance.rows.some(row => row.monthYear === monthYear) && !leaves?.records.some(row => row.monthYear === monthYear))
+    : [];
 
   useEffect(() => {
     let cancelled = false;
@@ -3127,14 +3136,10 @@ function ProfileContent({
       });
       return actualBranchTransfers.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{actualBranchTransfers.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch}</td><td data-label="To">{item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null;
     })()}
-    {!showProfileLeaveData && viewer.role === "EMPLOYEE" && canViewAttendanceCalendar(viewer, user) && <>
+    {attendanceMonths.length > 0 && <>
       <h2 className="print-exclude">Monthly Attendance</h2>
       {loading ? <p className="print-exclude">Loading attendance months...</p> : <div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th></tr></thead><tbody>
-        {Array.from(new Set([
-          ...(leaves?.balance.rows.map(row => row.monthYear) || []),
-          ...(leaves?.records.map(row => row.monthYear) || []),
-          new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", month: "2-digit", year: "numeric" }).format(new Date())
-        ])).sort((a, b) => Number(a.slice(3) + a.slice(0, 2)) - Number(b.slice(3) + b.slice(0, 2))).map(monthYear => <tr key={monthYear}><td data-label="Month/Year"><MonthlyAttendanceCalendar employee={user} monthYear={monthYear} /></td></tr>)}
+        {attendanceMonths.map(monthYear => <tr key={monthYear}><td data-label="Month/Year"><MonthlyAttendanceCalendar employee={user} monthYear={monthYear} /></td></tr>)}
       </tbody></table></div>}
     </>}
     {showProfileLeaveData && user.role !== "ADMIN" && <>
@@ -3147,9 +3152,9 @@ function ProfileContent({
           const availableThisMonth = previousBalance + Number(r.earned || 0);
           const isOverused = Number(r.used || 0) > availableThisMonth;
           const overuseCellStyle = isOverused ? { backgroundColor: "#fff8d8" } : undefined;
-          return <tr key={r.monthYear}><td style={overuseCellStyle} data-label="Month/Year">{canViewAttendanceCalendar(viewer, user) ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td style={overuseCellStyle} data-label="Earned">{r.earned}</td><td style={overuseCellStyle} data-label="Used">{r.used}</td><td style={overuseCellStyle} data-label="Balance" className="green">{r.balance}</td></tr>;
+          return <tr key={r.monthYear}><td style={overuseCellStyle} data-label="Month/Year">{canViewAttendanceCalendar(viewer, user, r.monthYear) ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td style={overuseCellStyle} data-label="Earned">{r.earned}</td><td style={overuseCellStyle} data-label="Used">{r.used}</td><td style={overuseCellStyle} data-label="Balance" className="green">{r.balance}</td></tr>;
         })}</tbody></table></div>}
-        {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{canViewAttendanceCalendar(viewer, user) ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
+        {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{canViewAttendanceCalendar(viewer, user, r.monthYear) ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
       </>}
     </>}
   </div>;
