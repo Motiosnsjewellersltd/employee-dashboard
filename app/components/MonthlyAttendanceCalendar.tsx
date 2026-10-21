@@ -14,6 +14,8 @@ type CalendarEmployee = {
 
 type AttendanceCode = "P" | "A" | "R" | "H" | "SL";
 type UploadResult = { matched: number; skipped: number; saved: boolean; issues: Array<{ sheet: string; row: number; employeeCode: string; name: string; reason: string }> };
+// Punch-time viewing starts on 22 October 2026 (India calendar date).
+const punchTimesStartKey = 20261022;
 const labels: Record<AttendanceCode, string> = { P: "Present", A: "Absent", H: "Half Day", R: "Week Off", SL: "Short Leave" };
 
 function indiaTodayKey() {
@@ -198,12 +200,14 @@ function MonthPopup({ employee, monthYear, onClose }: {
         <thead><tr>{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <th scope="col" key={day}>{day}</th>)}</tr></thead>
         <tbody>{Array.from({ length: cells.length / 7 }, (_, week) => <tr key={week}>
           {cells.slice(week * 7, week * 7 + 7).map((day, index) => {
-            const future = day !== null && year * 10000 + month * 100 + day > todayKey;
+            const dateKey = day !== null ? year * 10000 + month * 100 + day : null;
+            const future = dateKey !== null && dateKey > todayKey;
+            const canOpenPunchTimes = canViewPunchTimes && dateKey !== null && dateKey >= punchTimesStartKey && !future;
             const code = day !== null && !future ? days[String(day)] : undefined;
             return <td key={index} className={day === null ? styles.blank : future ? styles.future : code ? styles[`status${code}`] : undefined}
               title={day === null ? undefined : `${day} ${monthLabel} — ${future ? "Upcoming date" : code ? labels[code] : "No attendance data"}`}
               aria-label={day === null ? undefined : `${day} ${monthLabel} — ${future ? "upcoming date" : code ? labels[code] : "No attendance data"}`}>
-              {day !== null && (canViewPunchTimes && !future ? <button type="button" className={styles.dayButton}
+              {day !== null && (canOpenPunchTimes ? <button type="button" className={styles.dayButton}
                 aria-label={`${day} ${monthLabel} — ${code ? labels[code] : "No attendance data"}. View punch IN and OUT`}
                 onClick={() => setSelectedDay(day)}>{day}{code && <small className={styles.code}>{code}</small>}</button>
                 : <span>{day}{code && <small className={styles.code}>{code}</small>}</span>)}
