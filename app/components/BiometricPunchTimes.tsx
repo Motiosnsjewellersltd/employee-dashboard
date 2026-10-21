@@ -7,7 +7,15 @@ type Punch = { id: string; punchedAt: string; direction: string };
 const dateFormat = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric" });
 const timeFormat = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
-export default function BiometricPunchTimes({ employeeId, monthYear }: { employeeId: string; monthYear: string }) {
+export default function BiometricPunchTimes({ employeeId, monthYear, day, employeeName, onClose }: {
+  employeeId: string; monthYear: string; day: number; employeeName: string; onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    return () => { if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus(); };
+  }, []);
   const [punches, setPunches] = useState<Punch[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -43,35 +51,39 @@ export default function BiometricPunchTimes({ employeeId, monthYear }: { employe
     return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [employeeId, monthYear, refresh]);
 
-  const grouped = new Map<string, Punch[]>();
-  for (const punch of punches) {
-    const date = dateFormat.format(new Date(punch.punchedAt));
-    grouped.set(date, [...(grouped.get(date) || []), punch]);
-  }
+  const [month, year] = monthYear.split("/").map(Number);
+  const selectedDate = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+  const events = punches.filter(punch => dateFormat.format(new Date(punch.punchedAt)) === selectedDate)
+    .sort((a, b) => Date.parse(a.punchedAt) - Date.parse(b.punchedAt));
+  const firstIn = events.find(punch => punch.direction === "IN");
+  const lastOut = [...events].reverse().find(punch => punch.direction === "OUT");
 
-  return <section className={styles.section} aria-label="Biometric punch times">
-    <div className={styles.header}>
-      <h3>Punch IN / OUT</h3>
-      <button type="button" onClick={() => setRefresh(value => value + 1)} aria-label="Refresh punch times">Refresh</button>
+  return <div className={styles.backdrop} onMouseDown={event => {
+    event.stopPropagation();
+    if (event.target === event.currentTarget) onClose();
+  }}>
+    <div ref={dialogRef} data-punch-dialog className={styles.dialog} role="dialog" aria-modal="true" aria-label={`${employeeName} — ${selectedDate} punch times`}>
+      <div className={styles.header}>
+        <div><h3>{selectedDate}</h3><p>{employeeName}</p></div>
+        <button type="button" className={styles.close} onClick={onClose} aria-label="Close punch times">×</button>
+      </div>
+      {loading && <p role="status">Loading punch times…</p>}
+      {error && <p className={styles.error} role="alert">{error}</p>}
+      {!loading && !error && !configured && <p>Punch integration setup pending.</p>}
+      {!loading && !error && configured && <>
+        <div className={styles.totals}>
+          <div><span>First IN</span><strong>{firstIn ? timeFormat.format(new Date(firstIn.punchedAt)) : "—"}</strong></div>
+          <div><span>Last OUT</span><strong>{lastOut ? timeFormat.format(new Date(lastOut.punchedAt)) : "—"}</strong></div>
+        </div>
+        {!events.length ? <p>No punch records received for this date.</p> : <>
+          <h4>All Punches</h4>
+          <ul className={styles.list}>{events.map(punch => <li key={punch.id}>
+            <span>{punch.direction === "IN" || punch.direction === "OUT" ? punch.direction : "Direction unavailable"}</span>
+            <time dateTime={punch.punchedAt}>{timeFormat.format(new Date(punch.punchedAt))}</time>
+          </li>)}</ul>
+        </>}
+      </>}
+      <button type="button" className={styles.refresh} onClick={() => setRefresh(value => value + 1)}>Refresh</button>
     </div>
-    {loading && <p role="status">Loading punch times…</p>}
-    {error && <p className={styles.error} role="alert">{error}</p>}
-    {!loading && !error && !configured && <p>Punch integration setup pending.</p>}
-    {!loading && !error && configured && !punches.length && <p>No punch records received for this month.</p>}
-    {!loading && !error && punches.length > 0 && <div className={styles.list}>
-      <div className={styles.columns} aria-hidden="true"><strong>Date</strong><strong>First IN</strong><strong>Last OUT</strong></div>
-      {[...grouped].map(([date, events]) => {
-        const firstIn = events.find(punch => punch.direction === "IN");
-        const lastOut = [...events].reverse().find(punch => punch.direction === "OUT");
-        return <details key={date} className={styles.day}>
-          <summary aria-label={`${date}: First IN ${firstIn ? timeFormat.format(new Date(firstIn.punchedAt)) : "not received"}; Last OUT ${lastOut ? timeFormat.format(new Date(lastOut.punchedAt)) : "not received"}. Show all punches.`}>
-            <span>{date}</span>
-            <span>{firstIn ? timeFormat.format(new Date(firstIn.punchedAt)) : "—"}</span>
-            <span>{lastOut ? timeFormat.format(new Date(lastOut.punchedAt)) : "—"}</span>
-          </summary>
-          <ul>{events.map(punch => <li key={punch.id}><time dateTime={punch.punchedAt}>{timeFormat.format(new Date(punch.punchedAt))}</time><span>{punch.direction === "IN" || punch.direction === "OUT" ? punch.direction : "Direction unavailable"}</span></li>)}</ul>
-        </details>;
-      })}
-    </div>}
-  </section>;
+  </div>;
 }

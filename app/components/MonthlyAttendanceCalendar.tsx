@@ -31,6 +31,9 @@ function MonthPopup({ employee, monthYear, onClose }: {
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const selectedDayRef = useRef<number | null>(null);
+  selectedDayRef.current = selectedDay;
   const [todayKey, setTodayKey] = useState(indiaTodayKey);
   const [days, setDays] = useState<Record<string, AttendanceCode>>({});
   const [canUpload, setCanUpload] = useState(false);
@@ -120,9 +123,11 @@ function MonthPopup({ employee, monthYear, onClose }: {
         // Do not let the underlying employee-profile modal also close.
         event.preventDefault();
         event.stopImmediatePropagation();
-        closeRef.current();
+        if (selectedDayRef.current !== null) setSelectedDay(null);
+        else closeRef.current();
       } else if (event.key === "Tab") {
-        const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), summary') || []);
+        const scope = dialogRef.current?.querySelector<HTMLElement>('[data-punch-dialog]') || dialogRef.current;
+        const items = Array.from(scope?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), summary') || []);
         const first = items[0]; const last = items[items.length - 1];
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -160,6 +165,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
     if (event.target === event.currentTarget) onClose();
   }}>
     <div ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-label={`${employee.name} — ${monthLabel} attendance calendar`}>
+      <div inert={selectedDay !== null}>
       <header className={styles.header}>
         <div><h2>Monthly Attendance Calendar</h2><p>{employee.name}{employee.employeeCode ? ` · ${employee.employeeCode}` : ""}{employee.branch ? ` · ${employee.branch}` : ""}</p></div>
         <button type="button" className={styles.close} aria-label="Close attendance calendar" onClick={onClose}>×</button>
@@ -197,14 +203,16 @@ function MonthPopup({ employee, monthYear, onClose }: {
             return <td key={index} className={day === null ? styles.blank : future ? styles.future : code ? styles[`status${code}`] : undefined}
               title={day === null ? undefined : `${day} ${monthLabel} — ${future ? "Upcoming date" : code ? labels[code] : "No attendance data"}`}
               aria-label={day === null ? undefined : `${day} ${monthLabel} — ${future ? "upcoming date" : code ? labels[code] : "No attendance data"}`}>
-              {day !== null && <span>{day}{code && <small className={styles.code}>{code}</small>}</span>}
+              {day !== null && (canViewPunchTimes && !future ? <button type="button" className={styles.dayButton}
+                aria-label={`${day} ${monthLabel} — ${code ? labels[code] : "No attendance data"}. View punch IN and OUT`}
+                onClick={() => setSelectedDay(day)}>{day}{code && <small className={styles.code}>{code}</small>}</button>
+                : <span>{day}{code && <small className={styles.code}>{code}</small>}</span>)}
             </td>;
           })}
         </tr>)}</tbody>
       </table>
       <div className={styles.legend} aria-label="Attendance colour guide">{(["P", "A", "H", "R", "SL"] as AttendanceCode[]).map(code => <span key={code}><i className={styles[`status${code}`]} />{code} · {labels[code]}</span>)}</div>
       {!loading && !Object.keys(days).length && !error && <p className={styles.message}>No attendance uploaded for this employee and month.</p>}
-      {canViewPunchTimes && <BiometricPunchTimes employeeId={employee.id} monthYear={canonicalMonth} />}
       {canUpload && <section className={styles.upload} aria-label="Import monthly attendance">
         <label htmlFor="attendance-file">Upload {monthLabel} Excel — all employees in the file</label>
         <input ref={fileInput} id="attendance-file" type="file" accept=".xlsx" disabled={busy} onChange={event => {
@@ -223,6 +231,9 @@ function MonthPopup({ employee, monthYear, onClose }: {
           {file && preview.matched > 0 && <button className={styles.importButton} type="button" disabled={busy} onClick={() => void upload("import", file)}>Import attendance for {preview.matched} employees</button>}
         </>}
       </section>}
+      </div>
+      {canViewPunchTimes && selectedDay !== null && <BiometricPunchTimes employeeId={employee.id} monthYear={canonicalMonth}
+        day={selectedDay} employeeName={employee.name} onClose={() => setSelectedDay(null)} />}
     </div>
   </div>, document.body);
 }
