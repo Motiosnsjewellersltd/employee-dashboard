@@ -55,7 +55,7 @@ export default function BiometricPunchTimes({ employeeId, monthYear, day, employ
   const selectedDate = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
   const events = punches.filter(punch => dateFormat.format(new Date(punch.punchedAt)) === selectedDate)
     .sort((a, b) => Date.parse(a.punchedAt) - Date.parse(b.punchedAt));
-  const firstIn = events.find(punch => punch.direction === "IN");
+  const latestIn = [...events].reverse().find(punch => punch.direction === "IN");
   const lastOut = [...events].reverse().find(punch => punch.direction === "OUT");
 
   return <div className={styles.backdrop} onMouseDown={event => {
@@ -72,16 +72,10 @@ export default function BiometricPunchTimes({ employeeId, monthYear, day, employ
       {!loading && !error && !configured && <p>Punch integration setup pending.</p>}
       {!loading && !error && configured && <>
         <div className={styles.totals}>
-          <div><span>First IN</span><strong>{firstIn ? timeFormat.format(new Date(firstIn.punchedAt)) : "—"}</strong></div>
-          <div><span>Last OUT</span><strong>{lastOut ? timeFormat.format(new Date(lastOut.punchedAt)) : "—"}</strong></div>
+          <div><span>Latest IN</span><strong>{latestIn ? timeFormat.format(new Date(latestIn.punchedAt)) : "—"}</strong></div>
+          <div><span>Latest OUT</span><strong>{lastOut ? timeFormat.format(new Date(lastOut.punchedAt)) : "—"}</strong></div>
         </div>
-        {!events.length ? <p>No punch records received for this date.</p> : <>
-          <h4>All Punches</h4>
-          <ul className={styles.list}>{events.map(punch => <li key={punch.id}>
-            <span>{punch.direction === "IN" || punch.direction === "OUT" ? punch.direction : "Direction unavailable"}</span>
-            <time dateTime={punch.punchedAt}>{timeFormat.format(new Date(punch.punchedAt))}</time>
-          </li>)}</ul>
-        </>}
+        {!events.length && <p>No punch records received for this date.</p>}
       </>}
       <button type="button" className={styles.refresh} onClick={() => setRefresh(value => value + 1)}>Refresh</button>
     </div>
