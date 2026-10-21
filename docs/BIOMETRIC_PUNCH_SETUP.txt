@@ -1,0 +1,126 @@
+MOTISONS — PUNCH IN / OUT (ADMIN + HR ONLY)
+
+WHAT CHANGED
+Employee Details > click Month/Year > existing calendar > Punch IN / OUT.
+Only Admin and HR receive/render this new section. Employee requests to the
+punch-read API return 403, including requests for their own punches.
+The existing employee monthly calendar remains unchanged.
+No notifications are sent. No attendance statuses, counts, leave, scheme,
+incentive, chat, navigation, profile data or existing SQL Server data is changed.
+
+Daily summary: earliest explicitly marked IN; latest explicitly marked OUT
+within that India calendar date. Expand a date to see every received punch.
+A missing OUT stays blank. Multiple IN events never become OUT automatically.
+No shift pairing, work-duration or overnight-shift calculations are added.
+
+IMPORTANT: THIS ZIP ADDS THE DASHBOARD RECEIVER, NOT MACHINE AUTO-CONNECTION.
+Attendance Tracker's exact outgoing request format/direction is not verified.
+The screenshots show field names but not an actual request body or working push.
+Do not assume that pasting a URL makes the machine send data automatically.
+Realtime's technician must enable automatic device collection + send raw punches
+using the contract below (via compatible API export/adapter).
+If that desktop dialog IMPORTS an API response instead of EXPORTING punches,
+it cannot directly use this receiving endpoint; use the vendor's outward export
+utility/adapter. Do not set up a public SQL Server port for this patch.
+
+1. DATABASE SETUP — DASHBOARD POSTGRESQL, NOT REALTIME SQL SERVER
+Use your project's existing .env connection settings. Confirm they target the
+same PostgreSQL database used by the deployed dashboard. Keep credentials private.
+Apply only the provided additive SQL:
+  npx prisma db execute --file prisma/biometric-punches.sql --schema prisma/schema.prisma
+  npx prisma generate
+Do not run db:seed, migrate reset, db push --accept-data-loss or replace any
+existing database. The SQL creates one separate table + index and is repeatable.
+No live database was modified while preparing this update.
+
+2. PRIVATE API KEY
+Generate a new key on your PC (do not send it in chat):
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+Set BIOMETRIC_INGEST_SECRET to this value in your local .env and in the hosting
+provider's server environment, then redeploy/restart.
+Never prefix this variable with NEXT_PUBLIC_, commit .env, or put the key in a URL.
+Receiver stays disabled (503) until a secret of at least 32 characters is set.
+Give the key only to the authorized integration operator.
+
+3. API CONTRACT TO GIVE TO REALTIME TECHNICIAN
+URL: https://YOUR-DASHBOARD-DOMAIN/api/biometric-punches/ingest
+Method: POST
+Content-Type: application/json
+Header: X-Biometric-Key: <your private BIOMETRIC_INGEST_SECRET>
+Alternatively: Authorization: Bearer <same key>
+
+Single event example (replace placeholders with a VERIFIED actual punch):
+{
+  "EmployeeCode": "ACTUAL_EMPLOYEE_CODE",
+  "PunchDateAndTime": "2026-10-20 09:34:00",
+  "PunchMode": "IN",
+  "SerialNo": "ACTUAL_DEVICE_SERIAL"
+}
+OUT must be explicitly supplied as "OUT" by the verified source.
+Batch format: {"punches": [event, event]} or a plain JSON array.
+Maximum 500 events and 1 MiB per request.
+Also accepts application/x-www-form-urlencoded, or POST query-string fields.
+The authentication key is accepted ONLY in headers. GET never imports punches.
+
+Field mapping:
+EmployeeCode     = dashboard employee code / device card number
+PunchDateAndTime = timestamp, yyyy-MM-dd HH:mm:ss (India) or ISO with timezone
+PunchMode        = IN or OUT (do not force all events to IN in the sender)
+SerialNo         = stable machine serial number; use the same field on retries
+
+Aliases supported:
+Code: EmployeeCode / employeeCode / Cardno / CardNo / E_Code
+Time: PunchDateAndTime / punchedAt / Punchtime / LogDateTime
+Direction: PunchMode / direction / Direction / PunchType / VerifyMode
+Device: SerialNo / DeviceSerialNumber / DeviceId / DevicesId / deviceId
+When more than one alias is supplied, the first listed nonempty value wins.
+Prefer sending ONLY the four documented fields.
+
+TIMESTAMPS / MATCHING
+Timestamps without an offset are interpreted as Asia/Kolkata (+05:30).
+Invalid dates, missing codes/devices and timestamps >5 minutes in the future
+are rejected. Keep the machine clock correct.
+00007007 matches numeric employee code 7007. Codes differing only by leading
+zeroes/case are considered ambiguous if they belong to different employees;
+those rows are skipped. No fuzzy or name matching is used for live punches.
+Missing or ambiguous employees appear in response data.skipped; fix employee
+codes and resend those rows. The system does not create employees automatically.
+Unknown/numeric direction values remain UNKNOWN and are shown as
+"Direction unavailable" in expanded details. They never count as IN/OUT.
+Vendor must map numeric modes to verified IN/OUT BEFORE sending them.
+Changing a previously sent event's direction/device creates a separate event;
+this endpoint does not edit or delete history. Verify direction before bulk replay.
+
+4. RESPONSE / RETRIES
+Success: {"ok":true,"data":{"received":1,"saved":1,"duplicates":0,
+"skipped":[],"unknownDirection":0}}
+HTTP 200 can contain skipped rows. The sender must inspect data.skipped and
+retain those rows for correction/retry. Do not treat 200 alone as all rows saved.
+Malformed records reject the entire request with 400 before any events are saved.
+Wrong key = 401. Missing config/storage or DB unavailable = 503.
+Retry failed batches with the SAME employee code, time, direction and device.
+Exact duplicate events are skipped, including overlapping/concurrent requests.
+The key can be rotated by changing the environment and the sender together.
+
+5. ACCEPTANCE TEST BEFORE CALLING THIS LIVE
+- Admin/HR log in, open a month calendar and check Punch IN / OUT.
+- Send ONE verified actual IN via vendor export; verify response.saved=1.
+- Replay the same event; duplicates=1, with no extra event in the dashboard.
+- Send ONE verified OUT and confirm it displays under Last OUT.
+- Check unresolved employee codes and unknownDirection in every response.
+- Employee login must not show the Punch IN / OUT section.
+- Make a NEW physical punch. Without Connect/Download clicks, verify it reaches
+  the receiver and appears in the open Admin/HR view. The view refreshes every
+  15 seconds while visible; this is UI refresh, not a promise of device latency.
+- Switch/close the vendor UI and confirm background collection still works.
+- Reconnect/restart the sender and confirm queued punches replay without duplicates.
+If these device tests fail, vendor collection/export setup is still pending.
+
+VALIDATION
+TypeScript, production build and offline route/parser regression checks are
+run against the uploaded dashboard-launcher.zip source.
+Offline checks mock the database/session; they are not a live device or live
+PostgreSQL integration test. No employee push announcements are triggered.
+
+Vendor integration reference (general capability, not this dialog's schema):
+https://realtimebiometrics.com/software/realtime-biometrics-api

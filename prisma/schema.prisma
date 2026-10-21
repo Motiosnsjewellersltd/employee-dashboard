@@ -67,6 +67,7 @@ model Employee {
 
   leaves                  LeaveRecord[]
   monthlyAttendance       MonthlyAttendance[]
+  biometricPunches         BiometricPunch[]
   comments                ManagementComment[]
   performances            PerformanceRecord[]
   sentMessages            ChatMessage[]       @relation("SentChatMessages")
@@ -513,4 +514,17 @@ model EmployeeNote {
 
   @@index([employeeId, createdAt])
   @@index([createdById, createdAt])
+}
+
+// Raw biometric events only. Does not calculate or overwrite attendance status.
+model BiometricPunch {
+  id         String   @id
+  employeeId String
+  punchedAt  DateTime @db.Timestamptz(3)
+  direction  String
+  deviceId   String
+  receivedAt DateTime @default(now()) @db.Timestamptz(3)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, punchedAt])
 }

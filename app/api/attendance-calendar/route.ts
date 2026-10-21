@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     if (session.role === "HR") {
       try { await requireHrPermission(session.role, "hrCanUploadLeaves"); canUpload = true; } catch { /* Keep read access. */ }
     }
-    return ok({ days: record?.days ?? {}, sourceName: record?.sourceName ?? "", canUpload });
+    return ok({ days: record?.days ?? {}, sourceName: record?.sourceName ?? "", canUpload, canViewPunchTimes: session.role === "ADMIN" || session.role === "HR" });
   } catch (e) { return fail(e); }
 }
 

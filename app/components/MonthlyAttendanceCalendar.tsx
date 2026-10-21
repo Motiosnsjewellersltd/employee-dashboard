@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import BiometricPunchTimes from "./BiometricPunchTimes";
 import styles from "./MonthlyAttendanceCalendar.module.css";
 
 type CalendarEmployee = {
@@ -33,6 +34,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
   const [todayKey, setTodayKey] = useState(indiaTodayKey);
   const [days, setDays] = useState<Record<string, AttendanceCode>>({});
   const [canUpload, setCanUpload] = useState(false);
+  const [canViewPunchTimes, setCanViewPunchTimes] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -52,6 +54,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.error || "Could not load attendance.");
         setDays(result.data.days); setCanUpload(result.data.canUpload);
+        setCanViewPunchTimes(result.data.canViewPunchTimes === true);
       } catch (e) {
         if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Could not load attendance.");
       } finally { if (!controller.signal.aborted) setLoading(false); }
@@ -119,7 +122,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
         event.stopImmediatePropagation();
         closeRef.current();
       } else if (event.key === "Tab") {
-        const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)') || []);
+        const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), summary') || []);
         const first = items[0]; const last = items[items.length - 1];
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -201,6 +204,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
       </table>
       <div className={styles.legend} aria-label="Attendance colour guide">{(["P", "A", "H", "R", "SL"] as AttendanceCode[]).map(code => <span key={code}><i className={styles[`status${code}`]} />{code} · {labels[code]}</span>)}</div>
       {!loading && !Object.keys(days).length && !error && <p className={styles.message}>No attendance uploaded for this employee and month.</p>}
+      {canViewPunchTimes && <BiometricPunchTimes employeeId={employee.id} monthYear={canonicalMonth} />}
       {canUpload && <section className={styles.upload} aria-label="Import monthly attendance">
         <label htmlFor="attendance-file">Upload {monthLabel} Excel — all employees in the file</label>
         <input ref={fileInput} id="attendance-file" type="file" accept=".xlsx" disabled={busy} onChange={event => {
