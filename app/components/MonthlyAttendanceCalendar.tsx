@@ -14,8 +14,8 @@ type CalendarEmployee = {
 
 type AttendanceCode = "P" | "A" | "R" | "H" | "SL";
 type UploadResult = { matched: number; skipped: number; saved: boolean; issues: Array<{ sheet: string; row: number; employeeCode: string; name: string; reason: string }> };
-// Punch-time viewing starts on 22 October 2026 (India calendar date).
-const punchTimesStartKey = 20261022;
+// Punch-time viewing starts on 21 October 2026 (India calendar date).
+const punchTimesStartKey = 20261021;
 const labels: Record<AttendanceCode, string> = { P: "Present", A: "Absent", H: "Half Day", R: "Week Off", SL: "Short Leave" };
 
 function indiaTodayKey() {
