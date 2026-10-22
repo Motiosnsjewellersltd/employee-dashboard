@@ -1,0 +1,9 @@
+.viewer { position: fixed; inset: 0; box-sizing: border-box; width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; color: #052a4d; background: #f1f8fd; overflow: hidden; }
+.viewer[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.viewer::backdrop { background: rgb(3 31 51 / 48%); }
+.header { display: flex; align-items: center; gap: 12px; min-width: 0; padding: calc(12px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 12px max(12px, env(safe-area-inset-left)); border-bottom: 1px solid #cce5f6; background: #eaf6ff; }
+.back, .download { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex: 0 0 auto; width: auto; min-height: 42px; margin: 0; padding: 9px 12px; border: 1px solid #b9def7; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 600; line-height: 1.3; text-decoration: none; color: #075f9e; background: #fff; cursor: pointer; }
+.title { min-width: 0; flex: 1; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frame { width: 100%; height: 100%; min-height: 0; border: 0; background: #f1f8fd; }
+.back:focus-visible, .download:focus-visible { outline: 2px solid #1689cf; outline-offset: 2px; }
+@media (max-width: 600px) { .header { flex-wrap: wrap; gap: 8px; } .title { flex-basis: 100%; order: 3; font-size: 14px; } .download { margin-left: auto; } .back, .download { font-size: 13px; padding: 9px 10px; } }

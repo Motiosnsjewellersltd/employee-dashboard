@@ -7,6 +7,7 @@ import { employeeNotificationTarget } from "@/lib/notificationTargets";
 import AdminIncentiveReports from "./AdminIncentiveReports";
 import EmployeeWelcome from "./EmployeeWelcome";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
+import EmployeeReportViewer from "./EmployeeReportViewer";
 import BranchAvailability from "./BranchAvailability";
 import hrHeader from "./HrHeaderActions.module.css";
 import { attendanceCalendarMonths, canViewAttendanceCalendar } from "@/lib/attendanceCalendarAccess";
@@ -3686,6 +3687,7 @@ function ReportingPanel({
     value: boolean
   ) => void;
 }) {
+  const [viewingReport, setViewingReport] = useState<{ id: string; title: string } | null>(null);
   const manager =
     session.role === "ADMIN" ||
     session.role === "HR";
@@ -4357,6 +4359,7 @@ function ReportingPanel({
 
   return (
     <section className="panel reporting-page">
+      {viewingReport && <EmployeeReportViewer report={viewingReport} onClose={() => setViewingReport(null)} />}
 
       <div className="reporting-head">
 
@@ -4748,14 +4751,13 @@ function ReportingPanel({
 
                 <div className="report-card-actions">
 
-                  <a
+                  <button
                     className="light button-link"
-                    href={`/api/employee-reports/${report.id}/file`}
-                    target="_blank"
-                    rel="noreferrer"
+                    type="button"
+                    onClick={() => setViewingReport({ id: report.id, title: report.title })}
                   >
                     View
-                  </a>
+                  </button>
 
                   <a
                     className="light button-link"

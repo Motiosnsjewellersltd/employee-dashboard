@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="same-origin">
+  <title>Employee report preview</title>
+  <link rel="stylesheet" href="/report-viewer/reader.css">
+</head>
+<body>
+  <div class="toolbar" aria-label="Report preview controls">
+    <button id="previous" type="button" disabled hidden>Previous</button>
+    <span id="page-label" aria-live="polite"></span>
+    <button id="next" type="button" disabled hidden>Next</button>
+    <span class="spacer"></span>
+    <button id="zoom-out" type="button" aria-label="Zoom out" disabled>−</button>
+    <span id="zoom-label">100%</span>
+    <button id="zoom-in" type="button" aria-label="Zoom in" disabled>+</button>
+  </div>
+  <p id="status" role="status">Loading report…</p>
+  <main id="viewport" tabindex="0" aria-label="Report content"><div id="content"></div></main>
+  <script type="module" src="/report-viewer/reader.mjs"></script>
+</body>
+</html>
