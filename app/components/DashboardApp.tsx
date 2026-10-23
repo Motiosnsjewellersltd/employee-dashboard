@@ -10,6 +10,7 @@ import FourDotsLoader from "./FourDotsLoader";
 import DashboardIcon, { navigationIcon } from "./DashboardIcon";
 import GlobalDataLoader from "./GlobalDataLoader";
 import { beginDataLoad } from "@/lib/dataLoading";
+import { watchOfflineStatus } from "@/lib/connectivity";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
 import EmployeeReportViewer from "./EmployeeReportViewer";
 import BranchAvailability from "./BranchAvailability";
@@ -843,37 +844,15 @@ hrCanManageReports: "true",
   }
 }
 
-  async function hasInternetAccess() {
-    if (!window.navigator.onLine) return false;
-    try {
-      await fetch(`/api/auth/me?connectionCheck=${Date.now()}`, { cache: "no-store" });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   useEffect(() => {
-    const markOffline = () => setIsOffline(true);
-    const verifyOnline = async () => {
-      const connected = await hasInternetAccess();
-      setIsOffline(!connected);
-      if (connected) setLoginErr(current => /internet connection/i.test(current) ? "" : current);
-    };
-
-    if (!window.navigator.onLine) markOffline();
-    window.addEventListener("online", verifyOnline);
-    window.addEventListener("offline", markOffline);
-    window.addEventListener("motisons-network-unavailable", markOffline);
-    loadMe().catch(error => {
-      if (isNetworkFailure(error)) setIsOffline(true);
+    const stopWatching = watchOfflineStatus(offline => {
+      setIsOffline(offline);
+      if (!offline) setLoginErr(current => /internet connection/i.test(current) ? "" : current);
     });
-
-    return () => {
-      window.removeEventListener("online", verifyOnline);
-      window.removeEventListener("offline", markOffline);
-      window.removeEventListener("motisons-network-unavailable", markOffline);
-    };
+    loadMe().catch(error => {
+      if (isNetworkFailure(error)) window.dispatchEvent(new Event("motisons-network-unavailable"));
+    });
+    return stopWatching;
   }, []);
   useEffect(() => {
     if (!session || session.mustChangePassword) return;
@@ -1088,7 +1067,7 @@ useEffect(() => {
   async function submitLogin(e?: React.FormEvent) {
     e?.preventDefault();
     if (!window.navigator.onLine) {
-      setIsOffline(true);
+      window.dispatchEvent(new Event("offline"));
       setLoginErr("No internet connection. Please connect mobile data or Wi-Fi and try again.");
       return;
     }
@@ -1168,7 +1147,7 @@ useEffect(() => {
       setSection(initialSection(data.user));
     } catch (err: any) {
       if (isNetworkFailure(err)) {
-        setIsOffline(true);
+        window.dispatchEvent(new Event("motisons-network-unavailable"));
         setLoginErr("Unable to connect. Please check your internet connection and try again.");
       }
       else if (err?.name === "AbortError") setLoginErr("Login server is not responding. Please check your internet connection and try again.");
@@ -1195,9 +1174,8 @@ useEffect(() => {
   }
 
   async function retryConnection() {
-    const connected = await hasInternetAccess();
-    if (!connected) {
-      setIsOffline(true);
+    if (!window.navigator.onLine) {
+      window.dispatchEvent(new Event("offline"));
       setLoginErr("No internet connection. Please connect mobile data or Wi-Fi and try again.");
       return;
     }
