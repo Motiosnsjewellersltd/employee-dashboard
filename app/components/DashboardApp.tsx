@@ -9,6 +9,7 @@ import EmployeeWelcome from "./EmployeeWelcome";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
 import EmployeeReportViewer from "./EmployeeReportViewer";
 import BranchAvailability from "./BranchAvailability";
+import AssetHandover from "./AssetHandover";
 import hrHeader from "./HrHeaderActions.module.css";
 import { attendanceCalendarMonths, canViewAttendanceCalendar } from "@/lib/attendanceCalendarAccess";
 
@@ -67,6 +68,7 @@ type Section =
   | "profile"
   | "schemes"
   | "incentiveReports"
+  | "assetHandover"
   | "changePassword";
 
 
@@ -390,6 +392,7 @@ function initialSection(user: User): Section {
   "notifications",
   "chat"
 ];
+  if (requested === "assetHandover" && user.role !== "EMPLOYEE") return requested;
   if (requested && common.includes(requested)) return requested;
   return fallback;
 }
@@ -404,6 +407,7 @@ function hrSectionAllowed(section: Section, permissions: Record<string, string>)
     leaveRequests: enabled("hrMenuLeaveRequests"),
 helpTickets: enabled("hrMenuHelpTickets"),
 reporting: enabled("hrMenuReporting"),
+    assetHandover: enabled("hrMenuAssetHandover"),
     reminder: enabled("hrMenuReminder"),
     notifications: enabled("hrMenuNotifications"),
     chat: enabled("hrMenuChat"),
@@ -422,6 +426,7 @@ function firstHrSection(permissions: Record<string, string>): Section {
     "leaveRequests",
     "helpTickets",
 "reporting",
+    "assetHandover",
     "reminder",
     "notifications",
     "chat",
@@ -744,6 +749,7 @@ const [
     hrMenuLeaveRequests: "true",
 hrMenuHelpTickets: "true",
 hrMenuReporting: "true",
+    hrMenuAssetHandover: "true",
     hrMenuReminder: "true",
     hrMenuNotifications: "true",
     hrMenuChat: "true",
@@ -758,6 +764,7 @@ hrMenuReporting: "true",
     hrCanReviewLeaveRequests: "true",
 hrCanManageHelpTickets: "true",
 hrCanManageReports: "true",
+    hrCanManageAssetHandover: "true",
     hrCanCreateNotifications: "true",
     hrCanViewLoginHistory: "true",
     hrCanExportData: "true",
@@ -1363,6 +1370,7 @@ const showHelpTickets =
   const showResetPassword = hrAllowed("hrMenuResetPassword");
   const showLoginExport = hrAllowed("hrMenuLoginExport");
   const showRecycleBin = hrAllowed("hrMenuRecycleBin");
+  const showAssetHandover = isAdmin && hrAllowed("hrMenuAssetHandover");
   const canAddEmployee = isSuperAdmin || rolePermissions.hrCanAddEmployee === "true";
   const canEditEmployee = isSuperAdmin || rolePermissions.hrCanEditEmployee === "true";
   const canDeleteEmployee = isSuperAdmin || rolePermissions.hrCanDeleteEmployee === "true";
@@ -1407,6 +1415,7 @@ const canManageReports =
     ? employeeRows.filter(e => `${e.employeeCode || ""} ${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(globalSearch.trim().toLowerCase())).slice(0, 8)
     : [];
   const sectionTitles: Record<Section, string> = {
+    assetHandover: "Asset Handover",
     dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders", incentiveReports: "Incentive Reports",
     notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login / Export",
     export: "Export Data", reports: "Leave Reports", permissions: "Permissions", recycle: "Recycle Bin", systemHealth: "System Health", profile: "My Profile", schemes: "Scheme & Incentives", changePassword: "Change Password",helpTickets: "Help Tickets",
@@ -1524,6 +1533,7 @@ floorTeam: "My Team",
   />
 )}
 
+        {showAssetHandover && <MenuItem label="Asset Handover" icon="▧" active={section === "assetHandover"} onClick={() => goto("assetHandover")} />}
         {isAdmin && showReminder && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
         {showNotifications && <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} mobileBottomDuplicate={isAdmin} />}
         {showChat && <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
@@ -1646,6 +1656,7 @@ floorTeam: "My Team",
       {section === "reset" && isAdmin && showResetPassword && canResetPassword && <ResetPassword employees={activeEmployeeRows} />}
       {section === "loginHistory" && isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <LoginExportCenter canViewLoginHistory={canViewLoginHistory} canExportData={canExportData} />}
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
+      {section === "assetHandover" && showAssetHandover && <AssetHandover employees={employeeRows} />}
       {section === "incentiveReports" && session.role === "ADMIN" && <AdminIncentiveReports />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}
@@ -1752,6 +1763,7 @@ floorTeam: "My Team",
       loadProfileLeaves(profileUser)
     }
     showProfileLeaveData={employeeFeatures.profileLeavesVisible}
+    canViewAssets={showAssetHandover}
   />
 )}
     {profilePhotoPreview && (
@@ -3031,7 +3043,8 @@ function ProfileModal({
   onSwitch,
   canDeleteBranchHistory,
   onBranchHistoryDeleted,
-  showProfileLeaveData
+  showProfileLeaveData,
+  canViewAssets
 }: {
   user: User;
   session: User;
@@ -3043,6 +3056,7 @@ function ProfileModal({
   canDeleteBranchHistory: boolean;
   onBranchHistoryDeleted: () => void | Promise<void>;
   showProfileLeaveData: boolean;
+  canViewAssets: boolean;
 }) {
   useEffect(() => {
     const escClose = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -3067,6 +3081,8 @@ function ProfileModal({
   canDeleteBranchHistory={canDeleteBranchHistory}
   onBranchHistoryDeleted={onBranchHistoryDeleted}
   showProfileLeaveData={showProfileLeaveData}
+  canViewAssets={canViewAssets}
+  assetEmployees={employees}
 />
     </div>
   </div>;
@@ -3079,7 +3095,9 @@ function ProfileContent({
   loading,
   canDeleteBranchHistory = false,
   onBranchHistoryDeleted,
-  showProfileLeaveData = false
+  showProfileLeaveData = false,
+  canViewAssets = false,
+  assetEmployees = []
 }: {
   user: User;
   viewer: User;
@@ -3088,6 +3106,8 @@ function ProfileContent({
   canDeleteBranchHistory?: boolean;
   onBranchHistoryDeleted?: () => void | Promise<void>;
   showProfileLeaveData?: boolean;
+  canViewAssets?: boolean;
+  assetEmployees?: User[];
 }) {
   const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
   const attendanceMonths = viewer.role === "EMPLOYEE" && canViewAttendanceCalendar(viewer, user)
@@ -3127,6 +3147,8 @@ function ProfileContent({
     viewer={viewer}
   />
 )}
+
+    {canViewAssets && (viewer.role === "ADMIN" || viewer.role === "HR") && <AssetHandover key={user.id} employeeId={user.id} employees={assetEmployees} />}
 
     {(() => {
       const actualBranchTransfers = (leaves?.branchHistory || []).filter(item => {
@@ -3590,6 +3612,7 @@ function PermissionsPanel({ session }: { session: User }) {
     ["hrMenuLeaveRequests", "Leave Requests"],
 ["hrMenuHelpTickets", "Help Tickets"],
 ["hrMenuReporting", "Reporting Management"],
+    ["hrMenuAssetHandover", "Asset Handover"],
     ["hrMenuReminder", "Reminder"],
     ["hrMenuNotifications", "Notification Center"],
     ["hrMenuChat", "Chat"],
@@ -3612,6 +3635,7 @@ function PermissionsPanel({ session }: { session: User }) {
     "hrCanManageReports",
     "Upload, replace, edit and delete employee reports"
   ],
+    ["hrCanManageAssetHandover", "Add, edit, transfer and receive handovers"],
     ["hrCanCreateNotifications", "Create messages / notifications"],
     ["hrCanViewLoginHistory", "View login history"],
     ["hrCanExportData", "Export system and employee data"],

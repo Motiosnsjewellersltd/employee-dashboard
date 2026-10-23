@@ -91,6 +91,7 @@ model Employee {
   officialDutySentBy       OfficialDutyRequest[] @relation("OfficialDutySender")
   officialDutyHrDecisions  OfficialDutyRequest[] @relation("OfficialDutyHrDecider")
   registeredDevices        DeviceBinding[]
+  assetHandovers           AssetHandover[]
 
   @@index([name])
   @@index([role])
@@ -527,4 +528,64 @@ model BiometricPunch {
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId, punchedAt])
+}
+
+
+// Employee handovers only; no advance stock/inventory records.
+model AssetHandover {
+  id                String @id @default(cuid())
+  itemType          String
+  itemName          String
+  identifier        String?
+  identifierKey     String? @unique
+  employeeId        String?
+  holderName        String
+  holderCode        String?
+  holderBranch      String?
+  holderDepartment  String?
+  holderDesignation String?
+  assignedOn        DateTime @db.Date
+  movementDate      DateTime @db.Date
+  condition         String
+  accessories       String @default("")
+  remarks           String @default("")
+  status            String @default("ASSIGNED")
+  version           Int @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  events            AssetHandoverEvent[]
+
+  @@index([employeeId, status])
+  @@index([holderBranch, status])
+  @@index([updatedAt])
+}
+
+model AssetHandoverEvent {
+  id           String @id @default(cuid())
+  handoverId   String
+  action       String
+  eventDate    DateTime @db.Date
+  fromEmployee Json?
+  toEmployee   Json?
+  details      Json
+  actorId      String
+  actorName    String
+  createdAt    DateTime @default(now())
+  handover     AssetHandover @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+  attachments  AssetHandoverAttachment[]
+
+  @@index([handoverId, createdAt])
+}
+
+model AssetHandoverAttachment {
+  id        String @id @default(cuid())
+  eventId   String
+  fileName  String
+  fileType  String
+  fileSize  Int
+  fileData  Bytes
+  event     AssetHandoverEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
 }
