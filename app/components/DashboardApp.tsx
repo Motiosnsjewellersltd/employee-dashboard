@@ -7,9 +7,9 @@ import { employeeNotificationTarget } from "@/lib/notificationTargets";
 import AdminIncentiveReports from "./AdminIncentiveReports";
 import EmployeeWelcome from "./EmployeeWelcome";
 import FourDotsLoader from "./FourDotsLoader";
-import { EmployeeQuickAccess, EmployeeChangeHistory, EmployeeAttendanceLeaves } from "./EmployeeExperience";
-import experienceStyles from "./EmployeeExperience.module.css";
-import { rememberEmployeePage } from "@/lib/employeeExperience";
+import DashboardIcon, { navigationIcon } from "./DashboardIcon";
+import GlobalDataLoader from "./GlobalDataLoader";
+import { beginDataLoad } from "@/lib/dataLoading";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
 import EmployeeReportViewer from "./EmployeeReportViewer";
 import BranchAvailability from "./BranchAvailability";
@@ -443,6 +443,8 @@ function firstHrSection(permissions: Record<string, string>): Section {
 }
 
 async function api(url: string, options?: RequestInit) {
+  const finishLoading = beginDataLoad();
+  try {
   let res: Response;
   try {
     res = await fetch(url, options);
@@ -459,6 +461,7 @@ async function api(url: string, options?: RequestInit) {
     throw new Error(message);
   }
   return json.data;
+  } finally { finishLoading(); }
 }
 
 function isNetworkFailure(error: unknown) {
@@ -1480,11 +1483,6 @@ floorTeam: "My Team",
   });
 
   function goto(s: Section) {
-    if (session?.role === "EMPLOYEE") {
-      if (s === "reporting") rememberEmployeePage(session.id, { kind: "reports" });
-      if (s === "schemes") rememberEmployeePage(session.id, { kind: "incentive" });
-      if (s === "leaveRequests") rememberEmployeePage(session.id, { kind: "leave" });
-    }
     setSection(s);
     setMenuOpen(false);
     setGlobalSearch("");
@@ -1668,7 +1666,7 @@ floorTeam: "My Team",
       {section === "assetHandover" && showAssetHandover && <AssetHandover employees={employeeRows} />}
       {section === "incentiveReports" && session.role === "ADMIN" && <AdminIncentiveReports />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
-      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} canReport={showReporting} canIncentive={showSchemes} onNavigate={goto} />}
+      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}
       {section === "schemes" && showSchemes && <SchemeIncentives onAccessRevoked={() => { setSchemeVisibleEmployeeId(""); goto("profile"); }} />}
       {section === "changePassword" && <PasswordChangePanel session={session} onChanged={setSession} />}
     </main>
@@ -1867,11 +1865,11 @@ function OfflineNotice({ onRetry }: { onRetry: () => void | Promise<void> }) {
 }
 
 function MenuItem(p: { label: string; icon: string; active: boolean; onClick: () => void; mobileBottomDuplicate?: boolean }) {
-  return <button className={`${p.active ? "menu active" : "menu"}${p.mobileBottomDuplicate ? " mobile-bottom-duplicate" : ""}`} title={p.label} onClick={p.onClick}><span className="menu-icon">{p.icon}</span><b className="menu-label">{p.label}</b><i className="menu-active-dot" /></button>;
+  return <button className={`${p.active ? "menu active" : "menu"}${p.mobileBottomDuplicate ? " mobile-bottom-duplicate" : ""}`} title={p.label} onClick={p.onClick}><span className="menu-icon">{navigationIcon(p.label) ? <DashboardIcon name={navigationIcon(p.label)!} /> : p.icon}</span><b className="menu-label">{p.label}</b><i className="menu-active-dot" /></button>;
 }
 
 function MobileNavItem(p: { label: string; icon: string; active: boolean; onClick: () => void }) {
-  return <button type="button" className={p.active ? "mobile-nav-item active" : "mobile-nav-item"} onClick={p.onClick}><span>{p.icon}</span><b>{p.label}</b></button>;
+  return <button type="button" className={p.active ? "mobile-nav-item active" : "mobile-nav-item"} onClick={p.onClick}><span>{navigationIcon(p.label, true) ? <DashboardIcon name={navigationIcon(p.label, true)!} /> : p.icon}</span><b>{p.label}</b></button>;
 }
 
 function Highlight({ text, term }: { text?: any; term?: string }) {
@@ -2190,7 +2188,7 @@ function EmployeeTable({ title, employees, allEmployees, clickable, onProfile, o
     </div>}
     {bulkMsg && bulkActions && <div className="msg warn">{bulkMsg}</div>}
     <div className="table-wrap"><table><thead><tr>{bulkActions && admin && <th><input type="checkbox" aria-label="Select all employees on this page" checked={allSelected} onChange={toggleAll} /></th>}<th>S.No</th>{visibleColumns.employeeCode && <th>Employee ID</th>}{visibleColumns.photo && <th>Photo</th>}{visibleColumns.name && <th>Name</th>}{visibleColumns.mobile && <th>Mobile</th>}{visibleColumns.dob && <th>DOB</th>}{visibleColumns.designation && <th>Designation</th>}{visibleColumns.department && <th>Department</th>}{visibleColumns.branch && <th>Branch</th>}{visibleColumns.doj && <th>DOJ</th>}{visibleColumns.role && <th>Role</th>}{visibleColumns.status && <th>Status</th>}{showActions && <th>Action</th>}</tr></thead><tbody>
-    {loading ? Array.from({ length: 6 }).map((_, index) => <tr className="skeleton-row" key={`skeleton-${index}`}><td colSpan={13}><span className="skeleton-line" /></td></tr>) : pageRows.length ? pageRows.map((e, index) => <tr
+    {loading ? <tr><td colSpan={13}><FourDotsLoader label="Loading employees…" /></td></tr> : pageRows.length ? pageRows.map((e, index) => <tr
       ref={row => { employeeRowRefs.current[e.id] = row; }}
       className={`employee-row${selected.includes(e.id) ? " selected" : ""}${keyboardRowId === e.id ? " keyboard-focused" : ""}`}
       key={e.id}
@@ -2221,7 +2219,7 @@ function EmployeeTable({ title, employees, allEmployees, clickable, onProfile, o
     </tr>) : <tr><td className="table-empty-cell" colSpan={13}><div className="empty-table-state"><span>⌕</span><b>No employee records found</b></div></td></tr>}
   </tbody></table></div>
   <div className="employee-mobile-list">
-    {loading ? Array.from({ length: 4 }).map((_, index) => <div className="employee-mobile-card" key={`mobile-skeleton-${index}`}><span className="skeleton-line" /></div>) : pageRows.length ? pageRows.map(e => <div className={`${selected.includes(e.id) ? "employee-mobile-card selected" : "employee-mobile-card"}${bulkActions && admin ? " has-select" : ""}`} key={`mobile-${e.id}`}>
+    {loading ? <FourDotsLoader label="Loading employees…" /> : pageRows.length ? pageRows.map(e => <div className={`${selected.includes(e.id) ? "employee-mobile-card selected" : "employee-mobile-card"}${bulkActions && admin ? " has-select" : ""}`} key={`mobile-${e.id}`}>
       {bulkActions && admin && <input className="employee-mobile-select" type="checkbox" aria-label={`Select ${e.name}`} checked={selected.includes(e.id)} onChange={event => setSelected(event.target.checked ? Array.from(new Set([...selected, e.id])) : selected.filter(id => id !== e.id))} />}
       {avatar(e)}
       <div className="employee-mobile-main"><b>{e.name}</b><span>ID: {e.employeeCode || "-"} · {e.designation || "-"}{e.department ? ` · ${e.department}` : ""}{e.branch ? ` · ${e.branch}` : ""}</span><small>{e.mobile || "-"}</small></div>
@@ -2429,7 +2427,7 @@ managerScope: user.managerScope || "",
       </form>
       <div className="panel" style={{ marginTop: 14 }}>
         <h2>Employment History</h2>
-        {historyLoading ? <p>Loading history...</p> : employmentHistory.length ? <div className="table-wrap"><table><thead><tr><th>Cycle</th><th>Joining Date</th><th>Exit Date</th><th>Designation</th><th>Department</th><th>Branch</th></tr></thead><tbody>{employmentHistory.map(row => <tr key={row.id}><td>{row.cycle}{row.current ? " (Current)" : ""}</td><td>{row.joiningDate || "-"}</td><td>{row.current ? "Present" : (row.exitDate || "-")}</td><td>{row.designation || "-"}</td><td>{row.department || "-"}</td><td>{row.branch || "-"}</td></tr>)}</tbody></table></div> : <p>No previous employment cycle recorded.</p>}
+        {historyLoading ? <FourDotsLoader label="Loading history..." /> : employmentHistory.length ? <div className="table-wrap"><table><thead><tr><th>Cycle</th><th>Joining Date</th><th>Exit Date</th><th>Designation</th><th>Department</th><th>Branch</th></tr></thead><tbody>{employmentHistory.map(row => <tr key={row.id}><td>{row.cycle}{row.current ? " (Current)" : ""}</td><td>{row.joiningDate || "-"}</td><td>{row.current ? "Present" : (row.exitDate || "-")}</td><td>{row.designation || "-"}</td><td>{row.department || "-"}</td><td>{row.branch || "-"}</td></tr>)}</tbody></table></div> : <p>No previous employment cycle recorded.</p>}
       </div>
     </div>
   </div>;
@@ -2820,7 +2818,7 @@ function LeavesUpload() {
       <div className="leave-filter-action"><button className="light" onClick={() => { setSearch(""); setMonthFilter(""); loadHistory("", ""); }}>Clear</button></div>
     </div>
 
-    <div className="leave-summary-line"><b>{historyLoading ? "Loading..." : `${history.length} record(s)`}</b>{monthFilter && <span>Month: {pickerToMonthYear(monthFilter)}</span>}</div>
+    <div className="leave-summary-line"><b>{historyLoading ? <FourDotsLoader /> : `${history.length} record(s)`}</b>{monthFilter && <span>Month: {pickerToMonthYear(monthFilter)}</span>}</div>
     <div className="table-wrap leave-history-table">
       <table>
         <thead><tr><th>Month/Year</th><th>Employee ID</th><th>Employee</th><th>Mobile</th><th>Designation</th><th>Department</th><th>Leave</th><th>Reason / Remark</th><th>Actions</th></tr></thead>
@@ -2856,7 +2854,7 @@ function ImportPreview({ title, data }: { title: string; data: any }) {
   return <div className="preview-box"><h3>{title}</h3><div className="preview-cards">{Object.entries(data).filter(([k]) => k !== "errors").map(([k, v]) => <div key={k}><span>{k}</span><b>{String(v)}</b></div>)}</div>{data.errors?.length ? <div className="preview-errors"><b>Error / Skipped Rows</b>{data.errors.slice(0, 20).map((e: any, i: number) => <p key={i}>Row {e.row}: {e.reason} {e.employeeCode || e.name || e.mobile || ""}</p>)}</div> : <div className="empty-state">No validation errors found.</div>}</div>;
 }
 
-function MyProfile({ user, leaves, loading, loadLeaves, showProfileLeaveData, canReport, canIncentive, onNavigate }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void>; showProfileLeaveData: boolean; canReport: boolean; canIncentive: boolean; onNavigate: (section: "reporting" | "schemes" | "leaveRequests") => void }) {
+function MyProfile({ user, leaves, loading, loadLeaves, showProfileLeaveData }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void>; showProfileLeaveData: boolean }) {
 
 useEffect(() => {
   loadLeaves(user);
@@ -2865,8 +2863,6 @@ useEffect(() => {
   return (
   <section className="panel">
     <ProfileContent
-      employeeQuickAccess={<EmployeeQuickAccess employee={user} canReport={canReport} canIncentive={canIncentive} onNavigate={onNavigate} />}
-      employeeExperience
       user={user}
       viewer={user}
       leaves={leaves}
@@ -3108,8 +3104,6 @@ function ProfileContent({
   onBranchHistoryDeleted,
   showProfileLeaveData = false,
   canViewAssets = false,
-  employeeExperience = false,
-  employeeQuickAccess,
   assetEmployees = []
 }: {
   user: User;
@@ -3120,12 +3114,9 @@ function ProfileContent({
   onBranchHistoryDeleted?: () => void | Promise<void>;
   showProfileLeaveData?: boolean;
   canViewAssets?: boolean;
-  employeeExperience?: boolean;
-  employeeQuickAccess?: React.ReactNode;
   assetEmployees?: User[];
 }) {
   const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
-  const [profileTab, setProfileTab] = useState<"view" | "history">("view");
   const attendanceMonths = viewer.role === "EMPLOYEE" && canViewAttendanceCalendar(viewer, user)
     ? attendanceCalendarMonths().filter(monthYear => !showProfileLeaveData ||
       !leaves?.balance.rows.some(row => row.monthYear === monthYear) && !leaves?.records.some(row => row.monthYear === monthYear))
@@ -3150,11 +3141,8 @@ function ProfileContent({
     }
   }
 
-  return <div className={`profile-content${employeeExperience ? ` ${experienceStyles.selfProfile}` : ""}`}>
-    {employeeExperience && profileTab === "view" && employeeQuickAccess}
+  return <div className="profile-content">
     <div className="profile-head">{avatar(user, true)}<div><h1>{user.name}</h1><p>{user.designation} | {user.department}{user.branch ? ` | ${user.branch}` : ""}</p></div><button className="light print-btn" onClick={() => window.print()}><span>▣</span> Print / PDF</button></div>
-    {employeeExperience && <div className={experienceStyles.tabs} role="tablist" aria-label="Profile view"><button type="button" role="tab" aria-selected={profileTab === "view"} onClick={() => setProfileTab("view")}>View</button><button type="button" role="tab" aria-selected={profileTab === "history"} onClick={() => setProfileTab("history")}>History</button></div>}
-    {employeeExperience && profileTab === "history" ? <EmployeeChangeHistory employeeId={user.id} /> : <>
     <div className="profile-grid">
       <Info label="Employee ID" value={user.employeeCode || "-"} /><Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} />
       <Info label="Working Period" value={totalWorkingPeriod(employmentHistory, user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
@@ -3178,15 +3166,14 @@ function ProfileContent({
       });
       return actualBranchTransfers.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{actualBranchTransfers.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch}</td><td data-label="To">{item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null;
     })()}
-    {employeeExperience && <EmployeeAttendanceLeaves employee={user} showLeaves={showProfileLeaveData} leaves={leaves} loading={loading} />}
-    {!employeeExperience && attendanceMonths.length > 0 && <>
-      <h2 className="print-exclude">Monthly Attendance</h2>
+    {attendanceMonths.length > 0 && <>
+      <h2 className="print-exclude"><DashboardIcon name="calendar" /> Monthly Attendance</h2>
       {loading ? <FourDotsLoader label="Loading attendance months…" /> : <div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th></tr></thead><tbody>
         {attendanceMonths.map(monthYear => <tr key={monthYear}><td data-label="Month/Year"><MonthlyAttendanceCalendar employee={user} monthYear={monthYear} /></td></tr>)}
       </tbody></table></div>}
     </>}
-    {!employeeExperience && showProfileLeaveData && user.role !== "ADMIN" && <>
-      <h2>Leave Balance</h2>
+    {showProfileLeaveData && user.role !== "ADMIN" && <>
+      <h2><DashboardIcon name="leaf" /> Leave Balance</h2>
       {loading && <div className="profile-loading"><FourDotsLoader label="Loading profile…" /></div>}
       {leaves && <>
         <div className="cards small"><div className="stat"><span>Financial Year</span><b>{leaves.balance.financialYear}</b></div><div className="stat"><span>Earned Till Current Month</span><b>{leaves.balance.earned}</b></div><div className="stat"><span>Used Leaves till Last Month</span><b>{leaves.balance.used}</b></div><div className="stat" style={{ borderColor: "#b9e4cd" }}><span>Current Balance till Month</span><b className="green">{leaves.balance.currentBalance}</b></div></div>
@@ -3197,9 +3184,8 @@ function ProfileContent({
           const overuseCellStyle = isOverused ? { backgroundColor: "#fff8d8" } : undefined;
           return <tr key={r.monthYear}><td style={overuseCellStyle} data-label="Month/Year">{canViewAttendanceCalendar(viewer, user, r.monthYear) ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td style={overuseCellStyle} data-label="Earned">{r.earned}</td><td style={overuseCellStyle} data-label="Used">{r.used}</td><td style={overuseCellStyle} data-label="Balance" className="green">{r.balance}</td></tr>;
         })}</tbody></table></div>}
-        {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{canViewAttendanceCalendar(viewer, user, r.monthYear) ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
+        {leaves.records.length > 0 && <><h2 className="print-exclude"><DashboardIcon name="leaf" /> Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{canViewAttendanceCalendar(viewer, user, r.monthYear) ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
       </>}
-    </>}
     </>}
   </div>;
 }
@@ -3600,7 +3586,7 @@ function LeaveReports() {
 
   useEffect(() => { api("/api/reports/leaves").then(setReport).catch(() => setReport(null)); }, []);
 
-  if (!report) return <section className="panel"><h1>Leave Reports</h1><div className="msg warn">Loading report...</div></section>;
+  if (!report) return <section className="panel"><h1>Leave Reports</h1><FourDotsLoader label="Loading report..." /></section>;
 
   return <section className="panel"><h1>Leave Reports</h1><div className="cards small"><div className="stat"><span>Financial Year</span><b>{report.financialYear}</b></div><div className="stat"><span>Current Month</span><b>{report.currentMonth}</b></div><div className="stat"><span>Current Month Used</span><b>{report.currentMonthUsed}</b></div></div>
     <h2>Department Wise Leave</h2><div className="table-wrap"><table><thead><tr><th>Department</th><th>Employees</th><th>Earned</th><th>Used</th><th>Balance</th></tr></thead><tbody>{report.departments.map((r: any) => <tr key={r.department}><td>{r.department}</td><td>{r.employees}</td><td>{r.earned}</td><td>{r.used}</td><td>{r.balance}</td></tr>)}</tbody></table></div>
@@ -3624,7 +3610,7 @@ function PermissionsPanel({ session }: { session: User }) {
     }
   }
 
-  if (!permissions) return <section className="panel"><h1>Role Permission Control</h1>{msg ? <div className="msg error">{msg}</div> : <div className="permission-skeleton"><SkeletonCards count={4} /><span className="skeleton-button" /></div>}</section>;
+  if (!permissions) return <section className="panel"><h1>Role Permission Control</h1>{msg ? <div className="msg error">{msg}</div> : <div className="permission-skeleton"><SkeletonCards count={4} /></div>}</section>;
 
   const menuRows = [
     ["hrMenuDashboard", "Dashboard"],
@@ -3705,7 +3691,7 @@ function SchemeVisibilityPermissions() {
     <h2>Scheme &amp; Incentives — Employee Visibility</h2>
     <p className="hint">Default: Hidden for everyone. Show permission only for selected employees. Changes save immediately.</p>
     <input aria-label="Search employee scheme visibility" placeholder="Search employee name / ID / branch" value={query} onChange={e => setQuery(e.target.value)} style={{ maxWidth: 420, marginBottom: 10 }} />
-    {loading && <p>Loading employees...</p>}
+    {loading && <FourDotsLoader label="Loading employees..." />}
     {error && <p className="msg error" role="alert">{error}</p>}
     {!loading && <div style={{ maxHeight: 360, overflowY: "auto", border: "1px solid #cee2ef", borderRadius: 12 }}>
       {matched.map(e => <div key={e.id} className="permission-row" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderBottom: "1px solid #e2ebf2" }}>
@@ -4733,9 +4719,7 @@ function ReportingPanel({
       )}
 
       {loading ? (
-        <div className="empty-state">
-          Loading reports...
-        </div>
+        <FourDotsLoader label="Loading reports..." />
       ) : reports.length ? (
         <div className="report-list">
 
@@ -5277,9 +5261,7 @@ function EmployeeNotes({
       )}
 
       {loading ? (
-        <div className="empty-state">
-          Loading notes...
-        </div>
+        <FourDotsLoader label="Loading notes..." />
       ) : notes.length ? (
 
         <div className="employee-note-list">
@@ -5382,7 +5364,7 @@ function TeamCurrentFyLeave({ employeeId }: { employeeId: string }) {
     };
   }, [employeeId]);
 
-  if (loading) return <div className="empty-state">Loading current FY leave...</div>;
+  if (loading) return <FourDotsLoader label="Loading current FY leave..." />;
   if (error) return <div className="msg warn">{error}</div>;
   if (!info) return null;
 
@@ -5520,9 +5502,7 @@ setManagerScope(data.managerScope || "");
       {msg && <div className="msg warn">{msg}</div>}
 
       {loading ? (
-        <div className="empty-state">
-          Loading floor team...
-        </div>
+        <FourDotsLoader label="Loading floor team..." />
       ) : employees.length ? (
         <>
           <div className="table-wrap floor-team-table">
@@ -5976,7 +5956,7 @@ function OfficialDutyPanel({ session }: { session: User }) {
       <button className="secondary compact" onClick={load}>↻ Refresh</button>
     </div>
 
-    {loading ? <div className="empty-state">Loading Official Duty requests...</div> : visible.length === 0 ? <div className="empty-state">No Official Duty request found.</div> : <div className="official-duty-list">
+    {loading ? <FourDotsLoader label="Loading Official Duty requests..." /> : visible.length === 0 ? <div className="empty-state">No Official Duty request found.</div> : <div className="official-duty-list">
       {visible.map(request => <article className="official-duty-card" key={request.id}>
         <div className="official-duty-card-head">
           <div><h3>{request.requester?.name}</h3><p>{request.requester?.designation || "Employee"} · {request.requester?.department || "-"}</p></div>
@@ -6312,7 +6292,7 @@ useEffect(() => {
             {loading && (
               <tr>
                 <td colSpan={isManagerView ? 8 : 7}>
-                  Loading help tickets...
+                  <FourDotsLoader label="Loading help tickets…" />
                 </td>
               </tr>
             )}
@@ -6703,7 +6683,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
     {canManagerReview && managerEmployeeReviewMode && <div className="manager-team-request-count"><b>Total Team Requests: {managerTeamRows.length}</b><span>Pending Manager Action: {teamPendingCount}</span></div>}
 
     <div className="table-wrap leave-request-table"><table><thead><tr>{reviewMode && <th>Employee</th>}<th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Manager / Head Approval</th><th>HR Decision</th>{reviewMode && <th>Action</th>}</tr></thead><tbody>
-      {loading && <tr><td colSpan={reviewMode ? 9 : 8}>Loading leave requests...</td></tr>}
+      {loading && <tr><td colSpan={reviewMode ? 9 : 8}><FourDotsLoader label="Loading leave requests…" /></td></tr>}
       {!loading && visibleRows.length === 0 && <tr><td colSpan={reviewMode ? 9 : 8}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
         {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
@@ -6736,7 +6716,7 @@ function NotificationBell({ onOpen }: { onOpen: () => void }) {
     return () => clearInterval(timer);
   }, []);
 
-  return <button className="notification-bell" onClick={onOpen} aria-label="Open notification center"><span>◴</span>{unread > 0 && <b>{unread > 99 ? "99+" : unread}</b>}</button>;
+  return <button className="notification-bell" onClick={onOpen} aria-label="Open notification center"><span><DashboardIcon name="bell" /></span>{unread > 0 && <b>{unread > 99 ? "99+" : unread}</b>}</button>;
 }
 
 function Notifications({ session, employees, onNavigate }: { session: User; employees: User[]; onNavigate: (section: Section) => void }) {
@@ -6852,7 +6832,7 @@ function Notifications({ session, employees, onNavigate }: { session: User; empl
 }
 
 function SkeletonCards({ count = 3 }: { count?: number }) {
-  return <div className="skeleton-cards">{Array.from({ length: count }).map((_, index) => <div className="skeleton-card" key={index}><span /><b /><i /></div>)}</div>;
+  return <FourDotsLoader />;
 }
 
 function ToastHost() {
@@ -6929,5 +6909,6 @@ export default function DashboardApp() {
   return <>
     <LanguageRuntime />
     <DashboardAppInner />
+    <GlobalDataLoader />
   </>;
 }

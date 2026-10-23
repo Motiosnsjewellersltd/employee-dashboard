@@ -26,6 +26,8 @@ async function render() {
   }
   if (!pdf) return;
   try {
+    status.className = "loading";
+    status.innerHTML = '<span class="loader-orbit" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Loading report…</span>';
     const pdfPage = await pdf.getPage(page);
     if (disposed || generation !== current) return;
     const unit = pdfPage.getViewport({ scale: 1 });
@@ -46,7 +48,7 @@ async function render() {
     await task.promise;
     if (disposed || generation !== current) return;
     content.replaceChildren(canvas);
-    status.textContent = "";
+    status.className = ""; status.textContent = "";
   } catch (error) {
     if (disposed || current !== generation || error?.name === "RenderingCancelledException") return;
     status.className = "error";
@@ -81,7 +83,7 @@ try {
     imageUrl = URL.createObjectURL(blob);
     image = document.createElement("img"); image.alt = "Employee report"; image.src = imageUrl;
     await image.decode();
-    if (!disposed) { content.replaceChildren(image); status.textContent = ""; await render(); controls(); }
+    if (!disposed) { content.replaceChildren(image); status.className = ""; status.textContent = ""; await render(); controls(); }
   } else {
     const pdfjs = await import(`${assetRoot}pdf.mjs`);
     if (disposed) throw new Error("Closed");

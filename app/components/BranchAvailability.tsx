@@ -1,5 +1,7 @@
 "use client";
 
+import FourDotsLoader from "./FourDotsLoader";
+
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { indiaDateKey } from "@/lib/branchAvailability";
@@ -161,7 +163,7 @@ function AvailabilityPopup({ onClose }: { onClose: () => void }) {
           <button type="button" className={styles.refresh} disabled={loading || !date || !branch} onClick={() => setVersion(value => value + 1)}>Refresh</button>
         </div>
         {!branch && <p className={styles.notice}>Select branch.</p>}
-        {loading && <p className={styles.notice} role="status">Loading…</p>}
+        {loading && <FourDotsLoader label="Loading…" />}
         {error && <p className={styles.error} role="alert">{error}</p>}
         {current && <>
           <input className={styles.search} type="search" aria-label="Search designation" placeholder="Search designation" value={query} onChange={event => setQuery(event.target.value)} />

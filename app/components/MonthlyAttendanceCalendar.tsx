@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import FourDotsLoader from "./FourDotsLoader";
+import DashboardIcon from "./DashboardIcon";
+
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import BiometricPunchTimes from "./BiometricPunchTimes";
 import styles from "./MonthlyAttendanceCalendar.module.css";
@@ -193,7 +196,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
           <dd><strong className={styles.summaryTotal}>{counts.R}</strong></dd>
         </div>
       </dl>}
-      {loading && <p className={styles.message} role="status">Loading attendance…</p>}
+      {loading && <FourDotsLoader label="Loading attendance…" />}
       {error && <p className={styles.error} role="alert">{error}</p>}
       {notice && <p className={styles.message} role="status">{notice}</p>}
       <table className={styles.calendar} aria-label={monthLabel}>
@@ -244,18 +247,16 @@ function MonthPopup({ employee, monthYear, onClose }: {
 
 // Mounted only for Admin/HR in the existing employee-details month cells.
 // Attendance imports are internal; no employee notifications are sent.
-export default function MonthlyAttendanceCalendar({ employee, monthYear, onOpen, children }: {
+export default function MonthlyAttendanceCalendar({ employee, monthYear }: {
   employee: CalendarEmployee;
   monthYear: string;
-  onOpen?: () => void;
-  children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const validMonth = /^(0?[1-9]|1[0-2])\/\d{4}$/.test(monthYear);
   if (!validMonth) return <>{monthYear}</>;
 
   return <>
-    <button type="button" className={styles.monthLink} aria-label={`Open ${monthYear} calendar for ${employee.name}`} onClick={() => { setOpen(true); onOpen?.(); }}>{children || monthYear}</button>
+    <button type="button" className={styles.monthLink} aria-label={`Open ${monthYear} calendar for ${employee.name}`} onClick={() => setOpen(true)}><DashboardIcon name="calendar" />{monthYear}</button>
     {open && <MonthPopup employee={employee} monthYear={monthYear} onClose={() => setOpen(false)} />}
   </>;
 }

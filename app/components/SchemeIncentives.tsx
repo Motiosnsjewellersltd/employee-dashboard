@@ -1,5 +1,7 @@
 "use client";
 
+import FourDotsLoader from "./FourDotsLoader";
+
 import { useEffect, useRef, useState } from "react";
 import styles from "./SchemeIncentives.module.css";
 
@@ -111,7 +113,7 @@ export default function SchemeIncentives({ onAccessRevoked }: { onAccessRevoked:
       <button type="button" role="tab" aria-selected={scheme === "gold"} className={scheme === "gold" ? styles.selected : ""} onClick={() => { setScheme("gold"); setActiveView("customers"); }}>Neev Gold</button>
       <button type="button" role="tab" aria-selected={scheme === "bonus"} className={scheme === "bonus" ? styles.selected : ""} onClick={() => { setScheme("bonus"); setActiveView("customers"); }}>Neev Bonus</button>
     </div>
-    {loading && !report ? <div className={styles.message} role="status">Loading scheme data...</div> : null}
+    {loading && !report ? <FourDotsLoader label="Loading scheme data..." /> : null}
     {error && !report ? <p className={styles.error} role="alert">{scheme === "gold" ? "Neev Gold data load nahi ho paaya." : "Neev Bonus data load nahi ho paaya."}</p> : null}
     {report && <>
       <div className={styles.stats}>

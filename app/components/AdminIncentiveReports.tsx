@@ -1,5 +1,7 @@
 "use client";
 
+import FourDotsLoader from "./FourDotsLoader";
+
 import { useCallback, useEffect, useState } from "react";
 import type { makeSchemeReport, SchemeSource } from "@/lib/schemeReport";
 import styles from "./AdminIncentiveReports.module.css";
@@ -65,7 +67,7 @@ export default function AdminIncentiveReports() {
       <label>Month<select value={month} onChange={e => setMonth(e.target.value)}><option value="">All Months</option>{months.map(m => <option key={m} value={m}>{monthText(m)}</option>)}</select></label>
     </div>
     {error && <p className={styles.error} role="alert">{error}</p>}
-    {loading && <p role="status">Loading incentive reports...</p>}
+    {loading && <FourDotsLoader label="Loading incentive reports..." />}
     {schemes.filter(s => s.error).map(s => <p className={styles.error} role="alert" key={s.source}>{schemeText(s.source)}: {s.error}</p>)}
     {data && <>
       <div className={styles.stats}>{([['Gross Incentive', 'gross'], ['Deductions', 'deductions'], ['Final Incentive', 'net']] as const).map(([label, key]) => <div key={key}><small>{label}</small><strong>{money(total(key))}</strong></div>)}</div>

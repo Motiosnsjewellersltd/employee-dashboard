@@ -1,5 +1,7 @@
 "use client";
 
+import FourDotsLoader from "./FourDotsLoader";
+
 import { useEffect, useRef, useState } from "react";
 import styles from "./BiometricPunchTimes.module.css";
 
@@ -67,7 +69,7 @@ export default function BiometricPunchTimes({ employeeId, monthYear, day, employ
         <div><h3>{selectedDate}</h3><p>{employeeName}</p></div>
         <button type="button" className={styles.close} onClick={onClose} aria-label="Close punch times">×</button>
       </div>
-      {loading && <p role="status">Loading punch times…</p>}
+      {loading && <FourDotsLoader label="Loading punch times…" />}
       {error && <p className={styles.error} role="alert">{error}</p>}
       {!loading && !error && !configured && <p>Punch integration setup pending.</p>}
       {!loading && !error && configured && <>

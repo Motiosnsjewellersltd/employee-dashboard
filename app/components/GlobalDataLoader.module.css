@@ -1,0 +1,2 @@
+.indicator { position: fixed; right: max(16px,env(safe-area-inset-right)); top: max(80px,env(safe-area-inset-top)); z-index: 10010; pointer-events: none; border: 1px solid #cce5f6; border-radius: 12px; background: rgba(255,255,255,.97); box-shadow: 0 5px 18px rgb(7 67 111 / 12%); }
+@media print { .indicator { display: none; } }

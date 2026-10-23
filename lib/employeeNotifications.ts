@@ -1,5 +1,3 @@
-import { addAuditLog } from "@/lib/audit";
-import { profileHistoryChanges } from "@/lib/employeeProfileHistory";
 import { prisma } from "@/lib/prisma";
 import { sendPushToEmployees } from "@/lib/webPush";
 import { employeeNotificationTarget } from "@/lib/notificationTargets";
@@ -68,12 +66,6 @@ export async function notifyProfileChanges(input: {
 }) {
   const fields = changedProfileFields(input.before, input.after);
   if (!fields.length) return;
-  // Stable employee ID and allowlisted before/after values; never store credentials or photo bytes.
-  try {
-    const actor = await prisma.employee.findUnique({ where: { id: input.actorId }, select: { name: true } });
-    await addAuditLog({ actorId: input.actorId, actorName: actor?.name || null, action: "EMPLOYEE_PROFILE_CHANGE", target: input.employeeId,
-      details: { changes: profileHistoryChanges(input.before, input.after) } });
-  } catch { /* Keep existing saved profile/notification behavior if audit storage is unavailable. */ }
   await addEmployeeNotification({
     actorId: input.actorId, employeeId: input.employeeId,
     action: "EMPLOYEE_PROFILE_UPDATED", title: "Profile Updated",
