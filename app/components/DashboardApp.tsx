@@ -442,8 +442,8 @@ function firstHrSection(permissions: Record<string, string>): Section {
   return order.find(item => hrSectionAllowed(item, permissions)) || "dashboard";
 }
 
-async function api(url: string, options?: RequestInit) {
-  const finishLoading = beginDataLoad();
+async function api(url: string, options?: RequestInit, feedback: "foreground" | "background" = "foreground") {
+  const finishLoading = feedback === "background" ? () => {} : beginDataLoad();
   try {
   let res: Response;
   try {
@@ -834,7 +834,7 @@ hrCanManageReports: "true",
   }
 
   try {
-    const data = await api("/api/employees");
+    const data = await api("/api/employees", undefined, showLoader ? "foreground" : "background");
     setEmployees(data.employees);
   } finally {
     if (showLoader) {
@@ -881,7 +881,7 @@ hrCanManageReports: "true",
 
     const refresh = async () => {
       try {
-        const data = await api("/api/feature-settings");
+        const data = await api("/api/feature-settings", undefined, "background");
         if (!cancelled) {
           setEmployeeFeatures({
             profileLeavesVisible: Boolean(data.settings?.profileLeavesVisible),
@@ -970,7 +970,7 @@ useEffect(() => {
 
   async function checkReporting() {
     try {
-      const data = await api("/api/employee-reports");
+      const data = await api("/api/employee-reports", undefined, "background");
 
       if (!cancelled) {
         setEmployeeReportingEnabled(
@@ -1496,15 +1496,15 @@ floorTeam: "My Team",
   }
 
   return <div className={isHr ? "app-shell admin-shell hr-shell" : isAdmin ? "app-shell admin-shell" : "app-shell employee-shell"}>
-    <button className="mobile-menu" onClick={() => setMenuOpen(true)}>☰</button>
+    <button className="mobile-menu" onClick={() => setMenuOpen(true)}>{isAdmin ? <DashboardIcon name="menu" /> : "☰"}</button>
     <aside className={`${menuOpen ? "sidebar open" : "sidebar"}${isAdmin ? " admin-mobile-tools" : ""}`}>
       <div className="brand"><div className="logo-small">MS</div><div><b>Employee System</b><span>{session.role} Panel</span></div><button className="mobile-tools-close" type="button" aria-label="Close tools" onClick={() => setMenuOpen(false)}>×</button></div>
       <nav>
-        {isAdmin && showDashboard && <MenuItem label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} mobileBottomDuplicate />}
-        {isAdmin && !isHr && showEmployees && <MenuItem label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} mobileBottomDuplicate />}
-        {isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <MenuItem label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
+        {isAdmin && showDashboard && <MenuItem panelIcons={isAdmin} label="Dashboard" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} mobileBottomDuplicate />}
+        {isAdmin && !isHr && showEmployees && <MenuItem panelIcons={isAdmin} label="Employees Details" icon="☷" active={section === "employees"} onClick={() => goto("employees")} mobileBottomDuplicate />}
+        {isAdmin && showAddUpload && (canAddEmployee || canUploadLeaves) && <MenuItem panelIcons={isAdmin} label="Add / Upload" icon="+" active={section === "add"} onClick={() => goto("add")} />}
 {!isHr && showLeaveRequests && (
-  <MenuItem
+  <MenuItem panelIcons={isAdmin}
     label="Leave Requests"
     icon="✓"
     active={section === "leaveRequests"}
@@ -1512,14 +1512,14 @@ floorTeam: "My Team",
     mobileBottomDuplicate={isAdmin}
   />
 )}
-<MenuItem
+<MenuItem panelIcons={isAdmin}
   label="Official Duty"
   icon="⌖"
   active={section === "officialDuty"}
   onClick={() => goto("officialDuty")}
 />
         {!isHr && showHelpTickets && (
-  <MenuItem
+  <MenuItem panelIcons={isAdmin}
     label="Help Tickets"
     icon="?"
     active={section === "helpTickets"}
@@ -1528,7 +1528,7 @@ floorTeam: "My Team",
   />
 )}
 {isAdmin && showReporting && (
-  <MenuItem
+  <MenuItem panelIcons={isAdmin}
     label="Reporting Management"
     icon="▤"
     active={
@@ -1540,19 +1540,19 @@ floorTeam: "My Team",
   />
 )}
 
-        {showAssetHandover && <MenuItem label="Asset Handover" icon="▧" active={section === "assetHandover"} onClick={() => goto("assetHandover")} />}
-        {isAdmin && showReminder && <MenuItem label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
-        {showNotifications && <MenuItem label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} mobileBottomDuplicate={isAdmin} />}
-        {showChat && <MenuItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
-        {isAdmin && showResetPassword && canResetPassword && <MenuItem label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
-        {isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <MenuItem label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
-        {session.role === "ADMIN" && <MenuItem label="Incentive Reports" icon="₹" active={section === "incentiveReports"} onClick={() => goto("incentiveReports")} />}
-        {isSuperAdmin && <MenuItem label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
-        {isAdmin && showRecycleBin && canManageRecycleBin && <MenuItem label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
+        {showAssetHandover && <MenuItem panelIcons={isAdmin} label="Asset Handover" icon="▧" active={section === "assetHandover"} onClick={() => goto("assetHandover")} />}
+        {isAdmin && showReminder && <MenuItem panelIcons={isAdmin} label="Reminder" icon="★" active={section === "reminder"} onClick={() => goto("reminder")} />}
+        {showNotifications && <MenuItem panelIcons={isAdmin} label="Notification Center" icon="◴" active={section === "notifications"} onClick={() => goto("notifications")} mobileBottomDuplicate={isAdmin} />}
+        {showChat && <MenuItem panelIcons={isAdmin} label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
+        {isAdmin && showResetPassword && canResetPassword && <MenuItem panelIcons={isAdmin} label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
+        {isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <MenuItem panelIcons={isAdmin} label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
+        {session.role === "ADMIN" && <MenuItem panelIcons={isAdmin} label="Incentive Reports" icon="₹" active={section === "incentiveReports"} onClick={() => goto("incentiveReports")} />}
+        {isSuperAdmin && <MenuItem panelIcons={isAdmin} label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
+        {isAdmin && showRecycleBin && canManageRecycleBin && <MenuItem panelIcons={isAdmin} label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
 
 {session.role === "EMPLOYEE" &&
   showReporting && (
-    <MenuItem
+    <MenuItem panelIcons={isAdmin}
       label="Reporting"
       icon="▤"
       active={
@@ -1565,7 +1565,7 @@ floorTeam: "My Team",
   )}
 
 {isFloorManager && (
-  <MenuItem
+  <MenuItem panelIcons={isAdmin}
     label="My Team"
     icon="☷"
     active={section === "floorTeam"}
@@ -1573,10 +1573,10 @@ floorTeam: "My Team",
   />
 )}
 
-        {session.role === "EMPLOYEE" && <MenuItem label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
-        {showSchemes && <MenuItem label="Scheme & Incentives" icon="₹" active={section === "schemes"} onClick={() => goto("schemes")} />}
-        <MenuItem label="Change Password" icon="🔒" active={section === "changePassword"} onClick={() => goto("changePassword")} />
-        <MenuItem label="Logout" icon="ↄ" active={false} onClick={logout} />
+        {session.role === "EMPLOYEE" && <MenuItem panelIcons={isAdmin} label="My Details" icon="☷" active={section === "profile"} onClick={() => goto("profile")} />}
+        {showSchemes && <MenuItem panelIcons={isAdmin} label="Scheme & Incentives" icon="₹" active={section === "schemes"} onClick={() => goto("schemes")} />}
+        <MenuItem panelIcons={isAdmin} label="Change Password" icon="🔒" active={section === "changePassword"} onClick={() => goto("changePassword")} />
+        <MenuItem panelIcons={isAdmin} label="Logout" icon="ↄ" active={false} onClick={logout} />
       </nav>
     </aside>
     {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
@@ -1585,20 +1585,20 @@ floorTeam: "My Team",
       <div className={`app-topbar print-exclude${isHr ? ` ${hrHeader.topbar}` : ""}${isHr && section !== "dashboard" ? " hr-no-global-search" : ""}`}>
         <div className="topbar-title"><span>Motisons Employee System</span><b>{sectionTitles[section]}</b></div>
         {session.role !== "EMPLOYEE" && (!isHr || section === "dashboard") && <div className="global-search-wrap">
-          <span className="global-search-icon">⌕</span>
+          <span className="global-search-icon">{isAdmin ? <DashboardIcon name="search" /> : "⌕"}</span>
           <input aria-label="Global employee search" placeholder="Search Employee ID, name, mobile..." value={globalSearch} onFocus={() => setGlobalSearchOpen(true)} onChange={e => { setGlobalSearch(e.target.value); setGlobalSearchOpen(true); }} />
           {globalSearch && <button className="global-search-clear" type="button" onClick={() => { setGlobalSearch(""); setGlobalSearchOpen(false); }}>×</button>}
           {globalSearchOpen && globalSearch.trim() && <div className="global-search-results">
             {globalMatches.length ? globalMatches.map(u => <button key={u.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => { openProfile(u); setGlobalSearch(""); setGlobalSearchOpen(false); }}>{avatar(u)}<span><b><Highlight text={u.name} term={globalSearch} /></b><small>ID: <Highlight text={u.employeeCode || "-"} term={globalSearch} /> · {u.designation || "-"} · <Highlight text={u.mobile} term={globalSearch} /></small></span></button>) : <div className="global-search-empty">No employee found</div>}
           </div>}
         </div>}
-        {isAdmin && <button className="desktop-admin-tools" type="button" onClick={() => setMenuOpen(value => !value)}><span>☰</span><b>Tools</b></button>}
+        {isAdmin && <button className="desktop-admin-tools" type="button" onClick={() => setMenuOpen(value => !value)}><span>{isAdmin ? <DashboardIcon name="menu" /> : "☰"}</span><b>Tools</b></button>}
         {isHr && <div className={hrHeader.actions}>
-          {showHelpTickets && <button className={`${hrHeader.action}${section === "helpTickets" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("helpTickets")}><span>?</span><b>Help Tickets</b></button>}
-          {showLeaveRequests && <button className={`${hrHeader.action}${section === "leaveRequests" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("leaveRequests")}><span>✓</span><b>Leave Requests</b></button>}
-          {showEmployees && <button className={`${hrHeader.action}${section === "employees" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("employees")}><span>☷</span><b>Employees Details</b></button>}
+          {showHelpTickets && <button className={`${hrHeader.action}${section === "helpTickets" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("helpTickets")}><span><DashboardIcon name="help" /></span><b>Help Tickets</b></button>}
+          {showLeaveRequests && <button className={`${hrHeader.action}${section === "leaveRequests" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("leaveRequests")}><span><DashboardIcon name="leaf" /></span><b>Leave Requests</b></button>}
+          {showEmployees && <button className={`${hrHeader.action}${section === "employees" ? ` ${hrHeader.active}` : ""}`} type="button" onClick={() => goto("employees")}><span><DashboardIcon name="team" /></span><b>Employees Details</b></button>}
         </div>}
-        <button className={`official-duty-top-action${section === "officialDuty" ? " active" : ""}`} type="button" onClick={() => goto("officialDuty")}><span>⌖</span><b>Official Duty</b></button>
+        <button className={`official-duty-top-action${section === "officialDuty" ? " active" : ""}`} type="button" onClick={() => goto("officialDuty")}><span>{isAdmin ? <DashboardIcon name="duty" /> : "⌖"}</span><b>Official Duty</b></button>
         {showNotifications && <NotificationBell onOpen={() => goto("notifications")} />}
       </div>
       {notice && <div className="msg warn" onClick={() => setNotice("")}>{notice}</div>}
@@ -1715,13 +1715,13 @@ floorTeam: "My Team",
     }`}</style>
     <nav className="mobile-bottom-nav print-exclude" aria-label="Mobile navigation">
       {isAdmin ? <>
-        {showDashboard && <MobileNavItem label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
-        {showEmployees && <MobileNavItem label="Team" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
-      </> : <MobileNavItem label="Profile" icon="◎" active={section === "profile"} onClick={() => goto("profile")} />}
-      {showLeaveRequests && <MobileNavItem label="Leave" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />}
+        {showDashboard && <MobileNavItem panelIcons={isAdmin} label="Home" icon="▣" active={section === "dashboard"} onClick={() => goto("dashboard")} />}
+        {showEmployees && <MobileNavItem panelIcons={isAdmin} label="Team" icon="☷" active={section === "employees"} onClick={() => goto("employees")} />}
+      </> : <MobileNavItem panelIcons={isAdmin} label="Profile" icon="◎" active={section === "profile"} onClick={() => goto("profile")} />}
+      {showLeaveRequests && <MobileNavItem panelIcons={isAdmin} label="Leave" icon="✓" active={section === "leaveRequests"} onClick={() => goto("leaveRequests")} />}
 
 {showHelpTickets && (
-  <MobileNavItem
+  <MobileNavItem panelIcons={isAdmin}
     label="Help"
     icon="?"
     active={section === "helpTickets"}
@@ -1730,7 +1730,7 @@ floorTeam: "My Team",
 )}
 
 {isFloorManager && (
-  <MobileNavItem
+  <MobileNavItem panelIcons={isAdmin}
     label="Team"
     icon="☷"
     active={section === "floorTeam"}
@@ -1740,7 +1740,7 @@ floorTeam: "My Team",
 
 {!isAdmin &&
   showReporting && (
-    <MobileNavItem
+    <MobileNavItem panelIcons={isAdmin}
       label="Reporting"
       icon="▤"
       active={
@@ -1752,8 +1752,8 @@ floorTeam: "My Team",
     />
   )}
 
-      {!isAdmin && showChat && <MobileNavItem label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
-      {isAdmin ? <MobileNavItem label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : showSchemes ? <MobileNavItem label="Schemes" icon="₹" active={section === "schemes"} onClick={() => goto("schemes")} /> : <MobileNavItem label="Logout" icon="↪" active={false} onClick={logout} />}
+      {!isAdmin && showChat && <MobileNavItem panelIcons={isAdmin} label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
+      {isAdmin ? <MobileNavItem panelIcons={isAdmin} label="Tools" icon="☰" active={menuOpen} onClick={() => setMenuOpen(true)} /> : showSchemes ? <MobileNavItem panelIcons={isAdmin} label="Schemes" icon="₹" active={section === "schemes"} onClick={() => goto("schemes")} /> : <MobileNavItem panelIcons={isAdmin} label="Logout" icon="↪" active={false} onClick={logout} />}
     </nav>
     {editUser && <EditEmployeeModal user={editUser} onClose={() => setEditUser(null)} onSaved={finishEmployeeEdit} />}
     {profileUser && section !== "profile" && (
@@ -1864,12 +1864,12 @@ function OfflineNotice({ onRetry }: { onRetry: () => void | Promise<void> }) {
   </div>;
 }
 
-function MenuItem(p: { label: string; icon: string; active: boolean; onClick: () => void; mobileBottomDuplicate?: boolean }) {
-  return <button className={`${p.active ? "menu active" : "menu"}${p.mobileBottomDuplicate ? " mobile-bottom-duplicate" : ""}`} title={p.label} onClick={p.onClick}><span className="menu-icon">{navigationIcon(p.label) ? <DashboardIcon name={navigationIcon(p.label)!} /> : p.icon}</span><b className="menu-label">{p.label}</b><i className="menu-active-dot" /></button>;
+function MenuItem(p: { label: string; icon: string; active: boolean; onClick: () => void; panelIcons?: boolean; mobileBottomDuplicate?: boolean }) {
+  return <button className={`${p.active ? "menu active" : "menu"}${p.mobileBottomDuplicate ? " mobile-bottom-duplicate" : ""}`} title={p.label} onClick={p.onClick}><span className="menu-icon">{navigationIcon(p.label, false, p.panelIcons) ? <DashboardIcon name={navigationIcon(p.label, false, p.panelIcons)!} /> : p.icon}</span><b className="menu-label">{p.label}</b><i className="menu-active-dot" /></button>;
 }
 
-function MobileNavItem(p: { label: string; icon: string; active: boolean; onClick: () => void }) {
-  return <button type="button" className={p.active ? "mobile-nav-item active" : "mobile-nav-item"} onClick={p.onClick}><span>{navigationIcon(p.label, true) ? <DashboardIcon name={navigationIcon(p.label, true)!} /> : p.icon}</span><b>{p.label}</b></button>;
+function MobileNavItem(p: { label: string; icon: string; active: boolean; onClick: () => void; panelIcons?: boolean }) {
+  return <button type="button" className={p.active ? "mobile-nav-item active" : "mobile-nav-item"} onClick={p.onClick}><span>{navigationIcon(p.label, true, p.panelIcons) ? <DashboardIcon name={navigationIcon(p.label, true, p.panelIcons)!} /> : p.icon}</span><b>{p.label}</b></button>;
 }
 
 function Highlight({ text, term }: { text?: any; term?: string }) {
@@ -6703,7 +6703,7 @@ function NotificationBell({ onOpen }: { onOpen: () => void }) {
 
   async function refresh() {
     try {
-      const data = await api("/api/notifications?view=center");
+      const data = await api("/api/notifications?view=center", undefined, "background");
       setUnread(data.unread || 0);
     } catch {
       setUnread(0);
@@ -6869,8 +6869,16 @@ function ConfirmHost() {
 
 function Chat({ session }: { session: User }) {
   const [users, setUsers] = useState<User[]>([]); const [threads, setThreads] = useState<any[]>([]); const [active, setActive] = useState<any>(null); const [messages, setMessages] = useState<any[]>([]); const [q, setQ] = useState(""); const [text, setText] = useState(""); const [file, setFile] = useState<File | null>(null); const timer = useRef<any>(null); const openedDeepLink = useRef("");
-  async function bootstrap() { const d = await api("/api/chat/bootstrap"); setUsers(d.users.filter((u: User) => u.id !== session.id && String(u.status || "").toUpperCase() !== "INACTIVE")); setThreads(d.threads); }
-  useEffect(() => { bootstrap(); timer.current = setInterval(() => { bootstrap(); if (active) loadMessages(active.id); }, 3000); return () => clearInterval(timer.current); }, [active?.id]);
+  const contactsLoaded = useRef(false);
+  async function bootstrap(background = false) { const d = await api("/api/chat/bootstrap", undefined, background ? "background" : "foreground"); contactsLoaded.current = true; setUsers(d.users.filter((u: User) => u.id !== session.id && String(u.status || "").toUpperCase() !== "INACTIVE")); setThreads(d.threads); }
+  useEffect(() => {
+    bootstrap(contactsLoaded.current).catch(() => null);
+    timer.current = setInterval(() => {
+      bootstrap(true).catch(() => null);
+      if (active) loadMessages(active.id, true).catch(() => null);
+    }, 3000);
+    return () => clearInterval(timer.current);
+  }, [active?.id]);
   useEffect(() => {
     if (!users.length || active) return;
     const params = new URLSearchParams(window.location.search);
@@ -6884,7 +6892,7 @@ function Chat({ session }: { session: User }) {
     window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
   }, [users, active]);
   async function ensureThread(u: User) { const d = await api("/api/chat/threads", { method: "POST", body: JSON.stringify({ employeeId: u.id }) }); const t = { id: d.threadId, other: u }; setActive(t); loadMessages(d.threadId); }
-  async function loadMessages(id: string) { const d = await api(`/api/chat/threads/${id}`); setMessages(d.messages); }
+  async function loadMessages(id: string, background = false) { const d = await api(`/api/chat/threads/${id}`, undefined, background ? "background" : "foreground"); setMessages(d.messages); }
   async function send() { if (!active || (!text.trim() && !file)) return; const fd = new FormData(); fd.append("threadId", active.id); fd.append("text", text); if (file) fd.append("attachment", file); setText(""); setFile(null); await api("/api/chat/messages", { method: "POST", body: fd }); await loadMessages(active.id); await bootstrap(); }
   async function edit(m: any) { const next = prompt("Edit message", m.text); if (next === null) return; await api(`/api/chat/messages/${m.id}`, { method: "PUT", body: JSON.stringify({ text: next }) }); loadMessages(active.id); }
   const list = users.filter(u => !q || `${u.employeeCode || ""} ${u.name} ${u.mobile}`.toLowerCase().includes(q.toLowerCase()));

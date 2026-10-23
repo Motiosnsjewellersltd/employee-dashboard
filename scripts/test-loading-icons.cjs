@@ -8,6 +8,7 @@ const {beginDataLoad,pendingDataLoads}=moduleObject.exports;
  const api=dashboard.slice(dashboard.indexOf('async function api('),dashboard.indexOf('\nfunction isNetworkFailure'));
  let mode='ok';const m={exports:{}};
  vm.runInNewContext(ts.transpileModule(api+'\nmodule.exports=api;',{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:m,beginDataLoad,fetch:async()=>{if(mode==='network')throw new TypeError('Failed to fetch');return{json:async()=>{if(mode==='json')throw Error('bad json');return mode==='server'?{ok:false,error:'Server error'}:{ok:true,data:{value:1}};}};},showToast:()=>{},window:{dispatchEvent:()=>{}},isNetworkFailure:()=>true,Event});
+ const beforeBackground=events;assert.equal((await m.exports('/test',undefined,'background')).value,1);assert.equal(events,beforeBackground);
  assert.equal((await m.exports('/test')).value,1);assert.equal(pendingDataLoads(),0);
  for(mode of ['network','json','server']){await assert.rejects(m.exports('/test'));assert.equal(pendingDataLoads(),0);}
  assert(!dashboard.includes('EmployeeQuickAccess'));assert(!dashboard.includes('EmployeeChangeHistory'));assert(!dashboard.includes('EmployeeAttendanceLeaves'));
