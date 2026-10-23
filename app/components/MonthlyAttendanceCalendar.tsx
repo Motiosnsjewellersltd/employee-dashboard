@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import BiometricPunchTimes from "./BiometricPunchTimes";
 import styles from "./MonthlyAttendanceCalendar.module.css";
@@ -244,16 +244,18 @@ function MonthPopup({ employee, monthYear, onClose }: {
 
 // Mounted only for Admin/HR in the existing employee-details month cells.
 // Attendance imports are internal; no employee notifications are sent.
-export default function MonthlyAttendanceCalendar({ employee, monthYear }: {
+export default function MonthlyAttendanceCalendar({ employee, monthYear, onOpen, children }: {
   employee: CalendarEmployee;
   monthYear: string;
+  onOpen?: () => void;
+  children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const validMonth = /^(0?[1-9]|1[0-2])\/\d{4}$/.test(monthYear);
   if (!validMonth) return <>{monthYear}</>;
 
   return <>
-    <button type="button" className={styles.monthLink} aria-label={`Open ${monthYear} calendar for ${employee.name}`} onClick={() => setOpen(true)}>{monthYear}</button>
+    <button type="button" className={styles.monthLink} aria-label={`Open ${monthYear} calendar for ${employee.name}`} onClick={() => { setOpen(true); onOpen?.(); }}>{children || monthYear}</button>
     {open && <MonthPopup employee={employee} monthYear={monthYear} onClose={() => setOpen(false)} />}
   </>;
 }

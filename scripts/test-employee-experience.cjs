@@ -1,0 +1,30 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict'),ts=require('typescript');
+const root=path.resolve(__dirname,'..');
+function load(file,mocks={}){const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module,exports:module.exports,require:k=>mocks[k]??require(k),Request,Response,URL,Date,Intl,Map,Set,console});return module.exports;}
+(async()=>{
+ const access=load('lib/attendanceCalendarAccess.ts');const recent=load('lib/employeeExperience.ts',{'./attendanceCalendarAccess':access});
+ assert.equal(recent.validRecentPages([{kind:'attendance',monthYear:'03/2026'},{kind:'script'},{kind:'reports',url:'evil'},{kind:'reports'},{kind:'attendance',monthYear:'10/2026'},{kind:'leave'},{kind:'incentive'}]).length,3);
+ assert.deepEqual(JSON.parse(JSON.stringify(recent.validRecentPages([{kind:'reports',url:'evil'}]))),[{kind:'reports'}]);
+ const helper=load('lib/employeeProfileHistory.ts');const changes=helper.profileHistoryChanges({designation:'Sales',branch:'MT',password:'secret',photoUrl:'old-image'},{designation:'Senior Sales',branch:'JB',password:'new-secret',photoUrl:'data:PRIVATE_IMAGE'});
+ assert.equal(changes.length,3);assert(!JSON.stringify(changes).includes('secret'));assert(!JSON.stringify(changes).includes('PRIVATE_IMAGE'));assert.equal(helper.safeHistoryChanges({changes:[{field:'password',before:'s',after:'p'},...changes]}).length,3);
+ let session={id:'a',role:'EMPLOYEE'},reads=0,reportingRequired=true;
+ const reports=[{id:'report-a',employeeId:'a',title:'My report'},{id:'report-b',employeeId:'b',title:'Other private report'}];
+ const logs=[{id:'1',action:'EMPLOYEE_PROFILE_CHANGE',target:'a',details:JSON.stringify({changes}),actorName:'HR',createdAt:new Date()}, {id:'2',action:'EMPLOYEE_PROFILE_CHANGE',target:'b',details:JSON.stringify({changes:[{field:'mobile',before:'OTHER_SECRET',after:'OTHER_PRIVATE'}]}),createdAt:new Date()}, {id:'3',action:'UPLOAD_EMPLOYEE_REPORT',target:'report-a',details:'{}',createdAt:new Date()}, {id:'4',action:'UPLOAD_EMPLOYEE_REPORT',target:'report-b',details:'{}',createdAt:new Date()}];
+ const match=(row,where)=>Object.entries(where).every(([k,v])=>typeof v==='object'?v.in.includes(row[k]):row[k]===v);
+ const db={employee:{findFirst:async({where})=>{reads++;assert.equal(where.id,session.id);return {reportingRequired};}},employeeReport:{findMany:async({where})=>{reads++;return reports.filter(r=>r.employeeId===where.employeeId);}},activityLog:{findMany:async({where,skip,take})=>{reads++;return logs.filter(l=>where.OR.some(c=>match(l,c))).slice(skip,skip+take);}}};
+ const route=load('app/api/profile-history/route.ts',{'@/lib/prisma':{prisma:db},'@/lib/auth':{requireSession:async()=>{if(!session)throw Error('Unauthorized');return session;}},'@/lib/employeeProfileHistory':helper});
+ const get=query=>route.GET(new Request('http://test/api/profile-history'+query));
+ assert.equal((await get('?employeeId=b')).status,403);assert.equal(reads,0);
+ session={id:'admin',role:'ADMIN'};assert.equal((await get('')).status,403);assert.equal(reads,0);
+ session=null;assert.equal((await get('')).status,401);session={id:'a',role:'EMPLOYEE'};
+ assert.equal((await get('?page=-1')).status,400);assert.equal((await get('?filter=private')).status,400);
+ let result=await(await get('')).json();assert.equal(result.data.items.length,2);assert(!JSON.stringify(result).includes('OTHER'));assert(!JSON.stringify(result).includes('password'));
+ assert.equal((await(await get('?filter=profile')).json()).data.items.length,1);assert.equal((await(await get('?filter=reports')).json()).data.items.length,1);
+ reportingRequired=false;result=await(await get('')).json();assert.equal(result.data.items.length,1);assert.equal(result.data.items[0].kind,'profile');
+ reportingRequired=true;for(let i=0;i<34;i++)logs.push({...logs[0],id:'page-'+i});result=await(await get('')).json();assert.equal(result.data.items.length,30);assert.equal(result.data.hasMore,true);assert.equal((await(await get('?page=2')).json()).data.items.length,6);
+ let audit=[],notifications=[];
+ const notification=load('lib/employeeNotifications.ts',{'@/lib/prisma':{prisma:{employee:{findUnique:async()=>({name:'HR'}),findFirst:async()=>({id:'a'})},notificationBlast:{create:async({data})=>{notifications.push(data);return {id:'n'};}}}},'@/lib/audit':{addAuditLog:async data=>audit.push(data)},'@/lib/employeeProfileHistory':helper,'@/lib/webPush':{sendPushToEmployees:async()=>{}},'@/lib/notificationTargets':{employeeNotificationTarget:()=>'/profile'}});
+ await notification.notifyProfileChanges({actorId:'hr',employeeId:'a',before:{designation:'Sales',password:'s'},after:{designation:'Senior',password:'p'}});assert.equal(audit.length,1);assert.equal(audit[0].target,'a');assert.equal(audit[0].action,'EMPLOYEE_PROFILE_CHANGE');assert.equal(notifications.length,1);assert.equal(notifications[0].recipients.create[0].employeeId,'a');
+ await notification.notifyProfileChanges({actorId:'hr',employeeId:'a',before:{designation:'Same'},after:{designation:'Same'}});assert.equal(audit.length,1);
+ console.log('PASS: recent-page allowlist/dedup/bounds; safe before/after history without passwords/photo bytes; self-only history; report ownership/permission; filters/pagination; profile history hook and unchanged affected-employee notification targeting.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

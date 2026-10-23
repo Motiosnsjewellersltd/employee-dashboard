@@ -7,6 +7,9 @@ import { employeeNotificationTarget } from "@/lib/notificationTargets";
 import AdminIncentiveReports from "./AdminIncentiveReports";
 import EmployeeWelcome from "./EmployeeWelcome";
 import FourDotsLoader from "./FourDotsLoader";
+import { EmployeeQuickAccess, EmployeeChangeHistory, EmployeeAttendanceLeaves } from "./EmployeeExperience";
+import experienceStyles from "./EmployeeExperience.module.css";
+import { rememberEmployeePage } from "@/lib/employeeExperience";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
 import EmployeeReportViewer from "./EmployeeReportViewer";
 import BranchAvailability from "./BranchAvailability";
@@ -1477,6 +1480,11 @@ floorTeam: "My Team",
   });
 
   function goto(s: Section) {
+    if (session?.role === "EMPLOYEE") {
+      if (s === "reporting") rememberEmployeePage(session.id, { kind: "reports" });
+      if (s === "schemes") rememberEmployeePage(session.id, { kind: "incentive" });
+      if (s === "leaveRequests") rememberEmployeePage(session.id, { kind: "leave" });
+    }
     setSection(s);
     setMenuOpen(false);
     setGlobalSearch("");
@@ -1660,7 +1668,7 @@ floorTeam: "My Team",
       {section === "assetHandover" && showAssetHandover && <AssetHandover employees={employeeRows} />}
       {section === "incentiveReports" && session.role === "ADMIN" && <AdminIncentiveReports />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
-      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}
+      {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} canReport={showReporting} canIncentive={showSchemes} onNavigate={goto} />}
       {section === "schemes" && showSchemes && <SchemeIncentives onAccessRevoked={() => { setSchemeVisibleEmployeeId(""); goto("profile"); }} />}
       {section === "changePassword" && <PasswordChangePanel session={session} onChanged={setSession} />}
     </main>
@@ -2848,7 +2856,7 @@ function ImportPreview({ title, data }: { title: string; data: any }) {
   return <div className="preview-box"><h3>{title}</h3><div className="preview-cards">{Object.entries(data).filter(([k]) => k !== "errors").map(([k, v]) => <div key={k}><span>{k}</span><b>{String(v)}</b></div>)}</div>{data.errors?.length ? <div className="preview-errors"><b>Error / Skipped Rows</b>{data.errors.slice(0, 20).map((e: any, i: number) => <p key={i}>Row {e.row}: {e.reason} {e.employeeCode || e.name || e.mobile || ""}</p>)}</div> : <div className="empty-state">No validation errors found.</div>}</div>;
 }
 
-function MyProfile({ user, leaves, loading, loadLeaves, showProfileLeaveData }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void>; showProfileLeaveData: boolean }) {
+function MyProfile({ user, leaves, loading, loadLeaves, showProfileLeaveData, canReport, canIncentive, onNavigate }: { user: User; leaves: LeaveInfo | null; loading: boolean; loadLeaves: (u: User) => Promise<void>; showProfileLeaveData: boolean; canReport: boolean; canIncentive: boolean; onNavigate: (section: "reporting" | "schemes" | "leaveRequests") => void }) {
 
 useEffect(() => {
   loadLeaves(user);
@@ -2857,6 +2865,8 @@ useEffect(() => {
   return (
   <section className="panel">
     <ProfileContent
+      employeeQuickAccess={<EmployeeQuickAccess employee={user} canReport={canReport} canIncentive={canIncentive} onNavigate={onNavigate} />}
+      employeeExperience
       user={user}
       viewer={user}
       leaves={leaves}
@@ -3098,6 +3108,8 @@ function ProfileContent({
   onBranchHistoryDeleted,
   showProfileLeaveData = false,
   canViewAssets = false,
+  employeeExperience = false,
+  employeeQuickAccess,
   assetEmployees = []
 }: {
   user: User;
@@ -3108,9 +3120,12 @@ function ProfileContent({
   onBranchHistoryDeleted?: () => void | Promise<void>;
   showProfileLeaveData?: boolean;
   canViewAssets?: boolean;
+  employeeExperience?: boolean;
+  employeeQuickAccess?: React.ReactNode;
   assetEmployees?: User[];
 }) {
   const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
+  const [profileTab, setProfileTab] = useState<"view" | "history">("view");
   const attendanceMonths = viewer.role === "EMPLOYEE" && canViewAttendanceCalendar(viewer, user)
     ? attendanceCalendarMonths().filter(monthYear => !showProfileLeaveData ||
       !leaves?.balance.rows.some(row => row.monthYear === monthYear) && !leaves?.records.some(row => row.monthYear === monthYear))
@@ -3135,8 +3150,11 @@ function ProfileContent({
     }
   }
 
-  return <div className="profile-content">
+  return <div className={`profile-content${employeeExperience ? ` ${experienceStyles.selfProfile}` : ""}`}>
+    {employeeExperience && profileTab === "view" && employeeQuickAccess}
     <div className="profile-head">{avatar(user, true)}<div><h1>{user.name}</h1><p>{user.designation} | {user.department}{user.branch ? ` | ${user.branch}` : ""}</p></div><button className="light print-btn" onClick={() => window.print()}><span>▣</span> Print / PDF</button></div>
+    {employeeExperience && <div className={experienceStyles.tabs} role="tablist" aria-label="Profile view"><button type="button" role="tab" aria-selected={profileTab === "view"} onClick={() => setProfileTab("view")}>View</button><button type="button" role="tab" aria-selected={profileTab === "history"} onClick={() => setProfileTab("history")}>History</button></div>}
+    {employeeExperience && profileTab === "history" ? <EmployeeChangeHistory employeeId={user.id} /> : <>
     <div className="profile-grid">
       <Info label="Employee ID" value={user.employeeCode || "-"} /><Info label="Mobile" value={user.mobile} /><Info label="DOB" value={user.dob} /><Info label="DOJ" value={user.doj} />
       <Info label="Working Period" value={totalWorkingPeriod(employmentHistory, user.doj, user.exitDate)} color={user.exitDate ? "red" : "green"} /><Info label="Designation" value={user.designation} /><Info label="Department" value={user.department} /><Info label="Branch" value={user.branch || "-"} />
@@ -3160,13 +3178,14 @@ function ProfileContent({
       });
       return actualBranchTransfers.length ? <><h2>Branch / Store Transfer History</h2><div className="mobile-cards-table branch-transfer-table"><table><thead><tr><th>Transfer Date</th><th>From</th><th>To</th><th>Updated By</th>{canDeleteBranchHistory && <th>Action</th>}</tr></thead><tbody>{actualBranchTransfers.map(item => <tr key={item.id}><td data-label="Transfer Date">{new Date(item.transferredAt).toLocaleDateString("en-GB")}</td><td data-label="From">{item.fromBranch}</td><td data-label="To">{item.toBranch}</td><td data-label="Updated By">{item.changedByName || "-"}</td>{canDeleteBranchHistory && <td data-label="Action"><button className="danger-btn" type="button" onClick={() => deleteBranchTransfer(item)}>Delete</button></td>}</tr>)}</tbody></table></div></> : null;
     })()}
-    {attendanceMonths.length > 0 && <>
+    {employeeExperience && <EmployeeAttendanceLeaves employee={user} showLeaves={showProfileLeaveData} leaves={leaves} loading={loading} />}
+    {!employeeExperience && attendanceMonths.length > 0 && <>
       <h2 className="print-exclude">Monthly Attendance</h2>
       {loading ? <FourDotsLoader label="Loading attendance months…" /> : <div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th></tr></thead><tbody>
         {attendanceMonths.map(monthYear => <tr key={monthYear}><td data-label="Month/Year"><MonthlyAttendanceCalendar employee={user} monthYear={monthYear} /></td></tr>)}
       </tbody></table></div>}
     </>}
-    {showProfileLeaveData && user.role !== "ADMIN" && <>
+    {!employeeExperience && showProfileLeaveData && user.role !== "ADMIN" && <>
       <h2>Leave Balance</h2>
       {loading && <div className="profile-loading"><FourDotsLoader label="Loading profile…" /></div>}
       {leaves && <>
@@ -3180,6 +3199,7 @@ function ProfileContent({
         })}</tbody></table></div>}
         {leaves.records.length > 0 && <><h2 className="print-exclude">Monthwise Leaves</h2><div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th><th>Leave</th><th>Reason / Remark</th></tr></thead><tbody>{leaves.records.map(r => <tr key={r.id}><td data-label="Month/Year">{canViewAttendanceCalendar(viewer, user, r.monthYear) ? <MonthlyAttendanceCalendar employee={user} monthYear={r.monthYear} /> : r.monthYear}</td><td data-label="Leave">{r.leave}</td><td data-label="Reason / Remark">{r.reason || "-"}</td></tr>)}</tbody></table></div></>}
       </>}
+    </>}
     </>}
   </div>;
 }

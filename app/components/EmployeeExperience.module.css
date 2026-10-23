@@ -1,0 +1,47 @@
+.experience { color: #052a4d; min-width: 0; }
+.greeting { display: flex; align-items: center; gap: 8px; color: #075f9e; font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+.box { border: 1px solid #cce5f6; border-radius: 13px; background: #fff; padding: 15px; margin-bottom: 12px; min-width: 0; }
+.title { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: #075f9e; font-size: 17px; font-weight: 700; }
+.icon { width: 20px; height: 20px; flex: 0 0 20px; color: #0874bb; }
+.quickGrid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }
+.quickGrid > button, .quickGrid > div { min-width: 0; }
+.experience button, .leaveSection button { font-family: inherit; }
+.quickGrid button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 50px; margin: 0; padding: 12px; border: 1px solid #b9def7; border-radius: 10px; background: #edf8ff; color: #075f9e; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
+.quickGrid button::after { content: '›'; margin-left: auto; font-size: 21px; }
+.recent { display: flex; flex-wrap: wrap; gap: 7px; }
+.recent button { display: flex; align-items: center; gap: 8px; width: auto; margin: 0; padding: 8px 12px; border: 1px solid #d2e8f8; border-radius: 10px; background: #f8fcff; color: #075f9e; font-size: 14px; cursor: pointer; }
+.recent button::after { content: '›'; margin-left: 12px; }
+.tabs { display: flex; gap: 4px; padding: 4px; margin: 15px 0; border: 1px solid #cce5f6; border-radius: 11px; background: #f2f9ff; }
+.tabs button { flex: 1; min-width: 0; width: auto; margin: 0; border: 0; background: transparent; color: #075f9e; font: inherit; font-size: 14px; font-weight: 600; padding: 10px 7px; border-radius: 8px; cursor: pointer; }
+.tabs button[aria-selected=true] { background: #0874bb; color: #fff; }
+.filters { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 12px; }
+.filters button { width: auto; margin: 0; padding: 7px 14px; border-radius: 9px; border: 1px solid #cce5f6; color: #075f9e; background: #f8fcff; cursor: pointer; font: inherit; font-size: 14px; }
+.filters button[aria-pressed=true] { background: #dff1ff; }
+.historyCard { border: 1px solid #d4eafa; border-radius: 12px; padding: 15px; margin-bottom: 12px; background: #fff; }
+.historyTitle { display: flex; gap: 9px; align-items: center; color: #075f9e; font-size: 16px; margin: 0 0 10px; }
+.change { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0; font-size: 14px; overflow-wrap: anywhere; }
+.change del { color: #61798c; }.change strong { padding: 4px 7px; border-radius: 7px; color: #075f9e; background: #e5f5ff; }
+.meta { margin: 10px 0 0; font-size: 13px; color: #61798c; }.reportButton { display: inline-flex; align-items: center; gap: 8px; width: auto; margin: 8px 0 0; padding: 7px 12px; border: 1px solid #b9def7; border-radius: 8px; color: #075f9e; background: #edf8ff; font: inherit; font-size: 14px; cursor: pointer; }
+.error { padding: 10px; background: #fff2f4; color: #9c3041; border-radius: 8px; }
+.leaveSection { margin-top: 18px; border: 1px solid #cce5f6; border-radius: 13px; padding: 16px; background: #fff; min-width: 0; }
+.leaveHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }.leaveHead span { font-size: 13px; color: #61798c; }.leaveHead .title { margin: 0; }
+.balanceSummary, .numbers { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 12px 0; }
+.balanceSummary > div, .numbers > div { border: 1px solid #d4eafa; border-radius: 10px; padding: 10px; background: #f5fbff; }
+.balanceSummary span, .numbers span { display: block; font-size: 12px; color: #52718b; }.balanceSummary b, .numbers b { display: block; margin-top: 4px; font-size: 21px; color: #075f9e; }
+.balanceSummary > div:last-child { background: #effaf4; border-color: #c8e9d6; }.balanceSummary > div:last-child b { color: #237849; }
+.months { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }.monthButton button { display: flex; align-items: center; gap: 8px; width: 100%; margin: 0; padding: 11px; border-radius: 9px; border: 1px solid #cce5f6; background: #f8fcff; color: #075f9e; font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; }.monthButton button::after { content: '›'; margin-left: auto; }
+.monthSelect { display: flex; align-items: center; gap: 12px; margin: 12px 0; font-size: 14px; color: #075f9e; }.monthSelect select { min-width: 0; width: auto; max-width: 100%; border: 1px solid #b9def7; padding: 9px; border-radius: 9px; background: white; color: #052a4d; font: inherit; }
+.overused { background: #fff8d8; border-radius: 8px; padding: 9px; font-size: 13px; }.remark { margin: 10px 0; padding: 12px; background: #f8fcff; border: 1px solid #d4eafa; border-radius: 10px; font-size: 14px; overflow-wrap: anywhere; }
+.selfProfile :global(.profile-head) { margin-top: 0; }.selfProfile :global(.profile-grid) { gap: 9px; }.selfProfile :global(.info) { border: 1px solid #d4eafa; border-radius: 9px; padding: 10px; background: #f8fcff; }.selfProfile :global(.info span) { font-size: 13px; }.selfProfile :global(.info b) { font-size: 15px; }
+.experience button:focus-visible, .leaveSection button:focus-visible, .monthSelect select:focus-visible { outline: 2px solid #0874bb; outline-offset: 2px; }
+@media(max-width:700px) { .quickGrid, .months { grid-template-columns: repeat(2,minmax(0,1fr)); }.box, .leaveSection { padding: 12px; }.recent { display: grid; }.recent button { width: 100%; }.recent button::after { margin-left: auto; }.leaveSection .tabs button { font-size: 12px; padding: 10px 4px; }.balanceSummary span { font-size: 11px; }.balanceSummary b { font-size: 20px; }.selfProfile :global(.profile-grid) { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media print { .quickArea, .tabs, .filters, .recent, .monthSelect { display: none!important; } }
+.experience { font-weight: 400; }
+.selfProfile :global(.profile-head .avatar-big) { width: 58px; height: 58px; min-width: 58px; border-radius: 12px; }
+.selfProfile :global(.profile-head) { flex-wrap: wrap; }
+.selfProfile :global(.profile-head h1) { font-size: 23px; }
+.selfProfile :global(.profile-head .print-btn) { min-width: 100px; font-size: 13px; padding: 9px 11px; }
+@media(max-width:700px) { .selfProfile :global(.profile-head .print-btn) { margin-left: auto; }.selfProfile :global(.profile-head h1) { font-size: 21px; } }
+
+.quickGrid button, .recent button, .monthButton button { text-decoration: none; }
+@media(max-width:700px) { .quickGrid button { padding: 10px 8px; gap: 6px; font-size: 13px; }.quickGrid .icon { width: 18px; height: 18px; flex-basis: 18px; }.monthButton button { font-size: 13px; padding: 10px 8px; gap: 5px; } }
