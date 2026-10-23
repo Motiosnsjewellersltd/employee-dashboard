@@ -1,0 +1,21 @@
+const {fixture}=require('./test-asset-handovers.cjs');
+const assert=require('node:assert/strict');const {randomUUID}=require('node:crypto');
+(async()=>{
+ const f=fixture(), create={action:'CREATE',requestId:randomUUID(),itemType:'SIM',itemName:'Test SIM',identifier:'123',employeeId:'employee-a',date:f.helper.indiaDate(),condition:'Good'};
+ const original=await(await f.post(create,{data:Buffer.from('%PDF-1.4 receipt'),type:'application/pdf',name:'receipt.pdf'})).json();const item=original.data.handover;
+ await f.post({...create,requestId:randomUUID(),identifier:'456'});
+ const del=(body)=>f.route.DELETE(new Request('http://test/api/asset-handovers',{method:'DELETE',headers:{'content-type':'application/json'},body:JSON.stringify(body)}));
+ f.setSession({id:'employee-a',role:'EMPLOYEE'});assert.equal((await del(item)).status,403);
+ f.setSession({id:'hr',role:'HR'});f.setPermissions(true,false);assert.equal((await del(item)).status,403);
+ f.setPermissions(false,true);assert.equal((await del(item)).status,403);
+ f.setSession(null);assert.equal((await del(item)).status,401);
+ f.setSession({id:'admin',role:'ADMIN'});
+ assert.equal((await del(null)).status,400);assert.equal((await del({id:item.id,version:'0'})).status,409);
+ assert.equal((await del({...item,version:8})).status,409);assert.equal(f.state().items.length,2);
+ f.conflict();assert.equal((await del(item)).status,409);assert.equal(f.state().attachments.length,1);
+ f.setSession({id:'hr',role:'HR'});f.setPermissions(true,true);
+ assert.equal((await del(item)).status,200);assert.equal(f.state().items.length,1);assert.equal(f.state().events.length,1);assert.equal(f.state().attachments.length,0);
+ assert.equal((await del(item)).status,404);assert.equal(f.state().items[0].identifier,'456');
+ assert.equal((await f.route.GET(new Request('http://test/api/asset-handovers?id='+item.id))).status,404);
+ console.log('PASS: Delete roles/HR rights, validation, stale/racing deletion, selected entry + history/receipt cascade, unrelated handover retained.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

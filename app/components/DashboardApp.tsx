@@ -6,6 +6,7 @@ import SchemeIncentives from "./SchemeIncentives";
 import { employeeNotificationTarget } from "@/lib/notificationTargets";
 import AdminIncentiveReports from "./AdminIncentiveReports";
 import EmployeeWelcome from "./EmployeeWelcome";
+import FourDotsLoader from "./FourDotsLoader";
 import MonthlyAttendanceCalendar from "./MonthlyAttendanceCalendar";
 import EmployeeReportViewer from "./EmployeeReportViewer";
 import BranchAvailability from "./BranchAvailability";
@@ -1264,7 +1265,7 @@ useEffect(() => {
       </div>
       <button className="primary">Login</button>
       <button type="button" onClick={() => setShowForgotPassword(true)} style={{ marginTop: 10, border: 0, background: "transparent", color: "#0b6fb8", fontWeight: 800, cursor: "pointer", textDecoration: "underline", width: "100%" }}>Forgot Password?</button>
-      {loginErr && <div className={loginErr.includes("Logging in") ? "msg warn" : "msg error"}>{loginErr}</div>}
+      {loginErr && (loginErr === "Logging in..." ? <FourDotsLoader label="Logging in…" /> : <div className="msg error">{loginErr}</div>)}
     </form>
     {showForgotPassword && <ForgotPasswordModal mobile={login.username} onClose={() => setShowForgotPassword(false)} />}
     {showFirstLoginSupport && (
@@ -3161,13 +3162,13 @@ function ProfileContent({
     })()}
     {attendanceMonths.length > 0 && <>
       <h2 className="print-exclude">Monthly Attendance</h2>
-      {loading ? <p className="print-exclude">Loading attendance months...</p> : <div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th></tr></thead><tbody>
+      {loading ? <FourDotsLoader label="Loading attendance months…" /> : <div className="mobile-cards-table monthwise-leave-table print-exclude"><table><thead><tr><th>Month/Year</th></tr></thead><tbody>
         {attendanceMonths.map(monthYear => <tr key={monthYear}><td data-label="Month/Year"><MonthlyAttendanceCalendar employee={user} monthYear={monthYear} /></td></tr>)}
       </tbody></table></div>}
     </>}
     {showProfileLeaveData && user.role !== "ADMIN" && <>
       <h2>Leave Balance</h2>
-      {loading && <div className="profile-loading"><SkeletonCards count={4} /><div className="skeleton-table"><span /><span /><span /><span /></div></div>}
+      {loading && <div className="profile-loading"><FourDotsLoader label="Loading profile…" /></div>}
       {leaves && <>
         <div className="cards small"><div className="stat"><span>Financial Year</span><b>{leaves.balance.financialYear}</b></div><div className="stat"><span>Earned Till Current Month</span><b>{leaves.balance.earned}</b></div><div className="stat"><span>Used Leaves till Last Month</span><b>{leaves.balance.used}</b></div><div className="stat" style={{ borderColor: "#b9e4cd" }}><span>Current Balance till Month</span><b className="green">{leaves.balance.currentBalance}</b></div></div>
         {leaves.balance.rows.length > 0 && <div className="mobile-cards-table leave-balance-table"><table><thead><tr><th>Month/Year</th><th>Earned</th><th>Used</th><th>Balance</th></tr></thead><tbody>{leaves.balance.rows.map((r, index) => {

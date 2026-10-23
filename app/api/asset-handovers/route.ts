@@ -113,3 +113,23 @@ export async function POST(req: Request) {
     return ok({ handover });
   } catch (e) { return assetFailure(e); }
 }
+
+// Delete only the explicitly selected handover; related history/receipts cascade.
+export async function DELETE(req: Request) {
+  try {
+    await assetAccess(true);
+    let body;
+    try { body = await req.json(); } catch { throw new AssetError("Invalid delete request."); }
+    if (!body || typeof body !== "object") throw new AssetError("Invalid delete request.");
+    const id = assetText(body.id, "Handover ID", 100, true);
+    const version = body.version;
+    if (!Number.isSafeInteger(version) || version < 0) throw new AssetError("Refresh the handover and try again.", 409);
+    await prisma.$transaction(async tx => {
+      const current = await tx.assetHandover.findUnique({ where: { id } });
+      if (!current) throw new AssetError("Handover not found.", 404);
+      const deleted = await tx.assetHandover.deleteMany({ where: { id, version } });
+      if (deleted.count !== 1) throw new AssetError("This handover changed. Refresh and review it before deleting.", 409);
+    });
+    return ok({ deleted: true });
+  } catch (e) { return assetFailure(e); }
+}

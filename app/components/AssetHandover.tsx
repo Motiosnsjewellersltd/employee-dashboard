@@ -3,12 +3,13 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styles from "./AssetHandover.module.css";
+import FourDotsLoader from "./FourDotsLoader";
 
 type Employee = { id: string; name: string; employeeCode?: string | null; branch?: string | null; department?: string | null; designation?: string | null; status?: string };
 type Item = { id: string; itemType: string; itemName: string; identifier: string | null; employeeId: string | null; holderName: string; holderCode: string | null; holderBranch: string | null; holderDepartment: string | null; holderDesignation: string | null; assignedOn: string; movementDate: string; condition: string; accessories: string; remarks: string; status: string; version: number };
 type Event = { id: string; action: string; eventDate: string; actorName: string; createdAt: string; fromEmployee?: Employee | null; toEmployee?: Employee | null; details: { itemType: string; itemName: string; identifier: string | null; condition: string; accessories: string; remarks: string; previous?: { itemName: string; identifier?: string | null; condition: string; accessories: string; remarks: string } }; attachments: Array<{ id: string; fileName: string }> };
 type Detail = Item & { events: Event[] };
-type Mode = "CREATE" | "DETAIL" | "EDIT" | "TRANSFER" | "RETURN" | "ASSIGN";
+type Mode = "CREATE" | "DELETE" | "DETAIL" | "EDIT" | "TRANSFER" | "RETURN" | "ASSIGN";
 const types: Record<string, string> = { MOBILE: "Mobile", LAPTOP: "Laptop", SIM: "SIM Card", PEN_DRIVE: "Pen Drive", OTHER: "Other" };
 const actions: Record<string, string> = { CREATE: "Handover", EDIT: "Edit Details", TRANSFER: "Transfer", RETURN: "Return Received", ASSIGN: "Handover Again" };
 function today() {
@@ -28,11 +29,12 @@ function HandoverDialog({ item, employees, employeeId, mode: initialMode, canMan
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  const [mode, setMode] = useState(initialMode);
+  const [mode, setMode] = useState<Mode>(initialMode === "DELETE" ? "DETAIL" : initialMode);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(Boolean(item));
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(initialMode === "DELETE");
   const busyRef = useRef(false);
   const requestId = useRef("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -62,9 +64,18 @@ function HandoverDialog({ item, employees, employeeId, mode: initialMode, canMan
   const selected = employees.find(employee => employee.id === form.employeeId);
   const field = (name: keyof typeof form, value: string) => setForm(currentForm => ({ ...currentForm, [name]: value }));
   function start(next: Mode) {
-    if (!detail) return;
+    if (!detail || busyRef.current) return;
     setForm({ itemType: detail.itemType, itemName: detail.itemName, identifier: detail.identifier || "", employeeId: "", date: today(), condition: detail.condition, accessories: detail.accessories, remarks: next === "EDIT" ? detail.remarks : "" });
-    setError(""); setMode(next);
+    setConfirmDelete(false); setError(""); setMode(next);
+  }
+  async function deleteHandover() {
+    if (!detail || busyRef.current) return;
+    busyRef.current = true; setBusy(true); setError("");
+    try {
+      await request("/api/asset-handovers", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detail.id, version: detail.version }) });
+      onSaved();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not delete handover."); }
+    finally { busyRef.current = false; setBusy(false); }
   }
   async function save(event: FormEvent) {
     event.preventDefault(); if (busyRef.current) return;
@@ -88,7 +99,7 @@ function HandoverDialog({ item, employees, employeeId, mode: initialMode, canMan
     <header className={styles.dialogHead}><h2>{mode === "DETAIL" ? "Handover Details" : mode === "CREATE" ? "Add Handover" : actions[mode]}</h2>
       <button type="button" className={styles.close} aria-label="Close handover" disabled={busy} onClick={onClose}>×</button></header>
     {error && <p className={styles.error} role="alert">{error}</p>}
-    {loading && <p role="status">Loading details…</p>}
+    {loading && <FourDotsLoader label="Loading details…" />}
     {mode === "DETAIL" && current && <>
       <div className={styles.detailTop}><strong>{types[current.itemType]} · {current.itemName}</strong><span>{current.identifier || "—"}</span>
         <span className={styles.badge}>{current.status === "ASSIGNED" ? "Assigned" : "Returned"}</span></div>
@@ -103,7 +114,14 @@ function HandoverDialog({ item, employees, employeeId, mode: initialMode, canMan
       {current.remarks && <p className={styles.remarks}>{current.remarks}</p>}
       {canManage && !loading && detail && <div className={styles.buttons}>
         {current.status === "ASSIGNED" ? <><button type="button" onClick={() => start("TRANSFER")}>Transfer</button><button type="button" onClick={() => start("RETURN")}>Return Received</button></> : <button type="button" onClick={() => start("ASSIGN")}>Handover Again</button>}
-        <button type="button" onClick={() => start("EDIT")}>Edit Details</button>
+        <button type="button" disabled={busy} onClick={() => start("EDIT")}>Edit Details</button>
+        <button type="button" className={styles.danger} disabled={busy} onClick={() => setConfirmDelete(true)}>Delete</button>
+      </div>}
+      {confirmDelete && canManage && !loading && detail && <div className={styles.deleteConfirm} role="alert">
+        <strong>Delete this handover?</strong>
+        <p>{current.holderName} · {current.itemName}{current.identifier ? ` · ${current.identifier}` : ""}</p>
+        <p>This handover, its complete history and receipts/photos will be permanently deleted.</p>
+        <div className={styles.buttons}><button type="button" disabled={busy} onClick={() => setConfirmDelete(false)}>Cancel</button><button type="button" className={styles.danger} disabled={busy} onClick={deleteHandover}>{busy ? "Deleting…" : "Yes, Delete"}</button></div>
       </div>}
       <h3 className={styles.historyTitle}>History</h3>
       <ol className={styles.history}>{detail?.events.map(event => <li key={event.id}>
@@ -178,14 +196,14 @@ export default function AssetHandover({ employees = [], employeeId }: { employee
       <select aria-label="Handover status" value={filter.status} onChange={event => change("status", event.target.value)}><option value="ASSIGNED">Assigned</option><option value="RETURNED">Returned</option><option value="">All Status</option></select>
     </div>}
     {error && <p className={styles.error} role="alert">{error}</p>}
-    {loading ? <p role="status">Loading handovers…</p> : !error && <>
+    {loading ? <FourDotsLoader label="Loading handovers…" /> : !error && <>
       {!items.length ? <p className={styles.empty}>No handovers found.</p> : <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Employee</th><th>Item</th><th>Serial / Number</th><th>Given On</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>{items.map(item => <tr key={item.id}>
           <td data-label="Employee"><strong>{item.holderName}</strong><small>{[item.holderCode, item.holderBranch].filter(Boolean).join(" · ")}</small></td>
           <td data-label="Item"><strong>{types[item.itemType]}</strong><small>{item.itemName}</small></td>
           <td data-label="Serial / Number">{item.identifier || "—"}</td><td data-label="Given On">{date(item.assignedOn)}</td>
           <td data-label="Status"><span className={styles.badge}>{item.status === "ASSIGNED" ? "Assigned" : "Returned"}</span></td>
-          <td data-label="Action"><button type="button" onClick={() => setDialog({ mode: "DETAIL", item })}>View</button></td>
+          <td data-label="Action"><div className={styles.rowActions}><button type="button" onClick={() => setDialog({ mode: "DETAIL", item })}>View</button>{canManage && <button type="button" className={styles.danger} onClick={() => setDialog({ mode: "DELETE", item })}>Delete</button>}</div></td>
         </tr>)}</tbody></table></div>}
       {total > 50 && <div className={styles.pagination}><button type="button" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page} / {Math.ceil(total / 50)}</span><button type="button" disabled={page * 50 >= total} onClick={() => setPage(value => value + 1)}>Next</button></div>}
     </>}

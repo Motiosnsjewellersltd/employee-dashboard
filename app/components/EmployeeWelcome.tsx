@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import FourDotsLoader from "./FourDotsLoader";
 import styles from "./EmployeeWelcome.module.css";
 
 type WelcomeEmployee = { name: string; photoUrl?: string | null; updatedAt?: string };
@@ -41,7 +42,7 @@ export default function EmployeeWelcome({ employee, onComplete }: {
       <h1>{employee.name}</h1>
       <h2>Welcome back!</h2>
       <p><span>A fresh start.</span>{" "}<span>A wonderful day ahead.</span></p>
-      <div className={styles.progress} aria-hidden="true"><span /></div>
+      <FourDotsLoader label="Getting things ready for you…" />
     </div>
   </div>;
 }

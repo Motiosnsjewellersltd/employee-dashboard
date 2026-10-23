@@ -38,3 +38,8 @@
   .dialog { padding: 16px; max-height: calc(100dvh - 20px); }.dialogHead h2 { font-size: 19px; }.form { grid-template-columns: 1fr; }.full { grid-column: auto; }
   .tableWrap { overflow: visible; border: 0; }.table, .table tbody, .table tr, .table td { display: block; width: 100%; min-width: 0; box-sizing: border-box; }.table thead { display: none; }.table tr { border: 1px solid #deedf7; border-radius: 11px; padding: 6px 10px; margin-bottom: 10px; }.table td { display: grid; grid-template-columns: 40% minmax(0,1fr); gap: 4px 9px; padding: 9px 0; border: 0; }.table td:before { content: attr(data-label); color: #52718b; font-size: 12px; grid-row: 1 / span 2; }.table td small { grid-column: 2; margin-top: 0; }.table td button { justify-self: start; }.details { gap: 12px; }.details dd { font-size: 14px; }
 }
+
+.rowActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.panel button.danger, .dialog button.danger { color: #a52d43; border-color: #f1c7ce; background: #fff2f4; }
+.deleteConfirm { padding: 14px; margin: 16px 0; border: 1px solid #f1c7ce; border-radius: 12px; background: #fff7f8; font-size: 14px; }
+.deleteConfirm p { overflow-wrap: anywhere; }
