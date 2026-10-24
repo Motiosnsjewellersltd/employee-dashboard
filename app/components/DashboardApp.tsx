@@ -6477,6 +6477,7 @@ useEffect(() => {
 }
 
 function LeaveRequests({ session, canReview: allowedToReview = false }: { session: User; canReview?: boolean }) {
+  const showSubmittedAt = session.role === "ADMIN" || session.role === "HR";
   const canHrReview = session.role === "ADMIN" || (session.role === "HR" && allowedToReview);
   const canManagerReview = session.role === "EMPLOYEE" && Boolean(session.isFloorManager);
   const [managerEmployeeReviewMode, setManagerEmployeeReviewMode] = useState(false);
@@ -6584,6 +6585,21 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
     return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(date);
   }
 
+  function submittedAt(value?: string) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+      hour12: true, timeZone: "Asia/Kolkata"
+    }).format(date).replace(/\b(am|pm)\b/g, value => value.toUpperCase()) + " IST";
+  }
+
+  function requestSubmittedTime(row: any) {
+    return <small className="leave-decision-date" style={{ fontSize: 12, color: "#315e79", gridColumn: "1 / -1" }}>
+      Requested: <time dateTime={row.createdAt || undefined}>{submittedAt(row.createdAt)}</time>
+    </small>;
+  }
+
   function leaveDayCount(fromValue: string, toValue: string, fromDayType = "FULL", toDayType = "FULL") {
     const from = String(fromValue || "").slice(0, 10);
     const to = String(toValue || "").slice(0, 10);
@@ -6664,8 +6680,8 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
       {loading && <tr><td colSpan={reviewMode ? 9 : 8}><FourDotsLoader label="Loading leave requests…" /></td></tr>}
       {!loading && visibleRows.length === 0 && <tr><td colSpan={reviewMode ? 9 : 8}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
-        {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small></td>}
-        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}{reviewMode && Number(row.teamConflictCount || 0) > 0 && <small style={{ display: "block", marginTop: 6, color: "#a35b00", fontWeight: 700 }}><b>Team Leave Alert:</b> {row.teamConflictCount} other team member{Number(row.teamConflictCount) === 1 ? "" : "s"} already {Number(row.teamConflictCount) === 1 ? "has" : "have"} overlapping leave.</small>}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
+        {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small>{showSubmittedAt && requestSubmittedTime(row)}</td>}
+        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}{showSubmittedAt && !reviewMode && requestSubmittedTime(row)}{reviewMode && Number(row.teamConflictCount || 0) > 0 && <small style={{ display: "block", marginTop: 6, color: "#a35b00", fontWeight: 700 }}><b>Team Leave Alert:</b> {row.teamConflictCount} other team member{Number(row.teamConflictCount) === 1 ? "" : "s"} already {Number(row.teamConflictCount) === 1 ? "has" : "have"} overlapping leave.</small>}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
         <td><b>{managerStageLabel(row)}</b>{row.managerDecidedAt && !(canManagerReview && row.requester?.id === session.id) && <small className="leave-decision-date">{displayDate(row.managerDecidedAt)}</small>}{row.managerStatus === "REJECTED" && row.managerRejectionReason && <small className="leave-rejection-text">Reason: {row.managerRejectionReason}</small>}</td>
         <td>{row.status === "PENDING" ? <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager"}</small> : <><b>{row.decidedBy?.name || "-"}</b><small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>{row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
         {reviewMode && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager" : "Pending"}</td>}
