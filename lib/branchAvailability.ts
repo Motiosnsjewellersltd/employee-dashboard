@@ -1,3 +1,4 @@
+import { isHalfDay } from "@/lib/leaveDayType";
 export type AvailabilityGroup = "available" | "pending" | "approved" | "weekOff" | "absent" | "unrecorded";
 export type AvailabilityPerson = {
   id: string; name: string; employeeCode: string | null; department: string | null;
@@ -65,7 +66,7 @@ export function buildBranchAvailability(
     const halfDay = (request: AvailabilityLeave) => {
       const first = request.fromDate.toISOString().slice(0, 10);
       const last = request.toDate.toISOString().slice(0, 10);
-      return (first === dateKey && request.fromDayType === "HALF") || (first !== last && last === dateKey && request.toDayType === "HALF");
+      return (first === dateKey && isHalfDay(request.fromDayType)) || (first !== last && last === dateKey && isHalfDay(request.toDayType));
     };
     let group: AvailabilityGroup;
     let note: string;

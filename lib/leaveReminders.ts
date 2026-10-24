@@ -1,3 +1,4 @@
+import { leaveHalfDetails } from "@/lib/leaveDayType";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -40,7 +41,7 @@ export async function runLeaveReminders({ now = new Date(), cursor = "" }: { now
       if (!ids.length) continue;
       const id = "leave-alert-" + createHash("sha256").update(event.key).digest("hex");
       const title = event.kind === "LEAVE_MANAGER_REMINDER" ? "Leave Decision Reminder" : event.kind === "LEAVE_MANAGER_PENDING_24H" ? "Manager Action Pending" : "Urgent—Leave Starting Soon";
-      const text = `${title}: ${row.requester.name}'s leave for ${range(row.fromDate, row.toDate)} is pending. ${event.kind === "LEAVE_MANAGER_REMINDER" ? "Please approve or reject the manager/head stage." : event.kind === "LEAVE_MANAGER_PENDING_24H" ? "No manager/head decision has been recorded for at least 24 hours." : "Leave starts within the next 24 hours (India time)."}`;
+      const text = `${title}: ${row.requester.name}'s leave for ${range(row.fromDate, row.toDate)}${leaveHalfDetails(row.fromDate.toISOString().slice(0, 10), row.toDate.toISOString().slice(0, 10), row.fromDayType, row.toDayType)} is pending. ${event.kind === "LEAVE_MANAGER_REMINDER" ? "Please approve or reject the manager/head stage." : event.kind === "LEAVE_MANAGER_PENDING_24H" ? "No manager/head decision has been recorded for at least 24 hours." : "Leave starts within the next 24 hours (India time)."}`;
       try {
         const saved = await prisma.$transaction(async tx => {
           // Serialize with manager/HR decisions; never create a reminder from a stale state.

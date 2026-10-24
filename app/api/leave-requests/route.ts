@@ -1,3 +1,4 @@
+import { isHalfDay, leaveHalfDetails } from "@/lib/leaveDayType";
 import { dueLeaveReminders, leaveReminderAction, leaveRequestTarget } from "@/lib/leaveReminderRules";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -31,8 +32,8 @@ function formatDateRange(fromDate: Date, toDate: Date) {
 
 function inclusiveDayCount(fromDate: Date, toDate: Date, fromDayType = "FULL", toDayType = "FULL") {
   const calendarDays = Math.floor((toDate.getTime() - fromDate.getTime()) / 86400000) + 1;
-  if (calendarDays <= 1) return fromDayType === "HALF" ? 0.5 : 1;
-  return calendarDays - (fromDayType === "HALF" ? 0.5 : 0) - (toDayType === "HALF" ? 0.5 : 0);
+  if (calendarDays <= 1) return isHalfDay(fromDayType) ? 0.5 : 1;
+  return calendarDays - (isHalfDay(fromDayType) ? 0.5 : 0) - (isHalfDay(toDayType) ? 0.5 : 0);
 }
 
 function monthlyLeaveBreakdown(fromDate: Date, toDate: Date, fromDayType = "FULL", toDayType = "FULL") {
@@ -45,8 +46,8 @@ function monthlyLeaveBreakdown(fromDate: Date, toDate: Date, fromDayType = "FULL
     const isStart = time === start;
     const isEnd = time === end;
     let value = 1;
-    if (start === end) value = fromDayType === "HALF" ? 0.5 : 1;
-    else if ((isStart && fromDayType === "HALF") || (isEnd && toDayType === "HALF")) value = 0.5;
+    if (start === end) value = isHalfDay(fromDayType) ? 0.5 : 1;
+    else if ((isStart && isHalfDay(fromDayType)) || (isEnd && isHalfDay(toDayType))) value = 0.5;
     const monthYear = `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`;
     result.set(monthYear, Number(((result.get(monthYear) || 0) + value).toFixed(2)));
   }
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest) {
     const fromDateText = String(body.fromDate || "").trim();
     const fromDayType = String(body.fromDayType || "FULL").trim().toUpperCase();
     const requestedToDayType = String(body.toDayType || "FULL").trim().toUpperCase();
-    if (!["FULL", "HALF"].includes(fromDayType) || !["FULL", "HALF"].includes(requestedToDayType)) throw new Error("Select a valid Full Day or Half Day option.");
+    if (!["FULL", "HALF", "HALF_FIRST", "HALF_SECOND"].includes(fromDayType) || !["FULL", "HALF", "HALF_FIRST", "HALF_SECOND"].includes(requestedToDayType)) throw new Error("Select Full Day, First Half (Morning) or Second Half (Evening).");
     const toDayType = fromDate.getTime() === toDate.getTime() ? fromDayType : requestedToDayType;
     const reason = String(body.reason || "").trim();
     if (!reason) throw new Error("Leave reason is required.");
@@ -233,7 +234,7 @@ export async function POST(req: NextRequest) {
     if (managers.length) {
       const managerIds = managers.map(manager => manager.id);
       const firstApproverLabel = isDesigningDepartment(requester.department) ? "Designing Department Head approval" : "Manager approval";
-      const managerText = `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. ${firstApproverLabel} is required.`;
+      const managerText = `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}${leaveHalfDetails(fromDate.toISOString().slice(0, 10), toDate.toISOString().slice(0, 10), fromDayType, toDayType)}. ${firstApproverLabel} is required.`;
       await prisma.notificationBlast.create({
         data: {
           type: "NOTICE",
@@ -256,7 +257,7 @@ export async function POST(req: NextRequest) {
       actorId: session.id,
       action: "NEW_LEAVE_REQUEST",
       title: "New Leave Request",
-      text: `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}. Reason: ${reason}`,
+      text: `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}${leaveHalfDetails(fromDate.toISOString().slice(0, 10), toDate.toISOString().slice(0, 10), fromDayType, toDayType)}. Reason: ${reason}`,
       type: "NOTICE",
       url: "/?section=leaveRequests",
     });
@@ -322,7 +323,7 @@ export async function PATCH(req: NextRequest) {
           }
         });
 
-        const dateRange = formatDateRange(current.fromDate, current.toDate);
+        const dateRange = formatDateRange(current.fromDate, current.toDate) + leaveHalfDetails(current.fromDate.toISOString().slice(0, 10), current.toDate.toISOString().slice(0, 10), current.fromDayType, current.toDayType);
         const days = inclusiveDayCount(current.fromDate, current.toDate, current.fromDayType, current.toDayType);
         const reviewerLabel = isDesigningHeadStage ? "Designing Department Head" : "manager";
         const text = status === "APPROVED"
@@ -395,7 +396,7 @@ export async function PATCH(req: NextRequest) {
       });
       if (claimed.count !== 1) throw new Error("This leave request has already been decided.");
 
-      const dateRange = formatDateRange(current.fromDate, current.toDate);
+      const dateRange = formatDateRange(current.fromDate, current.toDate) + leaveHalfDetails(current.fromDate.toISOString().slice(0, 10), current.toDate.toISOString().slice(0, 10), current.fromDayType, current.toDayType);
       const days = inclusiveDayCount(current.fromDate, current.toDate, current.fromDayType, current.toDayType);
       const monthlyBreakdown = status === "APPROVED"
         ? monthlyLeaveBreakdown(current.fromDate, current.toDate, current.fromDayType, current.toDayType)

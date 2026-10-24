@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict'),ts=require('typescript');
 const root=path.resolve(__dirname,'..');
-function load(file,mocks={},globals={}) { const module={exports:{}};const code=ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(code,{module,exports:module.exports,require:k=>Object.hasOwn(mocks,k)?mocks[k]:require(k),Buffer,Request,Response,URL,Date,Intl,Map,Set,console,...globals});return module.exports; }
+function load(file,mocks={},globals={}) { const module={exports:{}};const code=ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(code,{module,exports:module.exports,require:k=>Object.hasOwn(mocks,k)?mocks[k]:k==="@/lib/leaveDayType"?load("lib/leaveDayType.ts"):require(k),Buffer,Request,Response,URL,Date,Intl,Map,Set,console,...globals});return module.exports; }
 const rules=load('lib/leaveReminderRules.ts'),now=new Date('2026-10-24T12:00:00Z');
 const copy=value=>structuredClone(value);
 function fixture() {
