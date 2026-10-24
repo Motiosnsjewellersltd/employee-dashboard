@@ -746,6 +746,27 @@ function DashboardAppInner() {
     // The server deduplicates this approved, one-time employee announcement.
     api("/api/attendance-calendar/announcement", { method: "POST" }).catch(error => setNotice(`Calendar announcement: ${error.message || "Could not send notification."}`));
   }, [session?.id, session?.role, session?.mustChangePassword]);
+  useEffect(() => {
+    if (!session || session.mustChangePassword || !["ADMIN", "HR"].includes(session.role)) return;
+    let stopped = false, running = false;
+    async function checkReminders() {
+      if (running || stopped) return;
+      running = true;
+      try {
+        let cursor = "";
+        for (let page = 0; page < 20 && !stopped; page++) {
+          const response = await fetch(`/api/leave-reminders${cursor ? `?${new URLSearchParams({ cursor })}` : ""}`, { method: "POST", cache: "no-store" });
+          const result = await response.json();
+          if (!response.ok || !result.ok || !result.data?.nextCursor) break;
+          cursor = result.data.nextCursor;
+        }
+      } catch { /* The scheduled server check can retry; don't interrupt dashboard use. */ }
+      finally { running = false; }
+    }
+    void checkReminders();
+    const timer = window.setInterval(checkReminders, 15 * 60000);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [session?.id, session?.role, session?.mustChangePassword]);
 const [
   employeeReportingEnabled,
   setEmployeeReportingEnabled
@@ -6482,6 +6503,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
   const canManagerReview = session.role === "EMPLOYEE" && Boolean(session.isFloorManager);
   const [managerEmployeeReviewMode, setManagerEmployeeReviewMode] = useState(false);
   const reviewMode = canHrReview || (canManagerReview && managerEmployeeReviewMode);
+  const [focusedRequestId, setFocusedRequestId] = useState("");
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -6497,7 +6519,8 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
   async function load() {
     setLoading(true);
     try {
-      const data = await api("/api/leave-requests");
+      const requestId = new URLSearchParams(window.location.search).get("requestId") || "";
+      const data = await api(`/api/leave-requests${requestId ? `?${new URLSearchParams({ requestId })}` : ""}`);
       setRows(data.requests || []);
     } catch (error: any) {
       setMsg(error.message || "Unable to load leave requests.");
@@ -6507,12 +6530,23 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
   }
 
   useEffect(() => {
+    setFocusedRequestId(new URLSearchParams(window.location.search).get("requestId") || "");
     load();
     const tomorrow = new Date();
     tomorrow.setHours(12, 0, 0, 0);
     tomorrow.setDate(tomorrow.getDate() + 1);
     setMinimumLeaveDate(`${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`);
   }, []);
+
+  useEffect(() => {
+    if (focusedRequestId && canManagerReview && rows.some(row => row.id === focusedRequestId && row.requester?.id !== session.id)) setManagerEmployeeReviewMode(true);
+  }, [focusedRequestId, rows, canManagerReview, session.id]);
+
+  function showAllRequests() {
+    const url = new URL(window.location.href); url.searchParams.delete("requestId");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search);
+    setFocusedRequestId(""); setSelectedEmployeeId(""); setStatusFilter("ALL"); void load();
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -6630,6 +6664,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
   }, new Map<string, any>())).map(([, value]: any) => value) : [];
 
   const visibleRows = activeRows.filter(row => {
+    if (focusedRequestId && row.id !== focusedRequestId) return false;
     if (statusFilter !== "ALL" && row.status !== statusFilter) return false;
     if (selectedEmployeeId && row.requester?.id !== selectedEmployeeId) return false;
     return true;
@@ -6668,6 +6703,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
       {reviewMode && <button className="primary leave-summary-open-btn" type="button" onClick={() => setShowEmployeeSummary(true)}>Employee Summary</button>}
     </div>
 
+    {focusedRequestId && <div className="selected-leave-employee-bar"><b>Leave Request</b><button className="light" type="button" onClick={showAllRequests}>Show All Requests</button></div>}
     {msg && <div className="msg warn">{msg}</div>}
 
     {reviewMode && showEmployeeSummary && <div className="modal" onMouseDown={() => setShowEmployeeSummary(false)}><div className="modal-box wide leave-summary-modal" onMouseDown={event => event.stopPropagation()}><button className="close" type="button" onClick={() => setShowEmployeeSummary(false)}>×</button><div className="leave-summary-title"><div><h2>Employee Summary</h2><p className="hint">Employee-wise leave request history and totals.</p></div></div><div className="table-wrap leave-summary-table"><table><thead><tr><th>Employee</th><th>Total Requests</th><th>Pending</th><th>Approved</th><th>Rejected</th><th>Requested Days</th><th>Approved Days</th><th>Action</th></tr></thead><tbody>{employeeSummary.length ? employeeSummary.map((item: any) => <tr key={item.employeeId}><td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(item.employeeId); setStatusFilter("ALL"); setShowEmployeeSummary(false); }}><b>{item.employee.name}</b></button><small className="leave-request-person-meta">{item.employee.designation || "Employee"}{item.employee.department ? ` · ${item.employee.department}` : ""}</small></td><td>{item.total}</td><td>{item.pending}</td><td>{item.approved}</td><td>{item.rejected}</td><td>{item.requestedDays}</td><td>{item.approvedDays}</td><td><button className="light" type="button" onClick={() => { setSelectedEmployeeId(item.employeeId); setStatusFilter("ALL"); setShowEmployeeSummary(false); }}>View Requests</button></td></tr>) : <tr><td colSpan={8}>No employee leave requests found.</td></tr>}</tbody></table></div></div></div>}
@@ -6681,7 +6717,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
       {!loading && visibleRows.length === 0 && <tr><td colSpan={reviewMode ? 9 : 8}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
         {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small>{showSubmittedAt && requestSubmittedTime(row)}</td>}
-        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}{showSubmittedAt && !reviewMode && requestSubmittedTime(row)}{reviewMode && Number(row.teamConflictCount || 0) > 0 && <small style={{ display: "block", marginTop: 6, color: "#a35b00", fontWeight: 700 }}><b>Team Leave Alert:</b> {row.teamConflictCount} other team member{Number(row.teamConflictCount) === 1 ? "" : "s"} already {Number(row.teamConflictCount) === 1 ? "has" : "have"} overlapping leave.</small>}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td>
+        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{row.fromDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{row.toDayType === "HALF" ? "Half Day" : "Full Day"}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}{showSubmittedAt && !reviewMode && requestSubmittedTime(row)}{reviewMode && Number(row.teamConflictCount || 0) > 0 && <small style={{ display: "block", marginTop: 6, color: "#a35b00", fontWeight: 700 }}><b>Team Leave Alert:</b> {row.teamConflictCount} other team member{Number(row.teamConflictCount) === 1 ? "" : "s"} already {Number(row.teamConflictCount) === 1 ? "has" : "have"} overlapping leave.</small>}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span>{showSubmittedAt && row.managerActionPending && <small className="leave-decision-date" style={{ color: "#a35b00" }}>Manager Action Pending</small>}{showSubmittedAt && row.leaveStartingSoon && <small className="leave-decision-date" style={{ color: "#a52d43" }}>Urgent—Leave Starting Soon</small>}</td>
         <td><b>{managerStageLabel(row)}</b>{row.managerDecidedAt && !(canManagerReview && row.requester?.id === session.id) && <small className="leave-decision-date">{displayDate(row.managerDecidedAt)}</small>}{row.managerStatus === "REJECTED" && row.managerRejectionReason && <small className="leave-rejection-text">Reason: {row.managerRejectionReason}</small>}</td>
         <td>{row.status === "PENDING" ? <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager"}</small> : <><b>{row.decidedBy?.name || "-"}</b><small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>{row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
         {reviewMode && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager" : "Pending"}</td>}
@@ -6780,7 +6816,7 @@ function Notifications({ session, employees, onNavigate }: { session: User; empl
     }
 
     const directTarget = employeeNotificationTarget(row?.filterValue);
-    if (session.role === "EMPLOYEE" && directTarget) {
+    if (directTarget && (session.role === "EMPLOYEE" || directTarget.startsWith("/?section=leaveRequests&requestId="))) {
       // Reload the destination so profile/report data cannot remain stale.
       window.location.assign(directTarget);
       return;

@@ -1,0 +1,66 @@
+name: Leave request reminders
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/leave-reminders.yml'
+      - 'lib/leaveReminderRules.ts'
+      - 'lib/leaveReminders.ts'
+      - 'lib/leaveReminderAuth.ts'
+      - 'app/api/leave-reminders/**'
+permissions:
+  id-token: write
+concurrency:
+  group: leave-request-reminders
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for deployment and check pending leave requests
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, time, urllib.request, urllib.parse
+          base = 'https://employee-dashboard-five-black.vercel.app'
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen(base + '/api/leave-reminders/health', timeout=15) as response:
+                      if json.load(response).get('version') == 'leave-reminders-v1':
+                          break
+              except Exception:
+                  pass
+              time.sleep(10)
+          else:
+              raise SystemExit('Deployment is not ready. Re-run this workflow after Vercel deployment succeeds.')
+          request_url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']
+          request_url += ('&' if '?' in request_url else '?') + urllib.parse.urlencode({'audience': 'motisons-leave-reminders'})
+          cursor = ''
+          total = 0
+          for page in range(100):
+              # Refresh the short-lived token per page, never log it or store a shared secret.
+              token_request = urllib.request.Request(request_url, headers={'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
+              with urllib.request.urlopen(token_request, timeout=20) as response:
+                  token = json.load(response)['value']
+              print('::add-mask::' + token)
+              target = base + '/api/leave-reminders' + ('?' + urllib.parse.urlencode({'cursor': cursor}) if cursor else '')
+              request = urllib.request.Request(target, data=b'{}', method='POST', headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
+              with urllib.request.urlopen(request, timeout=80) as response:
+                  result = json.load(response)
+              if not result.get('ok'):
+                  raise SystemExit('Reminder check failed; re-run the workflow.')
+              data = result['data']
+              total += data.get('notificationsCreated', 0)
+              print(json.dumps(data))
+              cursor = data.get('nextCursor')
+              if not cursor:
+                  print('Reminder scan complete. Notifications created:', total)
+                  break
+          else:
+              raise SystemExit('Scan limit reached. Re-run to continue checking pending requests.')
+          PY

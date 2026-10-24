@@ -1,3 +1,4 @@
+import { dueLeaveReminders, leaveReminderAction, leaveRequestTarget } from "@/lib/leaveReminderRules";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -97,7 +98,7 @@ async function findDesigningDepartmentHead() {
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await requireSession();
     const canReview = session.role === "ADMIN" || session.role === "HR";
@@ -111,6 +112,9 @@ export async function GET() {
       where = { OR: [{ requesterId: session.id }, { requesterId: { in: teamIds } }] };
     }
 
+    const requestId = new URL(req.url).searchParams.get("requestId") || "";
+    if (requestId && !/^[a-zA-Z0-9_-]{1,100}$/.test(requestId)) return fail("Invalid leave request.", 400);
+    if (requestId) where = { AND: [where || {}, { id: requestId }] };
     const requests = await prisma.leaveRequest.findMany({
       where,
       include: includePeople,
@@ -133,8 +137,10 @@ export async function GET() {
       : [];
 
     const requestsWithConflicts = requests.map(request => {
+      const due = dueLeaveReminders(request);
+      const alerts = { managerActionPending: due.some(item => item.kind === "LEAVE_MANAGER_PENDING_24H"), leaveStartingSoon: due.some(item => item.kind === "LEAVE_STARTING_SOON") };
       if (!conflictPool.length || !request.requester?.department) {
-        return { ...request, teamConflictCount: 0, teamConflictNames: [] };
+        return { ...request, ...alerts, teamConflictCount: 0, teamConflictNames: [] };
       }
       const department = normalizedDepartment(request.requester.department);
       const unique = new Map<string, string>();
@@ -144,7 +150,7 @@ export async function GET() {
         if (other.fromDate > request.toDate || other.toDate < request.fromDate) continue;
         if (!unique.has(other.requesterId)) unique.set(other.requesterId, other.requester.name);
       }
-      return { ...request, teamConflictCount: unique.size, teamConflictNames: Array.from(unique.values()) };
+      return { ...request, ...alerts, teamConflictCount: unique.size, teamConflictNames: Array.from(unique.values()) };
     });
 
     return ok({ requests: requestsWithConflicts });
@@ -233,7 +239,7 @@ export async function POST(req: NextRequest) {
           type: "NOTICE",
           text: managerText,
           filterType: "SYSTEM",
-          filterValue: "NEW_LEAVE_REQUEST_MANAGER",
+          filterValue: leaveReminderAction("NEW_LEAVE_REQUEST_MANAGER", leaveRequest.id),
           createdById: session.id,
           recipients: { create: managerIds.map(employeeId => ({ employeeId })) }
         }
@@ -241,7 +247,7 @@ export async function POST(req: NextRequest) {
       await sendPushToEmployees(managerIds, {
         title: "Leave Approval Required",
         body: managerText,
-        url: "/?section=leaveRequests",
+        url: leaveRequestTarget(leaveRequest.id),
         tag: `leave-manager-${leaveRequest.id}`
       });
     }
