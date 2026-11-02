@@ -11,13 +11,16 @@ export async function GET(req: NextRequest) {
   let session;
   try { session = await requireSession(); }
   catch { return reply({ ok: false, error: "Unauthorized" }, 401); }
-  if (session.role !== "ADMIN" && session.role !== "HR") return reply({ ok: false, error: "Only Admin/HR allowed." }, 403);
   const employeeId = req.nextUrl.searchParams.get("employeeId") || "";
   const monthYear = req.nextUrl.searchParams.get("monthYear") || "";
   if (!canViewAttendanceCalendar(session, { id: employeeId }, monthYear)) return reply({ ok: false, error: "Access denied." }, 403);
   let range;
   try { range = punchMonthRange(monthYear); }
   catch { return reply({ ok: false, error: "Invalid month." }, 400); }
+  // Viewing starts at midnight India time on 1 October 2026, including direct API requests.
+  const punchTimesStart = new Date("2026-10-01T00:00:00+05:30");
+  if (range.end <= punchTimesStart) return reply({ ok: true, data: { punches: [] } });
+  if (range.start < punchTimesStart) range.start = punchTimesStart;
   try {
     const employee = await prisma.employee.findFirst({ where: { id: employeeId, deletedAt: null }, select: { id: true } });
     if (!employee) return reply({ ok: false, error: "Employee not found." }, 404);

@@ -17,8 +17,8 @@ type CalendarEmployee = {
 
 type AttendanceCode = "P" | "A" | "R" | "H" | "SL";
 type UploadResult = { matched: number; skipped: number; saved: boolean; issues: Array<{ sheet: string; row: number; employeeCode: string; name: string; reason: string }> };
-// Punch-time viewing starts on 21 October 2026 (India calendar date).
-const punchTimesStartKey = 20261021;
+// Punch-time viewing starts on 1 October 2026 (India calendar date).
+const punchTimesStartKey = 20261001;
 const labels: Record<AttendanceCode, string> = { P: "Present", A: "Absent", H: "Half Day", R: "Week Off", SL: "Short Leave" };
 
 function indiaTodayKey() {
@@ -245,7 +245,7 @@ function MonthPopup({ employee, monthYear, onClose }: {
   </div>, document.body);
 }
 
-// Mounted only for Admin/HR in the existing employee-details month cells.
+// Used in authorized employee-profile and Admin/HR employee-details month cells.
 // Attendance imports are internal; no employee notifications are sent.
 export default function MonthlyAttendanceCalendar({ employee, monthYear }: {
   employee: CalendarEmployee;

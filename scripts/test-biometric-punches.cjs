@@ -100,8 +100,8 @@ async function main() {
     assert.equal((await response.json()).data.punches.length, 6);
   }
   session = { id: 'employee-1', role: 'EMPLOYEE' };
+  assert.equal((await read()).status, 200); // employees may read their own punches
   const before = reads;
-  assert.equal((await read()).status, 403); // own punches are also blocked
   assert.equal((await read('employee-2')).status, 403);
   assert.equal(reads, before); // denied before touching punch storage
   session = null;
@@ -110,6 +110,6 @@ async function main() {
   assert.equal((await read('employee-1', '03/2026')).status, 403);
   assert.equal((await read('employee-1', '13/2026')).status, 403);
   assert.equal((await read('employee-1', '09/2026')).status, 200);
-  console.log('PASS: timestamp validation/IST/month boundaries, mapping ambiguity, duplicate retries, input formats/limits, failure retry, Admin/HR-only access. Mocked DB; not a live device test.');
+  console.log('PASS: timestamp validation/IST/month boundaries, mapping ambiguity, duplicate retries, input formats/limits, failure retry, Admin/HR and employee self-only access. Mocked DB; not a live device test.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
