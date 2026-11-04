@@ -57,8 +57,8 @@ export default function BiometricPunchTimes({ employeeId, monthYear, day, employ
   const selectedDate = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
   const events = punches.filter(punch => dateFormat.format(new Date(punch.punchedAt)) === selectedDate)
     .sort((a, b) => Date.parse(a.punchedAt) - Date.parse(b.punchedAt));
-  const latestIn = [...events].reverse().find(punch => punch.direction === "IN");
-  const lastOut = [...events].reverse().find(punch => punch.direction === "OUT");
+  const firstIn = events[0];
+  const lastOut = events.length > 1 ? events[events.length - 1] : undefined;
 
   return <div className={styles.backdrop} onMouseDown={event => {
     event.stopPropagation();
@@ -74,8 +74,8 @@ export default function BiometricPunchTimes({ employeeId, monthYear, day, employ
       {!loading && !error && !configured && <p>Punch integration setup pending.</p>}
       {!loading && !error && configured && <>
         <div className={styles.totals}>
-          <div><span>Latest IN</span><strong>{latestIn ? timeFormat.format(new Date(latestIn.punchedAt)) : "—"}</strong></div>
-          <div><span>Latest OUT</span><strong>{lastOut ? timeFormat.format(new Date(lastOut.punchedAt)) : "—"}</strong></div>
+          <div><span>First IN</span><strong>{firstIn ? timeFormat.format(new Date(firstIn.punchedAt)) : "—"}</strong></div>
+          <div><span>Last OUT</span><strong>{lastOut ? timeFormat.format(new Date(lastOut.punchedAt)) : "—"}</strong></div>
         </div>
         {!events.length && <p>No punch records received for this date.</p>}
       </>}
