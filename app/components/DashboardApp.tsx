@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isHalfDay, leaveDayTypeLabel } from "@/lib/leaveDayType";
+import LeaveReminderHistory, { type ReminderSummary } from "./LeaveReminderHistory";
 import PushNotificationSetup from "./PushNotificationSetup";
 import SchemeIncentives from "./SchemeIncentives";
 import { employeeNotificationTarget } from "@/lib/notificationTargets";
@@ -6506,6 +6507,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
   const reviewMode = canHrReview || (canManagerReview && managerEmployeeReviewMode);
   const [focusedRequestId, setFocusedRequestId] = useState("");
   const [rows, setRows] = useState<any[]>([]);
+  const [reminderSummaries, setReminderSummaries] = useState<Record<string, ReminderSummary>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [minimumLeaveDate, setMinimumLeaveDate] = useState("");
@@ -6523,6 +6525,7 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
       const requestId = new URLSearchParams(window.location.search).get("requestId") || "";
       const data = await api(`/api/leave-requests${requestId ? `?${new URLSearchParams({ requestId })}` : ""}`);
       setRows(data.requests || []);
+      setReminderSummaries({});
     } catch (error: any) {
       setMsg(error.message || "Unable to load leave requests.");
     } finally {
@@ -6538,6 +6541,26 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
     tomorrow.setDate(tomorrow.getDate() + 1);
     setMinimumLeaveDate(`${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`);
   }, []);
+
+  useEffect(() => {
+    if (!showSubmittedAt || !rows.length) return;
+    const controller = new AbortController();
+    let running = false;
+    async function refreshReminderCounts() {
+      if (running || controller.signal.aborted || document.hidden) return;
+      running = true;
+      try {
+        const response = await fetch("/api/leave-reminders/history", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestIds: rows.map(row => row.id) }), cache: "no-store", signal: controller.signal });
+        const history = await response.json();
+        if (!controller.signal.aborted && response.ok && history.ok) setReminderSummaries(history.data.summaries);
+      } catch { /* History availability must not interrupt leave requests. */ }
+      finally { running = false; }
+    }
+    void refreshReminderCounts();
+    const timer = window.setInterval(refreshReminderCounts, 60000);
+    document.addEventListener("visibilitychange", refreshReminderCounts);
+    return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener("visibilitychange", refreshReminderCounts); };
+  }, [rows, showSubmittedAt]);
 
   useEffect(() => {
     if (focusedRequestId && canManagerReview && rows.some(row => row.id === focusedRequestId && row.requester?.id !== session.id)) setManagerEmployeeReviewMode(true);
@@ -6717,8 +6740,8 @@ function LeaveRequests({ session, canReview: allowedToReview = false }: { sessio
       {loading && <tr><td colSpan={reviewMode ? 9 : 8}><FourDotsLoader label="Loading leave requests…" /></td></tr>}
       {!loading && visibleRows.length === 0 && <tr><td colSpan={reviewMode ? 9 : 8}>No leave requests found.</td></tr>}
       {!loading && visibleRows.map(row => <tr key={row.id}>
-        {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small>{showSubmittedAt && requestSubmittedTime(row)}</td>}
-        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{leaveDayTypeLabel(row.fromDayType)}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{leaveDayTypeLabel(row.toDayType)}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}{showSubmittedAt && !reviewMode && requestSubmittedTime(row)}{reviewMode && Number(row.teamConflictCount || 0) > 0 && <small style={{ display: "block", marginTop: 6, color: "#a35b00", fontWeight: 700 }}><b>Team Leave Alert:</b> {row.teamConflictCount} other team member{Number(row.teamConflictCount) === 1 ? "" : "s"} already {Number(row.teamConflictCount) === 1 ? "has" : "have"} overlapping leave.</small>}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span>{showSubmittedAt && row.managerActionPending && <small className="leave-decision-date" style={{ color: "#a35b00" }}>Manager Action Pending</small>}{showSubmittedAt && row.leaveStartingSoon && <small className="leave-decision-date" style={{ color: "#a52d43" }}>Urgent—Leave Starting Soon</small>}</td>
+        {reviewMode && <td><button type="button" className="leave-employee-name-btn" onClick={() => { setSelectedEmployeeId(row.requester.id); setStatusFilter("ALL"); }}><b>{row.requester.name}</b></button><small className="leave-request-person-meta">{row.requester.designation || "Employee"}{row.requester.department ? ` · ${row.requester.department}` : ""}</small>{showSubmittedAt && requestSubmittedTime(row)}{showSubmittedAt && <LeaveReminderHistory requestId={row.id} employeeName={row.requester?.name || "Employee"} summary={reminderSummaries[row.id]} onSummary={summary => setReminderSummaries(previous => ({ ...previous, [row.id]: summary }))} />}</td>}
+        <td>{displayDate(row.fromDate)}<small className="leave-day-type-label">{leaveDayTypeLabel(row.fromDayType)}</small></td><td>{displayDate(row.toDate)}<small className="leave-day-type-label">{leaveDayTypeLabel(row.toDayType)}</small></td><td><b>{leaveDayCount(row.fromDate, row.toDate, row.fromDayType, row.toDayType)}</b></td><td className="leave-request-reason">{row.reason}{showSubmittedAt && !reviewMode && requestSubmittedTime(row)}{showSubmittedAt && !reviewMode && <LeaveReminderHistory requestId={row.id} employeeName={row.requester?.name || "Employee"} summary={reminderSummaries[row.id]} onSummary={summary => setReminderSummaries(previous => ({ ...previous, [row.id]: summary }))} />}{reviewMode && Number(row.teamConflictCount || 0) > 0 && <small style={{ display: "block", marginTop: 6, color: "#a35b00", fontWeight: 700 }}><b>Team Leave Alert:</b> {row.teamConflictCount} other team member{Number(row.teamConflictCount) === 1 ? "" : "s"} already {Number(row.teamConflictCount) === 1 ? "has" : "have"} overlapping leave.</small>}</td><td><span className={`leave-status ${String(row.status).toLowerCase()}`}>{row.status}</span>{showSubmittedAt && row.managerActionPending && <small className="leave-decision-date" style={{ color: "#a35b00" }}>Manager Action Pending</small>}{showSubmittedAt && row.leaveStartingSoon && <small className="leave-decision-date" style={{ color: "#a52d43" }}>Urgent—Leave Starting Soon</small>}</td>
         <td><b>{managerStageLabel(row)}</b>{row.managerDecidedAt && !(canManagerReview && row.requester?.id === session.id) && <small className="leave-decision-date">{displayDate(row.managerDecidedAt)}</small>}{row.managerStatus === "REJECTED" && row.managerRejectionReason && <small className="leave-rejection-text">Reason: {row.managerRejectionReason}</small>}</td>
         <td>{row.status === "PENDING" ? <small>{row.managerStatus === "APPROVED" ? "Waiting for HR" : String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager"}</small> : <><b>{row.decidedBy?.name || "-"}</b><small className="leave-decision-date">{row.decidedAt ? displayDate(row.decidedAt) : "-"}</small>{row.status === "REJECTED" && row.rejectionReason && <small className="leave-rejection-text">Reason: {row.rejectionReason}</small>}</>}</td>
         {reviewMode && <td>{rowCanAct(row) ? <div className="action-buttons"><button className="primary small" disabled={saving} onClick={() => decide(row, "APPROVED")}>Approve</button><button className="danger-btn small" disabled={saving} onClick={() => { setRejecting(row); setRejectionReason(""); }}>Reject</button></div> : row.status !== "PENDING" ? "Completed" : canHrReview && row.managerStatus !== "APPROVED" ? String(row.requester?.department || "").trim().toUpperCase() === "DESIGNING" ? "Waiting for Cheshta Malik" : "Waiting for Manager" : "Pending"}</td>}
