@@ -143,25 +143,40 @@ async function sendOne(subscription: { endpoint: string; p256dh: string; auth: s
   return { ok: response.ok, status: response.status };
 }
 
-export async function sendPushToEmployees(employeeIds: string[], payload: PushPayload) {
+// Optional blast ID records transport acceptance against the existing app notification.
+// Legacy calls without a blast ID keep their previous behavior.
+export async function sendPushToEmployees(employeeIds: string[], payload: PushPayload, blastId?: string) {
   const ids = Array.from(new Set(employeeIds.filter(Boolean)));
-  if (!ids.length || !isWebPushConfigured()) return;
+  if (!ids.length) return;
+  const attemptedAt = new Date();
+  async function record(employeeId: string, status: string, attempted: number, accepted: number, acceptedAt: Date | null = null) {
+    if (!blastId) return;
+    try {
+      await prisma.messageRecipient.updateMany({ where: { blastId, employeeId, pushAcceptedAt: null }, data: { pushStatus: status, pushAttemptedAt: attemptedAt, pushAcceptedAt: acceptedAt, pushAttemptedDevices: attempted, pushAcceptedDevices: accepted } });
+    } catch { /* Transport reporting must never fail a saved dashboard action. */ }
+  }
+  if (!isWebPushConfigured()) {
+    await Promise.all(ids.map(id => record(id, "NOT_CONFIGURED", 0, 0)));
+    return;
+  }
   const subscriptions = await prisma.pushSubscription.findMany({
     where: { employeeId: { in: ids } },
-    select: { id: true, endpoint: true, p256dh: true, auth: true },
+    select: { id: true, employeeId: true, endpoint: true, p256dh: true, auth: true },
   });
-  if (!subscriptions.length) return;
-
+  const results = new Map(ids.map(id => [id, { attempted: 0, accepted: 0, acceptedAt: null as Date | null }]));
   const expiredIds: string[] = [];
   await Promise.all(subscriptions.map(async subscription => {
+    const summary = results.get(subscription.employeeId);
+    if (summary) summary.attempted++;
     try {
       const result = await sendOne(subscription, payload);
+      if (result.ok && summary) { summary.accepted++; summary.acceptedAt ||= new Date(); }
       if (result.status === 404 || result.status === 410) expiredIds.push(subscription.id);
-    } catch {
-      // A failed device must never stop the main dashboard action.
-    }
+    } catch { /* A failed device must never stop the main dashboard action. */ }
   }));
-  if (expiredIds.length) {
-    await prisma.pushSubscription.deleteMany({ where: { id: { in: expiredIds } } }).catch(() => null);
-  }
+  await Promise.all(ids.map(id => {
+    const result = results.get(id)!;
+    return record(id, result.accepted ? "ACCEPTED" : result.attempted ? "FAILED" : "NO_SUBSCRIPTION", result.attempted, result.accepted, result.acceptedAt);
+  }));
+  if (expiredIds.length) await prisma.pushSubscription.deleteMany({ where: { id: { in: expiredIds } } }).catch(() => null);
 }

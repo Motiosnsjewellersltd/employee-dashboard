@@ -30,6 +30,7 @@ enum LeaveRequestStatus {
   PENDING
   APPROVED
   REJECTED
+  CLOSED
 }
 
 enum HelpTicketStatus {
@@ -211,6 +212,7 @@ model LeaveRequest {
   toDayType       String             @default("FULL")
   reason          String             @db.Text
   status                  LeaveRequestStatus @default(PENDING)
+  closureReason           String?            @db.Text
   rejectionReason         String?            @db.Text
   decidedById             String?
   decidedAt               DateTime?
@@ -382,6 +384,11 @@ model MessageRecipient {
   employeeId String
   readAt     DateTime?
   clearedAt  DateTime?
+  pushStatus String?
+  pushAttemptedAt DateTime?
+  pushAcceptedAt DateTime?
+  pushAttemptedDevices Int?
+  pushAcceptedDevices Int?
 
   blast    NotificationBlast @relation(fields: [blastId], references: [id], onDelete: Cascade)
   employee Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)

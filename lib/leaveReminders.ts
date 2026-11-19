@@ -70,7 +70,7 @@ export async function runLeaveReminders({ now = new Date(), cursor = "" }: { now
   // Push is supplementary to the durable bell notification, as in the existing app.
   for (let i = 0; i < pushes.length; i += 10) await Promise.all(pushes.slice(i, i + 10).map(async item => {
     stats.pushAttempts++;
-    await sendPushToEmployees(item.ids, { title: item.title, body: item.text, url: leaveRequestTarget(item.requestId), tag: item.id }).catch(() => null);
+    await sendPushToEmployees(item.ids, { title: item.title, body: item.text, url: leaveRequestTarget(item.requestId), tag: item.id }, item.id).catch(() => null);
   }));
   }
   return stats;

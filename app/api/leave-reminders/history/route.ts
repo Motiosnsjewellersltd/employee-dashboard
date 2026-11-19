@@ -38,9 +38,9 @@ export async function GET(req: Request) {
     const [total, rows] = await Promise.all([
       prisma.notificationBlast.count({ where }),
       prisma.notificationBlast.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 51, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-        select: { id: true, filterValue: true, createdAt: true, recipients: { select: { employee: { select: { name: true, role: true } } } } } })
+        select: { id: true, filterValue: true, createdAt: true, recipients: { select: { readAt: true, pushStatus: true, pushAttemptedAt: true, pushAcceptedAt: true, pushAttemptedDevices: true, pushAcceptedDevices: true, employee: { select: { name: true, role: true } } } } } })
     ]);
-    const items = rows.slice(0, 50).map(row => ({ id: row.id, type: reminderHistoryEntry(row.filterValue)?.type || "Reminder", createdAt: row.createdAt, recipients: row.recipients.map(recipient => recipient.employee) }));
+    const items = rows.slice(0, 50).map(row => ({ id: row.id, type: reminderHistoryEntry(row.filterValue)?.type || "Reminder", createdAt: row.createdAt, recipients: row.recipients.map(({ employee, ...delivery }) => ({ ...employee, ...delivery })) }));
     return reply({ ok: true, data: { requestId, employeeName: request.requester.name, total, items, nextCursor: rows.length > 50 ? rows[49].id : null } });
   } catch { return reply({ ok: false, error: "Could not load reminder history." }, 503); }
 }

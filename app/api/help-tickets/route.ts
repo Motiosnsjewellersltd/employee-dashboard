@@ -290,7 +290,7 @@ export async function PATCH(req: NextRequest) {
     const notificationText =
       `${ticket.ticketNumber} (${ticket.subject}) ${statusText}`;
 
-    await prisma.notificationBlast.create({
+    const blast = await prisma.notificationBlast.create({
       data: {
         type: "INFORMATION",
         text: notificationText,
@@ -325,7 +325,8 @@ export async function PATCH(req: NextRequest) {
 
         tag:
           `help-ticket-${ticket.id}`
-      }
+      },
+      blast.id
     );
 
     await addAuditLog({

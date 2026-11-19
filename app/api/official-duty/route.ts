@@ -31,7 +31,7 @@ async function notifyEmployee(employeeIds: string[], actorId: string, title: str
   const uniqueIds = Array.from(new Set(employeeIds.filter(Boolean)));
   if (!uniqueIds.length) return;
   try {
-    await prisma.notificationBlast.create({
+    const blast = await prisma.notificationBlast.create({
       data: {
         type: "NOTICE",
         text,
@@ -46,7 +46,7 @@ async function notifyEmployee(employeeIds: string[], actorId: string, title: str
       body: text,
       url: "/?section=officialDuty",
       tag
-    });
+    }, blast.id);
   } catch {
     // Notification failure must not block the workflow.
   }

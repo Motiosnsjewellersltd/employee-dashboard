@@ -34,7 +34,7 @@ export async function POST() {
     await sendPushToEmployees(ids, {
       title: CALENDAR_ANNOUNCEMENT_TITLE, body: CALENDAR_ANNOUNCEMENT_TEXT,
       url: "/?section=notifications", tag: CALENDAR_ANNOUNCEMENT_ID
-    });
+    }, CALENDAR_ANNOUNCEMENT_ID);
     return ok({ sent: ids.length, pushAttempted: true });
   } catch (error) { return fail(error); }
 }

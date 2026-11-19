@@ -21,7 +21,7 @@ export async function addSystemNotification(input: {
 
     if (!recipients.length) return;
 
-    await prisma.notificationBlast.create({
+    const blast = await prisma.notificationBlast.create({
       data: {
         type: input.type || "INFORMATION",
         text: input.text,
@@ -38,7 +38,7 @@ export async function addSystemNotification(input: {
       body: input.text,
       url: input.url || "/?section=notifications",
       tag: `system-${input.action}`,
-    });
+    }, blast.id);
   } catch {
     // System notifications must never stop the main action.
   }

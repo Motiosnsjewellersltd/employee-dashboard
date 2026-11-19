@@ -1,5 +1,7 @@
+import { leaveWorkflowReview } from "@/lib/leaveWorkflowReview";
 import { isHalfDay, leaveHalfDetails } from "@/lib/leaveDayType";
 import { dueLeaveReminders, leaveReminderAction, leaveRequestTarget } from "@/lib/leaveReminderRules";
+import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -154,7 +156,7 @@ export async function GET(req: NextRequest) {
       return { ...request, ...alerts, teamConflictCount: unique.size, teamConflictNames: Array.from(unique.values()) };
     });
 
-    return ok({ requests: requestsWithConflicts });
+    return ok({ requests: canReview ? await leaveWorkflowReview(requestsWithConflicts) : requestsWithConflicts });
   } catch (error) {
     return fail(error, 401);
   }
@@ -235,7 +237,7 @@ export async function POST(req: NextRequest) {
       const managerIds = managers.map(manager => manager.id);
       const firstApproverLabel = isDesigningDepartment(requester.department) ? "Designing Department Head approval" : "Manager approval";
       const managerText = `${session.name} requested ${inclusiveDayCount(fromDate, toDate, fromDayType, toDayType)} day(s) leave for ${formatDateRange(fromDate, toDate)}${leaveHalfDetails(fromDate.toISOString().slice(0, 10), toDate.toISOString().slice(0, 10), fromDayType, toDayType)}. ${firstApproverLabel} is required.`;
-      await prisma.notificationBlast.create({
+      const managerBlast = await prisma.notificationBlast.create({
         data: {
           type: "NOTICE",
           text: managerText,
@@ -250,7 +252,7 @@ export async function POST(req: NextRequest) {
         body: managerText,
         url: leaveRequestTarget(leaveRequest.id),
         tag: `leave-manager-${leaveRequest.id}`
-      });
+      }, managerBlast.id);
     }
 
     await addSystemNotification({
@@ -289,6 +291,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const result = await prisma.$transaction(async tx => {
+      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "LeaveRequest" WHERE "id" = ${id} FOR UPDATE`);
       const current = await tx.leaveRequest.findUnique({ where: { id }, include: includePeople });
       if (!current) throw new Error("Leave request not found.");
       if (current.status !== "PENDING") throw new Error("This leave request has already been decided.");
@@ -330,7 +333,7 @@ export async function PATCH(req: NextRequest) {
           ? `Your ${reviewerLabel} approved your leave request for ${dateRange} (${days} day(s)). It is now pending HR approval.`
           : `Your leave request for ${dateRange} (${days} day(s)) was rejected by your ${reviewerLabel}. Reason: ${rejectionReason}`;
 
-        await tx.notificationBlast.create({
+        const decisionBlast = await tx.notificationBlast.create({
           data: {
             type: "INFORMATION",
             text,
@@ -366,6 +369,7 @@ export async function PATCH(req: NextRequest) {
           monthlyBreakdown: [] as { monthYear: string; leave: number }[],
           notificationText: text,
           requesterId: current.requesterId,
+          notificationId: decisionBlast.id,
           managerStage: true
         };
       }
@@ -434,7 +438,7 @@ export async function PATCH(req: NextRequest) {
         ? `Your leave request for ${dateRange} (${daysText}) has been approved by HR. Leave added: ${monthlyText}.`
         : `Your leave request for ${dateRange} (${daysText}) has been rejected by HR. Reason: ${rejectionReason}`;
 
-      await tx.notificationBlast.create({
+      const decisionBlast = await tx.notificationBlast.create({
         data: {
           type: "INFORMATION",
           text,
@@ -446,7 +450,7 @@ export async function PATCH(req: NextRequest) {
       });
 
       const request = await tx.leaveRequest.findUnique({ where: { id }, include: includePeople });
-      return { request, monthlyBreakdown, notificationText: text, requesterId: current.requesterId, managerStage: false };
+      return { request, monthlyBreakdown, notificationText: text, requesterId: current.requesterId, notificationId: decisionBlast.id, managerStage: false };
     });
 
     await addAuditLog({
@@ -464,7 +468,7 @@ export async function PATCH(req: NextRequest) {
       body: result.notificationText,
       url: "/?section=leaveRequests",
       tag: `leave-${id}`,
-    });
+    }, result.notificationId);
 
     return ok({
       request: result.request,

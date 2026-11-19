@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
       filterValue: r.filterValue,
       createdAt: r.createdAt,
       createdBy: r.createdBy.name,
-      recipients: r.recipients.map(x => ({ id: x.employeeId, name: x.employee.name, designation: x.employee.designation, department: x.employee.department, readAt: x.readAt }))
+      recipients: r.recipients.map(x => ({ id: x.employeeId, name: x.employee.name, designation: x.employee.designation, department: x.employee.department, readAt: x.readAt, pushStatus: x.pushStatus, pushAttemptedAt: x.pushAttemptedAt, pushAcceptedAt: x.pushAcceptedAt, pushAttemptedDevices: x.pushAttemptedDevices, pushAcceptedDevices: x.pushAcceptedDevices }))
     })) });
   } catch (e) { return fail(e, 401); }
 }
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
       body: text,
       url: "/?section=notifications",
       tag: `notification-${blast.id}`,
-    });
+    }, blast.id);
     return ok({ id: blast.id, sent: ids.length });
   } catch (e) { return fail(e); }
 }

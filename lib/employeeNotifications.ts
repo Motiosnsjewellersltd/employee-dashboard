@@ -52,7 +52,7 @@ export async function addEmployeeNotification(input: {
     await sendPushToEmployees([employee.id], {
       title: input.title, body: input.text,
       url: employeeNotificationTarget(input.action)!, tag: `employee-update-${notification.id}`
-    });
+    }, notification.id);
   } catch {
     // A notification/push failure must not turn a saved update into a failed request.
   }

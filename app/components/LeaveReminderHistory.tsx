@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import NotificationDelivery, { type DeliveryRecipient } from "./NotificationDelivery";
 import FourDotsLoader from "./FourDotsLoader";
 import styles from "./LeaveReminderHistory.module.css";
 export type ReminderSummary = { count: number; lastAt: string | null };
-type Entry = { id: string; type: string; createdAt: string; recipients: Array<{ name: string; role: string }> };
+type Entry = { id: string; type: string; createdAt: string; recipients: DeliveryRecipient[] };
 export function reminderHistoryTime(value: string | null) {
   if (!value) return "—";
   const date = new Date(value); if (!Number.isFinite(date.getTime())) return "—";
@@ -54,6 +55,7 @@ function HistoryDialog({ requestId, employeeName, onClose, onSummary }: { reques
         {items.length > 0 && <ol className={styles.list}>{items.map(item => <li key={item.id}>
           <div className={styles.event}><strong>{item.type}</strong><time dateTime={item.createdAt}>{reminderHistoryTime(item.createdAt)}</time></div>
           <p><span className={styles.recipientLabel}>Sent to: </span>{item.recipients.length ? item.recipients.map((person, index) => <span key={index}>{index ? ", " : ""}{person.name}{person.role === "HR" || person.role === "ADMIN" ? ` (${person.role})` : ""}</span>) : "Recipient record unavailable"}</p>
+          <NotificationDelivery createdAt={item.createdAt} recipients={item.recipients} />
         </li>)}</ol>}
         {nextCursor && <button type="button" className={styles.more} disabled={loading} onClick={() => void load(nextCursor)}>Load More</button>}
       </div>
