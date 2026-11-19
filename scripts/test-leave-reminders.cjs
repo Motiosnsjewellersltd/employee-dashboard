@@ -46,9 +46,24 @@ async function main(){
  assert.equal(rules.dueLeaveReminders(urgent,new Date('2026-10-23T18:29:59.999Z')).some(e=>e.kind==='LEAVE_STARTING_SOON'),false);
  assert.equal(rules.dueLeaveReminders(urgent,new Date('2026-10-23T18:30:00Z')).some(e=>e.kind==='LEAVE_STARTING_SOON'),true);
  assert.equal(rules.dueLeaveReminders(urgent,new Date('2026-10-24T18:30:00Z')).some(e=>e.kind==='LEAVE_STARTING_SOON'),false,'urgent only before leave starts');
- assert(rules.dueLeaveReminders(urgent,new Date('2026-10-24T18:30:00Z')).some(e=>e.kind==='LEAVE_MANAGER_REMINDER'),'manager reminders continue until a decision, even if leave date passes');
+ assert(rules.dueLeaveReminders(urgent,new Date('2026-10-24T18:30:00Z')).some(e=>e.kind==='LEAVE_MANAGER_REMINDER'),'manager reminders remain eligible during the leave date');
+ const single={...urgent,toDate:'2026-10-25T00:00:00Z'};
+ assert(rules.dueLeaveReminders(single,new Date('2026-10-25T18:29:59.999Z')).some(e=>e.kind==='LEAVE_MANAGER_REMINDER'),'last millisecond of To Date in IST remains eligible');
+ assert.equal(rules.dueLeaveReminders(single,new Date('2026-10-25T18:30:00.000Z')).length,0,'next midnight IST stops all reminders');
+ assert.equal(rules.dueLeaveReminders(single,new Date('2026-11-19T12:00:00Z')).length,0,'old pending requests must not create catch-up reminders');
+ const multi={...urgent,fromDate:'2026-11-12T00:00:00Z',toDate:'2026-11-14T00:00:00Z'};
+ assert(rules.dueLeaveReminders(multi,new Date('2026-11-14T18:29:59.999Z')).some(e=>e.kind==='LEAVE_MANAGER_PENDING_24H'));
+ assert.equal(rules.dueLeaveReminders(multi,new Date('2026-11-14T18:30:00Z')).length,0,'multi-day requests expire after To Date, not From Date');
+ for(const [date,end] of [['2026-12-31','2026-12-31T18:30:00Z'],['2028-02-29','2028-02-29T18:30:00Z']]){
+  const request={...urgent,fromDate:date,toDate:date};assert(rules.dueLeaveReminders(request,new Date(Date.parse(end)-1)).length>0);assert.equal(rules.dueLeaveReminders(request,new Date(end)).length,0);
+ }
+ assert.equal(rules.dueLeaveReminders({...urgent,toDate:'invalid'},now).length,0);
  assert.equal(rules.leaveNotificationTarget('LEAVE_MANAGER_REMINDER:req-1:3'),'/?section=leaveRequests&requestId=req-1');assert.equal(rules.leaveNotificationTarget('LEAVE_MANAGER_REMINDER:../evil:3'),null);
  const f=fixture();f.add();let stats=await f.job.runLeaveReminders({now});assert.equal(stats.notificationsCreated,3);
+ const ended=fixture();ended.add({fromDate:new Date('2026-10-20T00:00:00Z'),toDate:new Date('2026-10-21T00:00:00Z')});const oldState=JSON.stringify(ended.rows());
+ assert.equal((await ended.job.runLeaveReminders({now})).notificationsCreated,0);assert.equal(ended.blasts().length,0);assert.equal(ended.pushes().length,0);assert.equal(JSON.stringify(ended.rows()),oldState,'expired pending status/data is not changed');
+ const retained=fixture();retained.add();await retained.job.runLeaveReminders({now});const savedHistory=JSON.stringify(retained.blasts()),savedPushes=retained.pushes().length;
+ assert.equal((await retained.job.runLeaveReminders({now:new Date('2026-10-25T18:30:00Z')})).notificationsCreated,0);assert.equal(JSON.stringify(retained.blasts()),savedHistory,'past notification history retained');assert.equal(retained.pushes().length,savedPushes,'no new push after the To Date');
  const byKind=kind=>f.blasts().find(b=>b.filterValue.startsWith(kind+':'));
  assert.deepEqual(byKind('LEAVE_MANAGER_REMINDER').recipients.create.map(x=>x.employeeId),['manager']);assert.deepEqual(byKind('LEAVE_MANAGER_PENDING_24H').recipients.create.map(x=>x.employeeId),['hr']);assert.deepEqual(byKind('LEAVE_STARTING_SOON').recipients.create.map(x=>x.employeeId).sort(),['admin','hr']);
  assert(f.pushes().every(p=>p.payload.url==='/?section=leaveRequests&requestId=req-0'));
@@ -61,6 +76,6 @@ async function main(){
  const permissions=fixture();permissions.add();permissions.menu('false');await permissions.job.runLeaveReminders({now});assert.equal(permissions.blasts().length,2);assert(permissions.blasts().every(b=>!b.recipients.create.some(x=>x.employeeId==='hr')));
  const pages=fixture();for(let i=0;i<52;i++)pages.add({id:'page-'+String(i).padStart(3,'0'),createdAt:now,fromDate:new Date('2026-10-29T00:00:00Z')});stats=await pages.job.runLeaveReminders({now});assert(stats.nextCursor);assert.equal(stats.checked,50);assert.equal((await pages.job.runLeaveReminders({now,cursor:stats.nextCursor})).checked,2);
  const fail=fixture();fail.add();fail.failCreate();await assert.rejects(fail.job.runLeaveReminders({now}));assert.equal(fail.blasts().length,0);
- console.log('PASS: timing/India date rules; current backlog; 6-hour cooldown; correct managers/designing head/HR/Admin recipients; dedup/concurrency/decision race; permissions; pagination and rollback.');
+ console.log('PASS: timing/India date rules; end-of-To-Date IST cutoff/expired backlog; retained pending status/history; current backlog; 6-hour cooldown; correct managers/designing head/HR/Admin recipients; dedup/concurrency/decision race; permissions; pagination and rollback.');
 }
 module.exports={fixture,load,rules,now};if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});

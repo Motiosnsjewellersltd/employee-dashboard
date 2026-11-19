@@ -1,5 +1,5 @@
 export const LEAVE_REMINDER_HOURS = 6;
-export type ReminderRequest = { id: string; status: string; managerStatus: string; createdAt: Date | string; fromDate: Date | string };
+export type ReminderRequest = { id: string; status: string; managerStatus: string; createdAt: Date | string; fromDate: Date | string; toDate?: Date | string };
 export type ReminderKind = "LEAVE_MANAGER_REMINDER" | "LEAVE_MANAGER_PENDING_24H" | "LEAVE_STARTING_SOON";
 export type DueReminder = { kind: ReminderKind; slot: number; key: string };
 export function leaveStartInIndia(fromDate: Date | string) {
@@ -9,7 +9,9 @@ export function leaveStartInIndia(fromDate: Date | string) {
 }
 export function dueLeaveReminders(request: ReminderRequest, now = new Date()): DueReminder[] {
   const created = new Date(request.createdAt).getTime(), start = leaveStartInIndia(request.fromDate), time = now.getTime();
-  if (request.status !== "PENDING" || !Number.isFinite(created) || !Number.isFinite(start) || created > time) return [];
+  // Date-only leave runs through the entire To Date in India time.
+  const endExclusive = leaveStartInIndia(request.toDate ?? request.fromDate) + 86400000;
+  if (request.status !== "PENDING" || !Number.isFinite(created) || !Number.isFinite(start) || !Number.isFinite(endExclusive) || created > time || time >= endExclusive) return [];
   const age = time - created, due: DueReminder[] = [];
   if (request.managerStatus === "PENDING") {
     if (age >= 6 * 3600000) {

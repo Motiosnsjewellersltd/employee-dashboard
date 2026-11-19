@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
 
     const requestsWithConflicts = requests.map(request => {
       const due = dueLeaveReminders(request);
-      const alerts = { managerActionPending: due.some(item => item.kind === "LEAVE_MANAGER_PENDING_24H"), leaveStartingSoon: due.some(item => item.kind === "LEAVE_STARTING_SOON") };
+      const alerts = { managerActionPending: request.status === "PENDING" && request.managerStatus === "PENDING" && Date.now() - new Date(request.createdAt).getTime() >= 24 * 3600000, leaveStartingSoon: due.some(item => item.kind === "LEAVE_STARTING_SOON") };
       if (!conflictPool.length || !request.requester?.department) {
         return { ...request, ...alerts, teamConflictCount: 0, teamConflictNames: [] };
       }
