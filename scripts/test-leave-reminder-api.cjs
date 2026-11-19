@@ -3,11 +3,13 @@ const {fixture,load,rules,now}=require('./test-leave-reminders.cjs');
 (async()=>{
  const jose=await import('jose'),{publicKey,privateKey}=await jose.generateKeyPair('RS256');const jwk=await jose.exportJWK(publicKey);jwk.kid='test';const local=jose.createLocalJWKSet({keys:[jwk]});
  const auth=load('lib/leaveReminderAuth.ts',{jose:{...jose,createRemoteJWKSet:()=>local}});
- const claims={repository:'Motisonsjewellersltd/employee-dashboard',ref:'refs/heads/main',workflow_ref:'Motisonsjewellersltd/employee-dashboard/.github/workflows/leave-reminders.yml@refs/heads/main',event_name:'schedule'};
+ const claims={repository:'Motiosnsjewellersltd/employee-dashboard',ref:'refs/heads/main',workflow_ref:'Motiosnsjewellersltd/employee-dashboard/.github/workflows/leave-reminders.yml@refs/heads/main',event_name:'schedule'};
  async function token(change={},audience='motisons-leave-reminders',expiration='5m') {return new jose.SignJWT({...claims,...change}).setProtectedHeader({alg:'RS256',kid:'test'}).setIssuer('https://token.actions.githubusercontent.com').setAudience(audience).setIssuedAt().setExpirationTime(expiration).sign(privateKey);}
  const request=async(t)=>new Request('https://test/api/leave-reminders',{method:'POST',headers:{authorization:'Bearer '+t}});
- assert.equal(await auth.authenticateLeaveScheduler(await request(await token())),true);
- for(const change of [{repository:'attacker/fork'},{ref:'refs/pull/1/merge'},{workflow_ref:'Motisonsjewellersltd/employee-dashboard/.github/workflows/other.yml@refs/heads/main'},{event_name:'pull_request'}])assert.equal(await auth.authenticateLeaveScheduler(await request(await token(change))),false);
+ assert.equal(await auth.authenticateLeaveScheduler(await request(await token())),true,'actual GitHub repository owner must be accepted');
+ assert.equal(await auth.authenticateLeaveScheduler(await request(await token({repository:'Motisonsjewellersltd/employee-dashboard',workflow_ref:'Motisonsjewellersltd/employee-dashboard/.github/workflows/leave-reminders.yml@refs/heads/main'}))),false,'the old misspelled repository must not be trusted');
+ for(const event_name of ['push','workflow_dispatch'])assert.equal(await auth.authenticateLeaveScheduler(await request(await token({event_name}))),true);
+ for(const change of [{repository:'attacker/fork'},{ref:'refs/pull/1/merge'},{workflow_ref:'Motiosnsjewellersltd/employee-dashboard/.github/workflows/other.yml@refs/heads/main'},{event_name:'pull_request'}])assert.equal(await auth.authenticateLeaveScheduler(await request(await token(change))),false);
  assert.equal(await auth.authenticateLeaveScheduler(await request(await token({},'other-audience'))),false);assert.equal(await auth.authenticateLeaveScheduler(await request(await token({},'motisons-leave-reminders','-1m'))),false);
  const wrongIssuer=await new jose.SignJWT(claims).setProtectedHeader({alg:'RS256',kid:'test'}).setIssuer('https://attacker.invalid').setAudience('motisons-leave-reminders').setIssuedAt().setExpirationTime('5m').sign(privateKey);
  assert.equal(await auth.authenticateLeaveScheduler(await request(wrongIssuer)),false);
@@ -17,6 +19,7 @@ const {fixture,load,rules,now}=require('./test-leave-reminders.cjs');
  const post=(url='http://test/api/leave-reminders')=>endpoint.POST(new Request(url,{method:'POST'}));
  assert.equal((await post()).status,401);session={role:'EMPLOYEE'};assert.equal((await post()).status,403);session={role:'HR'};allow=false;assert.equal((await post()).status,403);session={role:'ADMIN'};allow=true;assert.equal((await endpoint.POST(await request('bad'))).status,401);assert.equal(calls,0);
  assert.equal((await post('http://test/api/leave-reminders?cursor=../bad')).status,400);assert.equal((await post()).status,200);session=null;assert.equal((await endpoint.POST(await request(await token()))).status,200);
+ const health=load('app/api/leave-reminders/health/route.ts');const ready=(await health.GET().json()).version;assert.equal(ready,'leave-reminders-v2');assert.equal(health.GET().headers.get('cache-control'),'no-store');assert(require('node:fs').readFileSync(require('node:path').join(__dirname,'../.github/workflows/leave-reminders.yml'),'utf8').includes(`== '${ready}'`),'workflow must wait for the matching fixed deployment');
  const f=fixture();f.add({id:'request-a'});f.employees.push({id:'outsider',name:'Other',role:'EMPLOYEE',status:'ACTIVE',deletedAt:null,exitDate:null});f.add({id:'request-other',requesterId:'outsider'});
  let initialPush=[];let user={id:'manager',role:'EMPLOYEE',isFloorManager:true};
  class FixedDate extends Date {constructor(...args){super(...(args.length?args:[now.getTime()]));}static now(){return now.getTime();}}

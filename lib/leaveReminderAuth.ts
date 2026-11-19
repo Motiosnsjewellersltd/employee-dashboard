@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
-const repository = "motisonsjewellersltd/employee-dashboard";
+const repository = "motiosnsjewellersltd/employee-dashboard";
 const keys = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"), { timeoutDuration: 5000 });
 export function validLeaveSchedulerClaims(claims: JWTPayload) {
   return String(claims.repository || "").toLowerCase() === repository && claims.ref === "refs/heads/main" &&

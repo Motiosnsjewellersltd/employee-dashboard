@@ -26,12 +26,12 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, os, time, urllib.request, urllib.parse
+          import json, os, time, urllib.request, urllib.parse, urllib.error
           base = 'https://employee-dashboard-five-black.vercel.app'
           for attempt in range(30):
               try:
                   with urllib.request.urlopen(base + '/api/leave-reminders/health', timeout=15) as response:
-                      if json.load(response).get('version') == 'leave-reminders-v1':
+                      if json.load(response).get('version') == 'leave-reminders-v2':
                           break
               except Exception:
                   pass
@@ -50,8 +50,13 @@ jobs:
               print('::add-mask::' + token)
               target = base + '/api/leave-reminders' + ('?' + urllib.parse.urlencode({'cursor': cursor}) if cursor else '')
               request = urllib.request.Request(target, data=b'{}', method='POST', headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
-              with urllib.request.urlopen(request, timeout=80) as response:
-                  result = json.load(response)
+              try:
+                  with urllib.request.urlopen(request, timeout=80) as response:
+                      result = json.load(response)
+              except urllib.error.HTTPError as error:
+                  # Report the failed stage without printing credentials or employee data.
+                  message = 'Scheduler authentication was rejected; verify the deployed repository/workflow identity.' if error.code == 401 else 'Check Vercel logs for /api/leave-reminders at this run time.'
+                  raise SystemExit(f'Reminder API HTTP {error.code}: {message}') from None
               if not result.get('ok'):
                   raise SystemExit('Reminder check failed; re-run the workflow.')
               data = result['data']
