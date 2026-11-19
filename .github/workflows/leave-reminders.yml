@@ -26,12 +26,12 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, os, time, urllib.request, urllib.parse, urllib.error
+          import base64, json, os, re, time, urllib.request, urllib.parse, urllib.error
           base = 'https://employee-dashboard-five-black.vercel.app'
           for attempt in range(30):
               try:
                   with urllib.request.urlopen(base + '/api/leave-reminders/health', timeout=15) as response:
-                      if json.load(response).get('version') == 'leave-reminders-v2':
+                      if json.load(response).get('version') == 'leave-reminders-v3':
                           break
               except Exception:
                   pass
@@ -48,15 +48,34 @@ jobs:
               with urllib.request.urlopen(token_request, timeout=20) as response:
                   token = json.load(response)['value']
               print('::add-mask::' + token)
+              # Diagnostic metadata only. This decode is NOT used for authorization.
+              # Never print the JWT, signature, actor, email, or a complete payload.
+              try:
+                  payload = token.split('.')[1]
+                  claims = json.loads(base64.urlsafe_b64decode(payload + '=' * (-len(payload) % 4)))
+                  names = ('repository', 'ref', 'workflow_ref', 'event_name', 'iss', 'aud', 'iat', 'exp', 'nbf')
+                  safe = {name: claims[name] for name in names if name in claims and isinstance(claims[name], (str, int))}
+                  print('OIDC verification metadata: ' + json.dumps(safe))
+              except Exception:
+                  print('OIDC verification metadata: unavailable')
               target = base + '/api/leave-reminders' + ('?' + urllib.parse.urlencode({'cursor': cursor}) if cursor else '')
               request = urllib.request.Request(target, data=b'{}', method='POST', headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
               try:
                   with urllib.request.urlopen(request, timeout=80) as response:
                       result = json.load(response)
               except urllib.error.HTTPError as error:
-                  # Report the failed stage without printing credentials or employee data.
-                  message = 'Scheduler authentication was rejected; verify the deployed repository/workflow identity.' if error.code == 401 else 'Check Vercel logs for /api/leave-reminders at this run time.'
-                  raise SystemExit(f'Reminder API HTTP {error.code}: {message}') from None
+                  # Only echo bounded error codes, never response bodies or credentials.
+                  details = {}
+                  try:
+                      body = json.load(error)
+                      for name in ('code', 'claim'):
+                          value = body.get(name)
+                          if isinstance(value, str) and re.fullmatch(r'[A-Za-z0-9_]{1,80}', value):
+                              details[name] = value
+                  except Exception:
+                      pass
+                  message = 'Scheduler token rejected' if error.code == 401 else 'Check Vercel logs for /api/leave-reminders at this run time'
+                  raise SystemExit(f'Reminder API HTTP {error.code}: {message}; diagnostics={json.dumps(details)}') from None
               if not result.get('ok'):
                   raise SystemExit('Reminder check failed; re-run the workflow.')
               data = result['data']

@@ -1,13 +1,17 @@
 import { requireSession } from "@/lib/auth";
 import { requireHrPermission } from "@/lib/permissions";
-import { authenticateLeaveScheduler } from "@/lib/leaveReminderAuth";
+import { authenticateLeaveScheduler, type LeaveSchedulerAuthFailure } from "@/lib/leaveReminderAuth";
 import { runLeaveReminders } from "@/lib/leaveReminders";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export async function POST(req: Request) {
   try {
     if (req.headers.has("authorization")) {
-      if (!(await authenticateLeaveScheduler(req))) return Response.json({ ok: false, error: "Unauthorized scheduler." }, { status: 401 });
+      let failure: LeaveSchedulerAuthFailure = { code: "SCHEDULER_TOKEN_REJECTED" };
+      if (!(await authenticateLeaveScheduler(req, reason => { failure = reason; }))) {
+        console.warn("Leave reminder scheduler authentication rejected", failure);
+        return Response.json({ ok: false, error: "Unauthorized scheduler.", ...failure }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
+      }
     } else {
       let session;
       try { session = await requireSession(); } catch { return Response.json({ ok: false, error: "Unauthorized." }, { status: 401 }); }
