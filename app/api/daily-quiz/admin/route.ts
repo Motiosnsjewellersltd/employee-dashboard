@@ -1,8 +1,11 @@
+import { activityForSave, publicGame } from "@/lib/quizActivity";
+import { GAME_LIBRARY, QUESTION_LIBRARY } from "@/lib/quizActivityCatalog";
+import { Prisma } from "@prisma/client";
 import { questionNotificationWhere, quizQuestionReport } from "@/lib/dailyQuizReport";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { quizAccess, quizCandidates, quizLock } from "@/lib/dailyQuiz";
-import { DAILY_QUIZ_KEY, DAILY_QUIZ_LAST_RUN, quizIndiaTime, validQuizDate, validateQuizQuestion, validateQuizSettings } from "@/lib/dailyQuizRules";
+import { DAILY_QUIZ_KEY, DAILY_QUIZ_LAST_RUN, quizIndiaTime, selectedQuizIds, validQuizDate, validateQuizQuestion, validateQuizSettings } from "@/lib/dailyQuizRules";
 export const runtime = "nodejs";
 const reply = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 async function authorize() {
@@ -15,7 +18,7 @@ export async function GET(req?: Request) {
   try {
     const [access, questions, lastRun] = await Promise.all([quizAccess(), prisma.dailyQuizQuestion.findMany({ where: date ? { date } : undefined, orderBy: { date: "desc" }, take: 120, include: { answers: { select: { employeeId: true, selectedIndex: true, isCorrect: true, answeredAt: true, employee: { select: { name: true } } } } } }), prisma.permissionSetting.findUnique({ where: { key: DAILY_QUIZ_LAST_RUN } })]);
     let status = null; try { status = JSON.parse(lastRun?.value || "null"); } catch { /* unavailable */ }
-    return reply({ ok: true, data: { today: quizIndiaTime().date, settings: access.settings, candidates: access.candidates.map(({ id, name, employeeCode, branch }) => ({ id, name, employeeCode, branch })), target: access.target ? { id: access.target.id, name: access.target.name, employeeCode: access.target.employeeCode } : null, questions: questions.map(question => ({ ...question, report: quizQuestionReport(question, access.target ? [{ employeeId: access.target.id, name: access.target.name }] : []) })), lastRun: status } });
+    return reply({ ok: true, data: { today: quizIndiaTime().date, settings: access.settings, candidates: access.candidates.map(({ id, name, employeeCode, branch, department, designation }) => ({ id, name, employeeCode, branch, department, designation })), target: access.target ? { id: access.target.id, name: access.target.name, employeeCode: access.target.employeeCode } : null, catalog: { games: GAME_LIBRARY.map(game => ({ ...game, preview: publicGame(game, "admin-preview") })), questions: QUESTION_LIBRARY }, questions: questions.map(question => ({ ...question, report: quizQuestionReport(question, access.targets.map(person => ({ employeeId: person.id, name: person.name }))) })), lastRun: status } });
   } catch { return reply({ ok: false, error: "Could not load quiz management. Check the quiz database setup." }, 503); }
 }
 export async function POST(req: Request) {
@@ -27,29 +30,37 @@ export async function POST(req: Request) {
       await prisma.$transaction(async tx => {
         await quizLock(tx);
         const candidates = await quizCandidates(tx);
-        if (settings.targetEmployeeId ? !candidates.some(person => person.id === settings.targetEmployeeId) : settings.enabled && candidates.length !== 1) throw new Error("Select the correct active Ghanshyam Jangir employee profile. Other employees cannot be selected.");
-        if (!settings.targetEmployeeId && candidates.length === 1) settings.targetEmployeeId = candidates[0].id;
+        const ids = selectedQuizIds(settings);
+        if (ids.some(id => !candidates.some(person => person.id === id))) throw new Error("Select eligible active employees; Driver, Security, Pantry and HR cannot be selected.");
+        // Explicitly empty means nobody. Keep legacy single-selection data compatible.
+        settings.selectedEmployeeIds = ids;
+        settings.targetEmployeeId = ids[0] || "";
+        const audience = candidates.filter(person => ids.includes(person.id)).map(person => ({ employeeId: person.id, name: person.name }));
+        // Selection changes apply to today's/future published activities, preserving answer versions.
+        await tx.$executeRaw(Prisma.sql`UPDATE "DailyQuizQuestion" SET "audience" = ${JSON.stringify(audience)}::jsonb WHERE "date" >= ${quizIndiaTime().date} AND "isPublished" = true`);
         await tx.permissionSetting.upsert({ where: { key: DAILY_QUIZ_KEY }, create: { key: DAILY_QUIZ_KEY, value: JSON.stringify(settings) }, update: { value: JSON.stringify(settings) } });
         await tx.activityLog.create({ data: { actorId: session.id, actorName: session.name, action: "UPDATE_DAILY_QUIZ_PILOT_SETTINGS", target: settings.targetEmployeeId || "daily-quiz", details: JSON.stringify(settings) } });
       });
       return reply({ ok: true, data: { settings } });
     }
     if (body?.action === "question") {
-      const data = validateQuizQuestion(body.question);
+      const activity = activityForSave(body.question?.activity);
+      const data = validateQuizQuestion(activity?.type === "game" ? { ...body.question, question: activity.definition.title, options: ["Game complete", "Try again", "Not played"], correctIndex: 0, explanation: "Game result" } : body.question);
       const id = typeof body.id === "string" ? body.id : "";
       if (id && !/^[a-zA-Z0-9_-]{1,100}$/.test(id)) throw new Error("Invalid question.");
       if (!id && data.date < quizIndiaTime().date) throw new Error("Past questions cannot be created.");
       const question = await prisma.$transaction(async tx => {
         await quizLock(tx);
         const access = data.isPublished ? await quizAccess(tx) : null;
-        if (data.isPublished && (!access?.settings.targetEmployeeId || !access.target)) throw new Error("Select and save the correct test employee in Settings before publishing.");
+        if (data.isPublished && (!access?.targets.length)) throw new Error("Select and save eligible employees in Settings before publishing.");
         if (id) {
           const current = await tx.dailyQuizQuestion.findUnique({ where: { id }, include: { _count: { select: { answers: true } } } });
           if (!current) throw new Error("Question not found.");
           if (current._count.answers) throw new Error("An answered question cannot be edited. Use View or Delete.");
         }
-        const audience = access?.target ? [{ employeeId: access.target.id, name: access.target.name }] : [];
-        const saved = id ? await tx.dailyQuizQuestion.update({ where: { id }, data: { ...data, audience } }) : await tx.dailyQuizQuestion.create({ data: { ...data, audience, createdById: session.id } });
+        if (id) await tx.dailyQuizGameAttempt.deleteMany({ where: { questionId: id } });
+        const audience = access?.targets.map(person => ({ employeeId: person.id, name: person.name })) || [];
+        const saved = id ? await tx.dailyQuizQuestion.update({ where: { id }, data: { ...data, audience, activity: activity ? JSON.parse(JSON.stringify(activity)) : Prisma.DbNull } }) : await tx.dailyQuizQuestion.create({ data: { ...data, audience, activity: activity ? JSON.parse(JSON.stringify(activity)) : Prisma.DbNull, createdById: session.id } });
         await tx.activityLog.create({ data: { actorId: session.id, actorName: session.name, action: id ? "UPDATE_DAILY_QUIZ_QUESTION" : "CREATE_DAILY_QUIZ_QUESTION", target: saved.id, details: JSON.stringify(data) } });
         return saved;
       });

@@ -1,0 +1,12 @@
+"use client";
+import { useState } from "react";
+import type { GameDefinition, PublicGame, QuestionTemplate } from "@/lib/quizActivityTypes";
+import QuizGame from "./QuizGame";
+import styles from "./QuizGame.module.css";
+type Props = { type: "question" | "game"; games: (GameDefinition & { preview: PublicGame })[]; questions: QuestionTemplate[]; gameId: string; disabled: boolean; onGame: (id: string) => void; onQuestion: (question: QuestionTemplate) => void };
+export default function QuizLibraryPicker({ type, games, questions, gameId, disabled, onGame, onQuestion }: Props) {
+  const [search, setSearch] = useState(""), [category, setCategory] = useState("");
+  const game = games.find(g => g.id === gameId), filtered = questions.filter(q => (!category || q.category === category) && `${q.question} ${q.category}`.toLowerCase().includes(search.toLowerCase()));
+  if (type === "game") return <div className={styles.library}><label>Game Library · {games.length} games<select value={gameId} disabled={disabled} onChange={e => onGame(e.target.value)}>{["pairs", "shape", "rapid", "customer", "memory"].map(kind => <optgroup key={kind} label={{ pairs: "Match the Pair", shape: "Shape पहचानो", rapid: "60-second Rapid Fire", customer: "Customer Challenge", memory: "Memory Match" }[kind]}>{games.filter(g => g.kind === kind).map(g => <option key={g.id} value={g.id}>{g.icon} {g.title}</option>)}</optgroup>)}</select></label>{game && <div className={styles.preview}><p className={styles.previewLabel}>Preview · employee result save नहीं होगा</p><QuizGame key={game.id} preview={game.preview} /></div>}</div>;
+  return <div className={styles.library}><b>Question Library · {questions.length} ready questions</b><label>Category<select value={category} disabled={disabled} onChange={e => setCategory(e.target.value)}><option value="">All Categories</option>{[...new Set(questions.map(q => q.category))].map(c => <option key={c}>{c}</option>)}</select></label><label>Search<input type="search" value={search} disabled={disabled} placeholder="Gold, Diamond, Customer…" onChange={e => setSearch(e.target.value)} /></label><label>Choose ready question<select value="" disabled={disabled} onChange={e => { const q = questions.find(q => q.id === e.target.value); if (q) onQuestion(q); }}><option value="">Custom question / Select from library</option>{filtered.map(q => <option key={q.id} value={q.id}>{q.id.toUpperCase()} · {q.question}</option>)}</select></label><span className={styles.hint}>चुनने के बाद नीचे question, options और explanation edit कर सकते हैं।</span></div>;
+}

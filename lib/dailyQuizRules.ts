@@ -8,7 +8,7 @@ export const DEFAULT_QUIZ_MESSAGES = [
   "💡 आज का जवाब अभी बाकी है। अपनी jewellery knowledge आज़माएँ!",
   "🔔 आज का Jewellery सवाल भूल तो नहीं गए? अभी जवाब दें।"
 ];
-export type QuizSettings = { enabled: boolean; notificationsEnabled: boolean; targetEmployeeId: string; intervalMinutes: number; startHour: number; endHour: number; messages: string[] };
+export type QuizSettings = { enabled: boolean; notificationsEnabled: boolean; targetEmployeeId: string; selectedEmployeeIds?: string[]; intervalMinutes: number; startHour: number; endHour: number; messages: string[] };
 export const DEFAULT_QUIZ_SETTINGS: QuizSettings = { enabled: true, notificationsEnabled: true, targetEmployeeId: "", intervalMinutes: 60, startHour: 10, endHour: 20, messages: DEFAULT_QUIZ_MESSAGES };
 export function isQuizPreviewName(name: unknown) { return String(name || "").trim().replace(/\s+/g, " ").toLowerCase() === "ghanshyam jangir"; }
 export function quizIndiaTime(now = new Date()) {
@@ -27,7 +27,8 @@ export function validateQuizSettings(input: unknown): QuizSettings {
   if (!data || typeof data.enabled !== "boolean" || typeof data.notificationsEnabled !== "boolean" || typeof data.targetEmployeeId !== "string" || (data.targetEmployeeId !== "" && !/^[a-zA-Z0-9_-]{1,100}$/.test(data.targetEmployeeId)) || ![30,60,120,180].includes(Number(data.intervalMinutes)) || !Number.isInteger(data.startHour) || !Number.isInteger(data.endHour) || data.startHour! < 0 || data.endHour! > 24 || data.startHour! >= data.endHour!) throw new Error("Select valid quiz settings and notification hours (IST).");
   if (!Array.isArray(data.messages) || data.messages.length < 2 || data.messages.length > 20 || data.messages.some(message => typeof message !== "string" || !message.trim() || message.trim().length > 300)) throw new Error("Enter 2–20 notification messages, each up to 300 characters.");
   if (new Set(data.messages.map(message => message.trim())).size < 2) throw new Error("Enter at least two different notification messages.");
-  return { enabled: data.enabled, notificationsEnabled: data.notificationsEnabled, targetEmployeeId: data.targetEmployeeId, intervalMinutes: Number(data.intervalMinutes), startHour: data.startHour!, endHour: data.endHour!, messages: [...new Set(data.messages.map(message => message.trim()))] };
+  if (data.selectedEmployeeIds !== undefined && (!Array.isArray(data.selectedEmployeeIds) || data.selectedEmployeeIds.length > 5000 || data.selectedEmployeeIds.some(id => typeof id !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(id)))) throw new Error("Select valid employees.");
+  return { ...(data.selectedEmployeeIds !== undefined ? { selectedEmployeeIds: [...new Set(data.selectedEmployeeIds)] } : {}), enabled: data.enabled, notificationsEnabled: data.notificationsEnabled, targetEmployeeId: data.targetEmployeeId, intervalMinutes: Number(data.intervalMinutes), startHour: data.startHour!, endHour: data.endHour!, messages: [...new Set(data.messages.map(message => message.trim()))] };
 }
 export function validateQuizQuestion(input: unknown) {
   const data = input as Record<string, unknown>;
@@ -50,4 +51,13 @@ export function quizNotificationVisibility(role: string, _employeeId: string, _n
     { filterValue: null },
     { NOT: { filterValue: { startsWith: "DAILY_JEWELLERY_QUIZ:" } } }
   ] };
+}
+
+export function quizEligibleEmployee(person: { role: string; status: string; deletedAt?: unknown; exitDate?: unknown; department?: string | null; designation?: string | null }) {
+  if (person.role !== "EMPLOYEE" || person.status !== "ACTIVE" || person.deletedAt || person.exitDate) return false;
+  const text = `${person.department || ""} ${person.designation || ""}`.toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, " ");
+  return !(/\b(drivers?|driving|security|securtiy|securty|pantry|pantery|hr)\b|\bh r\b|\bhuman resources?\b|मानव संसाधन|ड्राइवर|सिक्योरिटी|सुरक्षा|पैंट्री/.test(text));
+}
+export function selectedQuizIds(settings: QuizSettings) {
+  return settings.selectedEmployeeIds !== undefined ? settings.selectedEmployeeIds : settings.targetEmployeeId ? [settings.targetEmployeeId] : [];
 }

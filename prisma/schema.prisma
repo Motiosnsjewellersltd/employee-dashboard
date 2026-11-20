@@ -94,6 +94,7 @@ model Employee {
   registeredDevices        DeviceBinding[]
   assetHandovers           AssetHandover[]
   dailyQuizAnswers         DailyQuizAnswer[]
+  dailyQuizGameAttempts    DailyQuizGameAttempt[]
 
   @@index([name])
   @@index([role])
@@ -613,6 +614,8 @@ model DailyQuizQuestion {
   answers DailyQuizAnswer[]
   audience Json?
   notificationsStartedAt DateTime?
+  activity Json?
+  gameAttempts DailyQuizGameAttempt[]
 }
 model DailyQuizAnswer {
   id String @id @default(cuid())
@@ -625,4 +628,17 @@ model DailyQuizAnswer {
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   @@unique([questionId, employeeId])
   @@index([employeeId, answeredAt])
+  gameResult Json?
+}
+
+model DailyQuizGameAttempt {
+  id String @id @default(cuid())
+  questionId String
+  employeeId String
+  version String
+  startedAt DateTime @default(now())
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  question DailyQuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  @@unique([questionId, employeeId])
+  @@index([employeeId])
 }

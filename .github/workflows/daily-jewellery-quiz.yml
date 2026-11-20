@@ -1,4 +1,4 @@
-name: Daily Jewellery Quiz pilot notifications
+name: Daily Jewellery Quiz notifications
 on:
   schedule:
     - cron: '13,43 * * * *'
@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/daily-jewellery-quiz.yml'
       - 'lib/dailyQuiz*'
+      - 'lib/quizActivity*'
       - 'app/api/daily-quiz/**'
 permissions:
   id-token: write
@@ -20,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Wait for quiz deployment and check the test employee reminder
+      - name: Wait for quiz deployment and check selected employee reminders
         shell: bash
         run: |
           python3 - <<'PYTHON'
@@ -29,7 +30,7 @@ jobs:
           for attempt in range(30):
               try:
                   with urllib.request.urlopen(base + '/api/daily-quiz/health', timeout=15) as response:
-                      if json.load(response).get('version') == 'daily-jewellery-quiz-pilot-v1':
+                      if json.load(response).get('version') == 'daily-jewellery-quiz-games-v2':
                           break
               except Exception:
                   pass

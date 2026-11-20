@@ -2,7 +2,6 @@
 
 import AdminDailyJewelleryQuiz from "./AdminDailyJewelleryQuiz";
 import DailyJewelleryQuiz from "./DailyJewelleryQuiz";
-import { isQuizPreviewName } from "@/lib/dailyQuizRules";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isHalfDay, leaveDayTypeLabel } from "@/lib/leaveDayType";
 import NotificationDelivery from "./NotificationDelivery";
@@ -405,7 +404,7 @@ function initialSection(user: User): Section {
   "notifications",
   "chat"
 ];
-  if (requested === "dailyQuiz" && (user.role === "ADMIN" || (user.role === "EMPLOYEE" && isQuizPreviewName(user.name)))) return requested;
+  if (requested === "dailyQuiz" && (user.role === "ADMIN" || user.role === "EMPLOYEE")) return requested;
   if (requested === "assetHandover" && user.role !== "EMPLOYEE") return requested;
   if (requested && common.includes(requested)) return requested;
   return fallback;
@@ -1683,8 +1682,8 @@ floorTeam: "My Team",
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "assetHandover" && showAssetHandover && <AssetHandover employees={employeeRows} />}
       {section === "dailyQuiz" && session.role === "ADMIN" && <AdminDailyJewelleryQuiz />}
-      {section === "dailyQuiz" && session.role === "EMPLOYEE" && isQuizPreviewName(session.name) && <DailyJewelleryQuiz standalone onDone={quizReturnHome} />}
-      {section === "profile" && session.role === "EMPLOYEE" && isQuizPreviewName(session.name) && <DailyJewelleryQuiz onDone={quizReturnHome} />}
+      {section === "dailyQuiz" && session.role === "EMPLOYEE" && <DailyJewelleryQuiz standalone onDone={quizReturnHome} />}
+      {section === "profile" && session.role === "EMPLOYEE" && <DailyJewelleryQuiz onDone={quizReturnHome} />}
       {section === "incentiveReports" && session.role === "ADMIN" && <AdminIncentiveReports />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}

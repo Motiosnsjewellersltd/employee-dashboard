@@ -1,0 +1,48 @@
+.game { color: #083252; font-size: 1rem; overflow-wrap: anywhere; }
+.game h3 { margin: 12px 0; color: #075f9e; font-size: 1.3rem; }
+.meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 12px 0; font-weight: 700; }
+.timer { background: #e5f5ff; border: 1px solid #a8d8f5; border-radius: 100px; padding: 8px 16px; font-variant-numeric: tabular-nums; }
+.timerLow { background: #fff1ed; color: #a63d30; }
+.progress { height: 7px; background: #e4f2fc; border-radius: 12px; margin: 8px 0 18px; overflow: hidden; }
+.progress span { display: block; background: #168ed7; height: 100%; }
+.options { display: grid; gap: 10px; margin: 14px 0; }
+.options button, .tile { box-sizing: border-box; width: 100%; min-height: 50px; border: 1px solid #b8daf0; border-radius: 14px; padding: 12px; font: inherit; font-weight: 600; color: #073451; background: #f5fbff; cursor: pointer; overflow-wrap: anywhere; }
+.options button { text-align: left; }
+.options .selected, .selected { background: #e1f2ff; border: 2px solid #3c9ddd; }
+.game button:focus-visible { outline: 3px solid #167cbe; outline-offset: 3px; }
+.game button:disabled { cursor: default; opacity: .75; }
+.pairs { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+.column { display: grid; gap: 10px; align-content: start; }
+.tile { text-align: center; min-height: 70px; font-size: .95rem; }
+.linked { background: #e9f7f1; border-color: #8fceb2; }
+.pairMark { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; background: #08699c; color: white; border-radius: 50%; font-size: .85rem; margin-right: 6px; }
+.memory { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 15px 0; }
+.card { position: relative; aspect-ratio: 1; padding: 5px; min-width: 0; border: 1px solid #acd5ef; border-radius: 14px; color: #087aba; background: #eef8ff; font-size: 2.2rem; cursor: pointer; }
+.card.matched { background: #edfaf3; border: 2px solid #83cca6; }
+.jewelleryPhoto { display: block; width: 100%; height: 100%; background-size: 400% 300%; border-radius: 10px; }
+.diamondPhoto { width: min(230px,100%); aspect-ratio: 1; background-size: 300% 200%; margin: 12px auto; border-radius: 16px; border: 1px solid #d2e8f6; }
+.customerScene { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid #b8daf0; border-radius: 18px; background: #f3faff; }
+.lady { width: 95px; max-width: 30%; height: auto; object-fit: contain; border-radius: 14px; }
+.speech { flex: 1; min-width: 0; background: #e5f3ff; border: 1px solid #acd5ef; border-radius: 16px; padding: 12px; line-height: 1.6; font-weight: 600; }
+.symbol { display: block; text-align: center; font-size: 2.8rem; margin: 8px; }
+.preview { border: 1px solid #c0e1f5; border-radius: 18px; padding: 18px; margin: 12px 0; background: #fbfdff; }
+.previewLabel { font-size: .9rem; color: #4e6f89; margin: 0 0 10px; }
+.types { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 18px 0; }
+.types button { padding: 22px; font: inherit; font-weight: 700; font-size: 1.1rem; background: #f0f9ff; color: #075f9e; border: 1px solid #b1d9f2; border-radius: 16px; cursor: pointer; }
+.types span { display: block; font-size: 2.3rem; margin-bottom: 7px; }
+.library { display: grid; gap: 10px; padding: 14px; border: 1px solid #c8e5f7; background: #f5fbff; border-radius: 14px; }
+.game .submit { width: 100%; margin-top: 14px; }
+.hint { font-size: .9rem; color: #506f87; line-height: 1.6; }
+@media(max-width:480px) { .preview { padding: 12px; } .tile { padding: 10px 6px; } .speech { padding: 9px; } .memory { gap: 8px; } .customerScene { gap: 5px; padding: 6px; } }
+@media(prefers-reduced-motion:no-preference) { .card { transition: background .2s, border-color .2s; } }
+
+.character { display: block; flex: 0 0 95px; max-width: 30%; aspect-ratio: 1; background-size: 300% 100%; border-radius: 12px; }
+.audience { border: 1px solid #b8daf0; border-radius: 12px; background: #fbfdff; }
+.audience summary { cursor: pointer; padding: 13px; color: #075f9e; font-weight: 700; }
+.audienceBody { display: grid; gap: 12px; padding: 0 13px 13px; }
+.audienceActions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.audienceActions label, .employeeList label { display: flex !important; align-items: center; gap: 10px; }
+.audience input[type=checkbox] { width: 19px !important; min-width: 19px; height: 19px; margin: 0; flex: 0 0 19px; }
+.employeeList { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid #e0eef7; }
+.employeeList label { padding: 12px 0; border-bottom: 1px solid #e0eef7; font-size: 1rem; }
+.employeeList small { display: block; color: #54718a; font-size: .875rem; margin-top: 4px; font-weight: 400; }

@@ -1,9 +1,12 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import QuizGame from "./QuizGame";
+import { CustomerScene, QuizSymbol } from "./QuizArtwork";
+import type { QuizVisual, GameResult } from "@/lib/quizActivityTypes";
 import QuizAnswerAnimation from "./QuizAnswerAnimation";
 import FourDotsLoader from "./FourDotsLoader";
 import styles from "./DailyJewelleryQuiz.module.css";
-type Quiz = { id: string; version: string; date: string; question: string; options: string[]; canAnswer: boolean; correctIndex?: number; explanation?: string; answer: { selectedIndex: number; isCorrect: boolean; answeredAt: string } | null };
+type Quiz = { activity?: { type: "question"; visual: QuizVisual } | { type: "game"; gameId: string; title: string; icon: string }; gameResult?: GameResult; id: string; version: string; date: string; question: string; options: string[]; canAnswer: boolean; correctIndex?: number; explanation?: string; answer: { selectedIndex: number; isCorrect: boolean; answeredAt: string } | null };
 function QuizPopup({ children, result = false, onDismiss, saving = false }: { children: ReactNode; result?: boolean; onDismiss: () => void; saving?: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null), dismiss = useRef(onDismiss), busy = useRef(saving);
   dismiss.current = onDismiss; busy.current = saving;
@@ -78,18 +81,19 @@ export default function DailyJewelleryQuiz({ standalone = false, onDone }: { sta
   if (resultQuiz?.answer) return <QuizPopup key="result" result onDismiss={finish}>
     {animation && <QuizAnswerAnimation key={animation.token} correct={animation.correct} />}
     <div className={styles.quizDialogBody}><div className={styles.resultIcon} aria-hidden="true">{resultQuiz.answer.isCorrect ? "🎉" : "😔"}</div>
-      <h2>{resultQuiz.answer.isCorrect ? "सही जवाब!" : "इस बार जवाब गलत है"}</h2>
-      {resultQuiz.correctIndex !== undefined && <p className={styles.answerText}><b>सही जवाब:</b> {resultQuiz.options[resultQuiz.correctIndex]}</p>}
-      {resultQuiz.explanation && <p className={styles.explanation}>{resultQuiz.explanation}</p>}
+      <h2>{resultQuiz.activity?.type === "game" ? resultQuiz.answer.isCorrect ? "बहुत बढ़िया!" : "अगली बार और बेहतर!" : resultQuiz.answer.isCorrect ? "सही जवाब!" : "इस बार जवाब गलत है"}</h2>
+      {resultQuiz.activity?.type === "game" && resultQuiz.gameResult && <p className={styles.answerText}>{resultQuiz.gameResult.summary}</p>}
+      {resultQuiz.activity?.type !== "game" && resultQuiz.correctIndex !== undefined && <p className={styles.answerText}><b>सही जवाब:</b> {resultQuiz.options[resultQuiz.correctIndex]}</p>}
+      {resultQuiz.activity?.type !== "game" && resultQuiz.explanation && <p className={styles.explanation}>{resultQuiz.explanation}</p>}
       <button type="button" className={`primary ${styles.okButton}`} autoFocus onClick={finish}>OK</button>
     </div>
   </QuizPopup>;
   if (!visible) return null;
   return <QuizPopup key="question" onDismiss={finish} saving={saving}><div className={styles.quizDialogBody}>
-    <div className={styles.header}><div><h2>💎 आज का Jewellery सवाल</h2>{quiz && <span className={styles.date}>{quiz.date.split("-").reverse().join("/")}</span>}</div><button className="light small" type="button" disabled={saving} onClick={finish} aria-label="Close quiz and return home">×</button></div>
+    <div className={styles.header}><div><h2>{quiz?.activity?.type === "game" ? "🎮 आज का Jewellery Game" : "💎 आज का Jewellery सवाल"}</h2>{quiz && <span className={styles.date}>{quiz.date.split("-").reverse().join("/")}</span>}</div><button className="light small" type="button" disabled={saving} onClick={finish} aria-label="Close quiz and return home">×</button></div>
     {loading && <FourDotsLoader label="Loading quiz…" />}
     {error && <p className={styles.error} role="alert">{error}</p>}
-    {quiz && <><p className={styles.question}>{quiz.question}</p><div className={styles.options}>{quiz.options.map((option, index) => <button type="button" key={index} aria-pressed={selected === index} disabled={saving} onClick={() => setSelected(index)} className={`${styles.option} ${selected === index ? styles.selected : ""}`}><b>{String.fromCharCode(65 + index)}.</b><span>{option}</span></button>)}</div>
+    {quiz?.activity?.type === "game" ? <QuizGame key={`${quiz.id}:${quiz.version}`} questionId={quiz.id} version={quiz.version} title={quiz.activity.title} onBusy={setSaving} onComplete={value => { setSaving(false); const saved = value as Quiz; if (!saved.answer) { setError("Game confirmation unavailable. Refresh to check your result."); return; } completedIds.current.add(saved.id); resultOpen.current = true; setQuiz(saved); setResultQuiz(saved); setAnimation({ correct: saved.answer.isCorrect, token: Date.now() }); }} /> : quiz && <>{quiz.activity?.type === "question" && ["customer", "man", "child", "cartoon"].includes(quiz.activity.visual) ? <CustomerScene text={quiz.question} character={quiz.activity?.type === "question" && quiz.activity.visual !== "customer" ? quiz.activity.visual as "man" | "child" | "cartoon" : "lady"} /> : <><QuizSymbol visual={quiz.activity?.type === "question" ? quiz.activity.visual : "diamond"} /><p className={styles.question}>{quiz.question}</p></>}<div className={styles.options}>{quiz.options.map((option, index) => <button type="button" key={index} aria-pressed={selected === index} disabled={saving} onClick={() => setSelected(index)} className={`${styles.option} ${selected === index ? styles.selected : ""}`}><b>{String.fromCharCode(65 + index)}.</b><span>{option}</span></button>)}</div>
       <button type="button" className="primary" disabled={selected === null || saving} onClick={() => void answer()}>{saving ? "Submitting…" : "जवाब Submit करें"}</button></>}
     {error && <button className="light" type="button" disabled={saving} onClick={() => setRefresh(value => value + 1)}>Refresh</button>}
   </div></QuizPopup>;

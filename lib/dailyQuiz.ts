@@ -1,41 +1,47 @@
+import { parseActivity } from "@/lib/quizActivity";
 import { questionNotificationWhere, quizAudienceAllows } from "@/lib/dailyQuizReport";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendPushToEmployees } from "@/lib/webPush";
-import { DAILY_QUIZ_KEY, DAILY_QUIZ_LAST_RUN, isQuizPreviewName, parseQuizSettings, quizIndiaTime, quizNotificationSlot, type QuizSettings } from "@/lib/dailyQuizRules";
+import { DAILY_QUIZ_KEY, DAILY_QUIZ_LAST_RUN, quizEligibleEmployee, selectedQuizIds, parseQuizSettings, quizIndiaTime, quizNotificationSlot, type QuizSettings } from "@/lib/dailyQuizRules";
 export type QuizDb = Prisma.TransactionClient;
 export async function quizLock(db: QuizDb) {
   // Keep the transaction lock, but return a supported integer rather than PostgreSQL void.
   await db.$queryRaw(Prisma.sql`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(649102601)`);
 }
 export async function quizCandidates(db: QuizDb = prisma) {
-  const rows = await db.employee.findMany({ where: { role: "EMPLOYEE", status: "ACTIVE", deletedAt: null, exitDate: null, name: { contains: "ghanshyam", mode: "insensitive" } }, select: { id: true, name: true, role: true, employeeCode: true, branch: true, status: true, deletedAt: true, exitDate: true }, take: 50 });
-  return rows.filter(row => row.role === "EMPLOYEE" && row.status === "ACTIVE" && !row.deletedAt && !row.exitDate && isQuizPreviewName(row.name));
+  const rows = await db.employee.findMany({ where: { role: "EMPLOYEE", status: "ACTIVE", deletedAt: null, exitDate: null }, select: { id: true, name: true, role: true, employeeCode: true, branch: true, department: true, designation: true, status: true, deletedAt: true, exitDate: true }, orderBy: [{ department: "asc" }, { name: "asc" }] });
+  return rows.filter(quizEligibleEmployee);
 }
 export async function quizAccess(db: QuizDb = prisma) {
   const [row, candidates] = await Promise.all([db.permissionSetting.findUnique({ where: { key: DAILY_QUIZ_KEY } }), quizCandidates(db)]);
-  const settings = parseQuizSettings(row?.value);
-  // Never substitute another employee if a stored target disappears or changes role/name.
-  const target = settings.targetEmployeeId ? candidates.find(person => person.id === settings.targetEmployeeId) || null : candidates.length === 1 ? candidates[0] : null;
-  return { settings, candidates, target };
+  const settings = parseQuizSettings(row?.value), ids = new Set(selectedQuizIds(settings));
+  const targets = candidates.filter(person => ids.has(person.id));
+  return { settings, candidates, targets, target: targets[0] || null };
 }
-export function publicQuizQuestion(question: { id: string; date: string; updatedAt: Date; question: string; options: Prisma.JsonValue; correctIndex: number; explanation: string }, answer: { selectedIndex: number; isCorrect: boolean; answeredAt: Date } | null, today: string) {
-  return { id: question.id, date: question.date, version: question.updatedAt.toISOString(), question: question.question, options: question.options, canAnswer: question.date === today && !answer, answer: answer ? { selectedIndex: answer.selectedIndex, isCorrect: answer.isCorrect, answeredAt: answer.answeredAt } : null, ...(answer || question.date < today ? { correctIndex: question.correctIndex, explanation: question.explanation } : {}) };
+
+export function publicQuizQuestion(question: { id: string; date: string; updatedAt: Date; question: string; options: Prisma.JsonValue; correctIndex: number; explanation: string; activity?: Prisma.JsonValue }, answer: { selectedIndex: number; isCorrect: boolean; answeredAt: Date; gameResult?: Prisma.JsonValue } | null, today: string) {
+  const activity = parseActivity(question.activity);
+  const activityView = activity?.type === "game" ? { type: "game", gameId: activity.definition.id, title: activity.definition.title, icon: activity.definition.icon } : activity;
+  return { activity: activityView, ...(answer?.gameResult ? { gameResult: answer.gameResult } : {}), id: question.id, date: question.date, version: question.updatedAt.toISOString(), question: question.question, options: question.options, canAnswer: question.date === today && !answer, answer: answer ? { selectedIndex: answer.selectedIndex, isCorrect: answer.isCorrect, answeredAt: answer.answeredAt } : null, ...(answer || question.date < today ? { correctIndex: question.correctIndex, explanation: question.explanation } : {}) };
 }
 export async function runDailyQuizNotifications({ now = new Date(), manual = false, questionId = "" }: { now?: Date; manual?: boolean; questionId?: string } = {}) {
   const result = await prisma.$transaction(async tx => {
     await quizLock(tx);
-    const { settings, target } = await quizAccess(tx);
+    const { settings, targets } = await quizAccess(tx);
     if (!settings.enabled || !settings.notificationsEnabled) return { sent: 0, started: false, reason: "Quiz or notifications are paused." };
-    if (!settings.targetEmployeeId || !target) return { sent: 0, started: false, reason: "No eligible Ghanshyam Jangir profile is selected." };
+    if (!targets.length) return { sent: 0, started: false, reason: "No eligible employees are selected." };
     const current = quizIndiaTime(now), scheduled = quizNotificationSlot(settings, now);
     const question = await tx.dailyQuizQuestion.findUnique({ where: manual ? { id: questionId } : { date: current.date } });
     if (!question?.isPublished) return { sent: 0, started: false, reason: "A published question is required." };
     if (question.date < current.date) return { sent: 0, started: false, reason: "Notifications cannot start for a past question." };
-    if (!quizAudienceAllows(question.audience, target.id)) return { sent: 0, started: false, reason: "The selected employee is not in this question audience." };
-    const answer = await tx.dailyQuizAnswer.findUnique({ where: { questionId_employeeId: { questionId: question.id, employeeId: target.id } } });
-    if (answer) return { sent: 0, started: Boolean(question.notificationsStartedAt), reason: "This question is already answered; reminders stopped." };
+    const audience = targets.filter(person => quizAudienceAllows(question.audience, person.id));
+    if (!audience.length) return { sent: 0, started: false, reason: "The selected employees are not in this question audience." };
+    const answers = await tx.dailyQuizAnswer.findMany({ where: { questionId: question.id }, select: { employeeId: true } });
+    const answered = new Set(answers.map(answer => answer.employeeId));
+    const unanswered = audience.filter(person => !answered.has(person.id));
+    if (!unanswered.length) return { sent: 0, started: Boolean(question.notificationsStartedAt), reason: "This question is already answered; reminders stopped." };
     if (manual && question.notificationsStartedAt) return { sent: 0, started: true, reason: "Notifications are already started for this question." };
     if (!manual && !question.notificationsStartedAt) return { sent: 0, started: false, reason: "Waiting for Admin to click Send / Check Now on this question." };
     if (!manual && !scheduled) return { sent: 0, started: true, reason: "Outside notification hours (IST)." };
@@ -43,28 +49,37 @@ export async function runDailyQuizNotifications({ now = new Date(), manual = fal
       await tx.dailyQuizQuestion.update({ where: { id: question.id }, data: { notificationsStartedAt: now, updatedAt: question.updatedAt } });
       return { sent: 0, started: true, reason: `Notifications enabled for ${question.date}; first check runs on that date during the configured hours.` };
     }
-    const latest = await tx.notificationBlast.findFirst({ where: { ...questionNotificationWhere(question.id, question.date), recipients: { some: { employeeId: target.id } } }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
-    if (manual && latest) {
-      // A notice saved by the old deployment is already the first send. Do not duplicate it.
-      await tx.dailyQuizQuestion.update({ where: { id: question.id }, data: { notificationsStartedAt: latest.createdAt, updatedAt: question.updatedAt } });
-      return { sent: 0, started: true, reason: "An existing notification was found; future reminders are now enabled." };
+    const notices = await tx.notificationBlast.findMany({ where: questionNotificationWhere(question.id, question.date), orderBy: { createdAt: "desc" }, select: { createdAt: true, recipients: { select: { employeeId: true } } } });
+    const latest = new Map<string, Date>();
+    for (const notice of notices) for (const recipient of notice.recipients) if (!latest.has(recipient.employeeId)) latest.set(recipient.employeeId, notice.createdAt);
+    const due = unanswered.filter(person => { const last = latest.get(person.id); return manual ? !last : !last || now.getTime() - last.getTime() >= settings.intervalMinutes * 60000; });
+    if (!due.length) {
+      if (manual) await tx.dailyQuizQuestion.update({ where: { id: question.id }, data: { notificationsStartedAt: now, updatedAt: question.updatedAt } });
+      return { sent: 0, started: true, reason: manual ? "An existing notification was found; future reminders are now enabled." : "Notification gap has not elapsed." };
     }
-    if (!manual && latest && now.getTime() - latest.createdAt.getTime() < settings.intervalMinutes * 60000) return { sent: 0, started: true, reason: "Notification gap has not elapsed." };
-    const bucket = Math.floor(now.getTime() / 1800000);
-    const id = "daily-quiz-" + createHash("sha256").update(manual ? `first:${question.id}:${target.id}` : `${question.id}:${target.id}:${bucket}`).digest("hex");
+    const targetIds = due.map(person => person.id).sort(), bucket = Math.floor(now.getTime() / 1800000);
+    const id = "daily-quiz-" + createHash("sha256").update(manual ? `first:${question.id}:${targetIds.join(",")}` : `${question.id}:${targetIds.join(",")}:${bucket}`).digest("hex");
     if (await tx.notificationBlast.findUnique({ where: { id }, select: { id: true } })) return { sent: 0, started: true, reason: "This notification is already recorded." };
-    const index = manual || !latest ? 0 : scheduled ? scheduled.slot % settings.messages.length : bucket % settings.messages.length;
-    const text = settings.messages[index];
-    await tx.notificationBlast.create({ data: { id, type: "NOTICE", text, filterType: "SYSTEM", filterValue: `DAILY_JEWELLERY_QUIZ:${question.date}:${question.id}`, createdById: question.createdById, createdAt: now, recipients: { create: [{ employeeId: target.id, clearedAt: now }] } } });
+    const index = manual || !latest.size ? 0 : scheduled ? scheduled.slot % settings.messages.length : bucket % settings.messages.length;
+    const isGame = parseActivity(question.activity)?.type === "game";
+    const text = isGame ? settings.messages[index].replace(/सवाल/g, "game").replace(/question|quiz/gi, "game") : settings.messages[index];
+    await tx.notificationBlast.create({ data: { id, type: "NOTICE", text, filterType: "SYSTEM", filterValue: `DAILY_JEWELLERY_QUIZ:${question.date}:${question.id}`, createdById: question.createdById, createdAt: now, recipients: { create: targetIds.map(employeeId => ({ employeeId, clearedAt: now })) } } });
     if (manual) await tx.dailyQuizQuestion.update({ where: { id: question.id }, data: { notificationsStartedAt: now, updatedAt: question.updatedAt } });
-    return { sent: 1, started: true, reason: "Quiz notification prepared for Ghanshyam Jangir. Future reminders are enabled.", id, targetId: target.id, text, date: question.date };
+    return { sent: targetIds.length, started: true, reason: `Quiz notifications prepared for ${targetIds.length} selected employee(s). Future reminders are enabled.`, id, targetIds, text, date: question.date, questionId: question.id, isGame };
   });
   let pushError = false, pushStatus: string | null = null;
-  if ("id" in result && result.id && result.targetId && result.text) {
-    await sendPushToEmployees([result.targetId], { title: "💎 आज का Jewellery सवाल", body: result.text, url: `/?section=dailyQuiz&quizDate=${result.date}`, tag: result.id }, result.id, { expiresAt: Date.parse(`${result.date}T00:00:00Z`) + 86400000 - 330 * 60000 }).catch(() => { pushError = true; });
-    if (manual) {
-      try { pushStatus = (await prisma.messageRecipient.findUnique({ where: { blastId_employeeId: { blastId: result.id, employeeId: result.targetId } }, select: { pushStatus: true } }))?.pushStatus || null; }
-      catch { /* Recording/reading phone transport status is supplementary to the saved app alert. */ }
+  if ("id" in result && result.id && result.targetIds && result.text) {
+    // Recheck current selection/roles before transport, including a concurrent Admin deselection.
+    const access = await quizAccess();
+    const permitted = new Set(access.settings.enabled && access.settings.notificationsEnabled ? access.targets.map(person => person.id) : []);
+    const answered = await prisma.dailyQuizAnswer.findMany({ where: { questionId: result.questionId }, select: { employeeId: true } });
+    const answeredIds = new Set(answered.map(person => person.employeeId));
+    const activeQuestion = await prisma.dailyQuizQuestion.findUnique({ where: { id: result.questionId } });
+    const ids = result.targetIds.filter(id => activeQuestion?.isPublished && activeQuestion.date === quizIndiaTime(now).date && activeQuestion.date === result.date && quizAudienceAllows(activeQuestion.audience, id) && permitted.has(id) && !answeredIds.has(id));
+    if (ids.length) await sendPushToEmployees(ids, { title: result.isGame ? "🎮 आज का Jewellery Game" : "💎 आज का Jewellery सवाल", body: result.text, url: `/?section=dailyQuiz&quizDate=${result.date}`, tag: result.id }, result.id, { expiresAt: Date.parse(`${result.date}T00:00:00Z`) + 86400000 - 330 * 60000 }).catch(() => { pushError = true; });
+    if (manual && ids.length === 1) {
+      try { pushStatus = (await prisma.messageRecipient.findUnique({ where: { blastId_employeeId: { blastId: result.id, employeeId: ids[0] } }, select: { pushStatus: true } }))?.pushStatus || null; }
+      catch { /* Transport status does not prove phone delivery. */ }
     }
   }
   const phoneDetail = result.sent && manual ? pushStatus === "ACCEPTED" ? " Push service accepted the phone notification." : pushStatus === "NO_SUBSCRIPTION" ? " Phone push has no active subscription; allow notifications on the employee device." : pushStatus === "NOT_CONFIGURED" ? " Phone push is not configured." : pushStatus === "FAILED" || pushError ? " Phone push failed; delivery tracking is saved." : " Phone delivery is not confirmed." : "";
