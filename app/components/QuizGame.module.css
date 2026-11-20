@@ -46,3 +46,26 @@
 .employeeList { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid #e0eef7; }
 .employeeList label { padding: 12px 0; border-bottom: 1px solid #e0eef7; font-size: 1rem; }
 .employeeList small { display: block; color: #54718a; font-size: .875rem; margin-top: 4px; font-weight: 400; }
+/* Approved reference artwork is displayed directly using SVG viewports. */
+.trainingArt { display: block; width: min(100%,360px); max-height: 220px; margin: 12px auto; border-radius: 15px; overflow: hidden; }
+.trainingScene { display: flex; align-items: center; gap: 14px; margin: 12px 0; padding: 12px; background: #f2faff; border: 1px solid #b9def3; border-radius: 16px; }
+.trainingScene p { margin: 0; flex: 1; min-width: 0; line-height: 1.6; }
+.trainingArt.smallArt { width: 100px; max-width: 30%; max-height: 150px; margin: 0; flex: 0 0 100px; }
+.stepList { list-style: none; padding: 0; display: grid; gap: 10px; }
+.stepList li { display: flex; align-items: center; gap: 10px; border: 1px solid #b9def3; border-radius: 14px; padding: 12px; background: #f5fbff; }
+.stepList b { flex: 1; min-width: 0; }
+.stepNumber { display: inline-flex; width: 28px; height: 28px; flex: 0 0 28px; align-items: center; justify-content: center; border-radius: 8px; background: #dbf0ff; color: #075f9e; }
+.stepActions { display: flex; gap: 5px; }
+.stepActions button { padding: 8px 11px; min-height: 40px; }
+.puzzle { width: min(280px,100%); aspect-ratio: 1; position: relative; margin: 12px auto; border: 1px solid #a8d5f0; border-radius: 16px; overflow: hidden; }
+.puzzleTiles { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.puzzleTiles button { border: 1px solid #afd4ee; background: #d8edfc; cursor: pointer; font-size: 2rem; }
+.puzzleTiles button.revealed { opacity: 0; pointer-events: none; }
+.imageOptions { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.imageOptions button { padding: 8px; text-align: center; font-size: .95rem; }
+.imageOptions .trainingArt { height: 125px; margin: 0 auto 8px; }
+.optionPhoto { height: 110px; margin-bottom: 8px; }
+.riskOptions { grid-template-columns: 1fr 1fr; }
+.riskOptions button { text-align: center; min-height: 65px; }
+.demoLabel { display: inline-block; padding: 5px 12px; border-radius: 100px; background: #e3f3ff; color: #075f9e; font-size: .9rem; font-weight: 700; }
+@media(max-width:480px) { .trainingScene { padding: 9px; gap: 10px; } .stepList li { padding: 9px; gap: 7px; } .imageOptions { gap: 6px; } .imageOptions button { padding: 5px; font-size: .875rem; } }

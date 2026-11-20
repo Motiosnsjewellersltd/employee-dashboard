@@ -31,9 +31,11 @@ export function shuffled<T>(values: T[], seed: string): T[] {
   return out;
 }
 export function publicGame(game: GameDefinition, seed: string): PublicGame {
-  const base = { id: game.id, kind: game.kind, title: game.title, icon: game.icon, character: game.character, seconds: 60 };
+  const base = { id: game.id, kind: game.kind, title: game.title, icon: game.icon, character: game.character, seconds: 60, art: game.art };
   if (game.kind === "pairs") return { ...base, terms: game.pairs!.map(p => p.term), meanings: shuffled(game.pairs!.map(p => p.meaning), seed) };
   if (game.kind === "memory") return { ...base, cards: shuffled([...game.items!, ...game.items!], seed) };
+  if (game.kind === "sequence") return { ...base, steps: shuffled(game.steps!, seed) };
+  if (game.rounds && game.kind !== "shape") return { ...base, rounds: game.rounds.map(({ correctIndex: _key, explanation: _explanation, ...round }) => ({ ...round, question: round.question || "" })) };
   if (game.kind === "shape") return { ...base, rounds: game.rounds!.map(r => ({ question: "यह कौन-सी Diamond Shape है?", shape: r.shape, options: r.options })) };
   return { ...base, rounds: game.questionIds!.map(index => { const q = QUESTION_LIBRARY[index]; return { question: q.question, options: q.options }; }) };
 }
@@ -41,7 +43,11 @@ export function gradeGame(game: GameDefinition, seed: string, submission: unknow
   if (!submission || typeof submission !== "object") throw new Error("Invalid game response.");
   const data = submission as GameSubmission, view = publicGame(game, seed);
   let total = 0, score = 0;
-  if (game.kind === "memory") {
+  if (game.kind === "sequence") {
+    total = game.steps!.length;
+    if (!Array.isArray(data.order) || data.order.length !== total || data.order.some(n => !Number.isInteger(n) || n < 0 || n >= total) || new Set(data.order).size !== total) throw new Error("Invalid sequence order.");
+    data.order.forEach((n, i) => { if (view.steps![n] === game.steps![i]) score++; });
+  } else if (game.kind === "memory") {
     if (!Array.isArray(data.flips) || data.flips.length > 240 || data.flips.some(n => !Number.isInteger(n) || n < 0 || n >= view.cards!.length)) throw new Error("Invalid memory moves.");
     const matched = new Set<number>(); let previous: number | null = null;
     for (const n of data.flips) {
@@ -56,7 +62,7 @@ export function gradeGame(game: GameDefinition, seed: string, submission: unknow
     if (game.kind === "pairs") {
       const used = data.choices.filter(n => n >= 0); if (new Set(used).size !== used.length) throw new Error("Invalid matching choices.");
       data.choices.forEach((n, i) => { if (view.meanings![n] === game.pairs![i].meaning) score++; });
-    } else data.choices.forEach((n, i) => { const correct = game.kind === "shape" ? game.rounds![i].correctIndex : QUESTION_LIBRARY[game.questionIds![i]].correctIndex; if (n === correct) score++; });
+    } else data.choices.forEach((n, i) => { const correct = game.rounds ? game.rounds[i].correctIndex : QUESTION_LIBRARY[game.questionIds![i]].correctIndex; if (n === correct) score++; });
   }
   // The server owns the deadline; a late client cannot claim a perfect timed result.
   const isCorrect = score === total && !expired;

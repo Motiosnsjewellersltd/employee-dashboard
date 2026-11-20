@@ -11,7 +11,7 @@ export function QuizSymbol({ visual = "diamond" }: { visual?: QuizVisual }) { re
 export function DiamondPhoto({ index }: { index: number }) {
   return <div role="img" aria-label="Diamond shape to identify" className={styles.diamondPhoto} style={{ backgroundImage: `url(${diamonds.src})`, backgroundPosition: `${index % 3 * 50}% ${Math.floor(index / 3) * 100}%` }} />;
 }
-export function JewelleryPhoto({ index }: { index: number }) {
+export function JewelleryPhoto({ index, concealName = false }: { index: number; concealName?: boolean }) {
   const names = ["Gold ring", "Diamond ring", "Diamond studs", "Gold hoops", "Gold bangle", "Gold chain", "Diamond pendant", "Jhumka earrings", "Pearl necklace", "Ruby ring", "Emerald pendant", "Sapphire earrings"];
-  return <span role="img" aria-label={names[index] || "Jewellery"} className={styles.jewelleryPhoto} style={{ backgroundImage: `url(${jewellery.src})`, backgroundPosition: `${index % 4 * (100 / 3)}% ${Math.floor(index / 4) * 50}%` }} />;
+  return <span role="img" aria-label={concealName ? "Jewellery to identify" : names[index] || "Jewellery"} className={styles.jewelleryPhoto} style={{ backgroundImage: `url(${jewellery.src})`, backgroundPosition: `${index % 4 * (100 / 3)}% ${Math.floor(index / 4) * 50}%` }} />;
 }

@@ -1934,5 +1934,344 @@ export const GAME_LIBRARY: GameDefinition[] = [
       8,
       11
     ]
+  },
+  {
+    "id": "design-identify-1",
+    "kind": "design",
+    "title": "Design पहचानो",
+    "icon": "🧩",
+    "art": "designMan",
+    "rounds": [
+      {
+        "question": "यह कौन-सी jewellery है?",
+        "options": [
+          "Jhumka",
+          "Bangle",
+          "Pendant"
+        ],
+        "correctIndex": 0,
+        "jewellery": 7
+      },
+      {
+        "question": "यह कौन-सी jewellery है?",
+        "options": [
+          "Necklace",
+          "Ring",
+          "Chain"
+        ],
+        "correctIndex": 1,
+        "jewellery": 0
+      },
+      {
+        "question": "यह कौन-सी jewellery है?",
+        "options": [
+          "Bangle",
+          "Studs",
+          "Pendant"
+        ],
+        "correctIndex": 2,
+        "jewellery": 6
+      }
+    ]
+  },
+  {
+    "id": "correct-order-1",
+    "kind": "sequence",
+    "title": "सही क्रम लगाओ",
+    "icon": "📋",
+    "art": "orderWoman",
+    "steps": [
+      "स्वागत करें",
+      "ज़रूरत समझें",
+      "विकल्प दिखाएँ",
+      "Item और invoice check करें"
+    ]
+  },
+  {
+    "id": "choose-jewellery-1",
+    "kind": "selection",
+    "title": "सही Jewellery चुनो",
+    "icon": "🎁",
+    "art": "customerWoman",
+    "rounds": [
+      {
+        "question": "Daily wear के लिए हल्की earrings चाहिए। सबसे suitable option चुनें।",
+        "options": [
+          "Heavy bridal jhumka",
+          "Light studs",
+          "Long chandelier earrings"
+        ],
+        "correctIndex": 1,
+        "art": "customerWoman",
+        "imageChoices": [
+          "heavyEarrings",
+          "lightStuds",
+          "longEarrings"
+        ]
+      },
+      {
+        "question": "Customer को chain से लटकने वाला ornament चाहिए। कौन-सा दिखाएँ?",
+        "options": [
+          "Bangle",
+          "Pendant",
+          "Studs"
+        ],
+        "correctIndex": 1,
+        "art": "customerWoman",
+        "jewelleryChoices": [
+          4,
+          6,
+          2
+        ]
+      },
+      {
+        "question": "Customer को कलाई के लिए jewellery चाहिए। क्या दिखाएँ?",
+        "options": [
+          "Bangle",
+          "Pendant",
+          "Earrings"
+        ],
+        "correctIndex": 0,
+        "art": "customerWoman",
+        "jewelleryChoices": [
+          4,
+          6,
+          7
+        ]
+      }
+    ]
+  },
+  {
+    "id": "repair-detective-1",
+    "kind": "repair",
+    "title": "Repair Detective",
+    "icon": "🛠️",
+    "art": "thinkingMan",
+    "rounds": [
+      {
+        "question": "Stone loose है। अगला सही कदम?",
+        "options": [
+          "Inspection के लिए दें",
+          "घर पर glue लगाएँ",
+          "पहनते रहें"
+        ],
+        "correctIndex": 0,
+        "art": "repairPhoto"
+      },
+      {
+        "question": "Loose setting में stone को खुद दबाकर कसना चाहिए?",
+        "options": [
+          "हाँ, force से",
+          "नहीं, professional से check कराएँ",
+          "केवल shake करें"
+        ],
+        "correctIndex": 1,
+        "art": "repairPhoto"
+      },
+      {
+        "question": "Repair शुरू करने से पहले क्या स्पष्ट होना चाहिए?",
+        "options": [
+          "केवल box colour",
+          "बिना consent काम करें",
+          "Assessment, estimate और customer consent"
+        ],
+        "correctIndex": 2,
+        "art": "repairPhoto"
+      }
+    ]
+  },
+  {
+    "id": "care-challenge-1",
+    "kind": "care",
+    "title": "Care Challenge",
+    "icon": "🧼",
+    "art": "pearlPhoto",
+    "rounds": [
+      {
+        "question": "Pearl necklace कैसे रखें?",
+        "options": [
+          "अलग soft pouch में",
+          "दूसरी jewellery के साथ ढेर में",
+          "खुले hard box में"
+        ],
+        "correctIndex": 0,
+        "art": "pearlPhoto",
+        "imageChoices": ["softPouch", "mixedStorage", "hardBox"]
+      },
+      {
+        "question": "Pearls को routine wear के बाद किससे साफ करें?",
+        "options": [
+          "कठोर brush",
+          "बहुत soft, साफ cloth",
+          "तेज़ chemical"
+        ],
+        "correctIndex": 1,
+        "art": "pearlPhoto"
+      },
+      {
+        "question": "Pearls के लिए क्या avoid करना चाहिए?",
+        "options": [
+          "Soft pouch",
+          "Soft cloth",
+          "Ultrasonic और steam cleaner"
+        ],
+        "correctIndex": 2,
+        "art": "pearlPhoto"
+      }
+    ]
+  },
+  {
+    "id": "safe-risk-1",
+    "kind": "risk",
+    "title": "Safe या Risky?",
+    "icon": "🛡️",
+    "art": "mixedTray",
+    "rounds": [
+      {
+        "question": "Pieces को इस तरह आपस में छूते हुए रखना?",
+        "options": [
+          "Safe",
+          "Risky"
+        ],
+        "correctIndex": 1,
+        "art": "mixedTray"
+      },
+      {
+        "question": "इसी tray के pieces को अलग padded compartments में रखना?",
+        "options": [
+          "Safe",
+          "Risky"
+        ],
+        "correctIndex": 0,
+        "art": "mixedTray"
+      },
+      {
+        "question": "इस tray को बिना cover के झटके देकर ले जाना?",
+        "options": [
+          "Safe",
+          "Risky"
+        ],
+        "correctIndex": 1,
+        "art": "mixedTray"
+      }
+    ]
+  },
+  {
+    "id": "find-error-1",
+    "kind": "error",
+    "title": "गलती पकड़ो",
+    "icon": "🔍",
+    "art": "detectiveWoman",
+    "rounds": [
+      {
+        "question": "DEMO TAG: गलत detail पर tap करें।",
+        "options": [
+          "Gold purity: 18K",
+          "Fineness: 916",
+          "Weight: 8.00 g"
+        ],
+        "correctIndex": 1,
+        "art": "detectiveWoman",
+        "facts": [
+          "Gold purity: 18K",
+          "Fineness: 916",
+          "Weight: 8.00 g"
+        ]
+      },
+      {
+        "question": "DEMO TAG: Gross − stone = net. गलत detail चुनें।",
+        "options": [
+          "Gross weight: 12.00 g",
+          "Stone weight: 2.00 g",
+          "Net metal: 11.00 g"
+        ],
+        "correctIndex": 2,
+        "art": "detectiveWoman",
+        "facts": [
+          "Gross weight: 12.00 g",
+          "Stone weight: 2.00 g",
+          "Net metal: 11.00 g"
+        ]
+      },
+      {
+        "question": "DEMO TAG: गलत conversion चुनें।",
+        "options": [
+          "Gem weight: 1 carat",
+          "Equivalent: 2.0 gram",
+          "Unit: carat (ct)"
+        ],
+        "correctIndex": 1,
+        "art": "detectiveWoman",
+        "facts": [
+          "Gem weight: 1 carat",
+          "Equivalent: 2.0 gram",
+          "Unit: carat (ct)"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "weight-guess-1",
+    "kind": "weight",
+    "title": "वजन का अंदाज़ा",
+    "icon": "⚖️",
+    "art": "scale",
+    "rounds": [
+      {
+        "question": "2 carat = ? gram",
+        "options": [
+          "0.2 g",
+          "0.4 g",
+          "2.0 g",
+          "4.0 g"
+        ],
+        "correctIndex": 1,
+        "art": "scale"
+      },
+      {
+        "question": "0.5 carat = ? gram",
+        "options": [
+          "0.1 g",
+          "0.5 g",
+          "1.0 g",
+          "5.0 g"
+        ],
+        "correctIndex": 0,
+        "art": "scale"
+      },
+      {
+        "question": "1 gram = ? carat",
+        "options": [
+          "1 ct",
+          "2 ct",
+          "5 ct",
+          "10 ct"
+        ],
+        "correctIndex": 2,
+        "art": "scale"
+      },
+      {
+        "question": "1.5 carat = ? gram",
+        "options": [
+          "1.5 g",
+          "3.0 g",
+          "0.15 g",
+          "0.3 g"
+        ],
+        "correctIndex": 3,
+        "art": "scale"
+      },
+      {
+        "question": "0.4 gram = ? carat",
+        "options": [
+          "0.4 ct",
+          "2 ct",
+          "4 ct",
+          "20 ct"
+        ],
+        "correctIndex": 1,
+        "art": "scale"
+      }
+    ]
   }
 ];
