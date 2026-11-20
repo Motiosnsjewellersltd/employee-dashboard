@@ -4,7 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { sendPushToEmployees } from "@/lib/webPush";
 import { DAILY_QUIZ_KEY, DAILY_QUIZ_LAST_RUN, isQuizPreviewName, parseQuizSettings, quizIndiaTime, quizNotificationSlot, type QuizSettings } from "@/lib/dailyQuizRules";
 export type QuizDb = Prisma.TransactionClient;
-export async function quizLock(db: QuizDb) { await db.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(649102601)`); }
+export async function quizLock(db: QuizDb) {
+  // Keep the transaction lock, but return a supported integer rather than PostgreSQL void.
+  await db.$queryRaw(Prisma.sql`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(649102601)`);
+}
 export async function quizCandidates(db: QuizDb = prisma) {
   const rows = await db.employee.findMany({ where: { role: "EMPLOYEE", status: "ACTIVE", deletedAt: null, exitDate: null, name: { contains: "ghanshyam", mode: "insensitive" } }, select: { id: true, name: true, role: true, employeeCode: true, branch: true, status: true, deletedAt: true, exitDate: true }, take: 50 });
   return rows.filter(row => row.role === "EMPLOYEE" && row.status === "ACTIVE" && !row.deletedAt && !row.exitDate && isQuizPreviewName(row.name));

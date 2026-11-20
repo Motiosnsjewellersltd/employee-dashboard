@@ -7,7 +7,12 @@ function fixture(){
  let user={id:'g',name:'Ghanshyam Jangir',role:'EMPLOYEE'},settings=new Map([[rules.DAILY_QUIZ_KEY,JSON.stringify(freshSettings())]]),questions=new Map(),answers=[],blasts=[],logs=[],pushes=[],auditFail=false,pushFail=false,chain=Promise.resolve();
  const employees=[{id:'g',name:'Ghanshyam Jangir',role:'EMPLOYEE',status:'ACTIVE',deletedAt:null,exitDate:null,employeeCode:'g1',branch:'MT'},{id:'other',name:'Other Employee',role:'EMPLOYEE',status:'ACTIVE',deletedAt:null,exitDate:null},{id:'hr',name:'HR Reviewer',role:'HR',status:'ACTIVE',deletedAt:null,exitDate:null}];
  const db={
-  $queryRaw:async()=>[],
+  $queryRaw:async(query)=>{
+   const sql=query.sql.trim();
+   if(/^SELECT\s+pg_advisory_xact_lock/i.test(sql))throw Object.assign(Error("Failed to deserialize column of type 'void'"),{code:'P2010'});
+   assert.equal(sql,'SELECT 1 AS "locked" FROM pg_advisory_xact_lock(649102601)','lock result must be an integer, while retaining the same transaction lock');
+   return[{locked:1}];
+  },
   employee:{findMany:async({where})=>{assert.equal(where.role,'EMPLOYEE');assert.equal(where.status,'ACTIVE');return employees.filter(e=>e.role==='EMPLOYEE'&&e.status==='ACTIVE'&&!e.deletedAt&&!e.exitDate&&e.name.toLowerCase().includes('ghanshyam'));}},
   permissionSetting:{findUnique:async({where})=>settings.has(where.key)?{key:where.key,value:settings.get(where.key)}:null,upsert:async({where,create,update})=>{settings.set(where.key,settings.has(where.key)?update.value:create.value);return{key:where.key,value:settings.get(where.key)};}},
   dailyQuizQuestion:{findUnique:async({where,include})=>{const row=[...questions.values()].find(q=>where.id?q.id===where.id:q.date===where.date);return row?{...row,...(include?{_count:{answers:answers.filter(a=>a.questionId===row.id).length}}:{})}:null;},findMany:async()=>[...questions.values()].map(q=>({...q,answers:answers.filter(a=>a.questionId===q.id).map(a=>({...a,employee:{name:employees.find(e=>e.id===a.employeeId)?.name||'Deleted'}}))})),create:async({data})=>{if([...questions.values()].some(q=>q.date===data.date))throw Object.assign(Error('unique'),{code:'P2002'});const row={id:'q'+(questions.size+1),createdAt:now,updatedAt:now,...data};questions.set(row.id,row);return row;},update:async({where,data})=>{const row={...questions.get(where.id),...data};questions.set(where.id,row);return row;}},
@@ -23,6 +28,10 @@ function fixture(){
  return{db,service,employee,admin,req,addQuestion,employees,user:v=>user=v,config:v=>settings.set(rules.DAILY_QUIZ_KEY,JSON.stringify(v)),settings:()=>settings,answers:()=>answers,blasts:()=>blasts,pushes:()=>pushes,logs:()=>logs,auditFail:()=>auditFail=true,pushFail:()=>pushFail=true};
 }
 (async()=>{
+ const {Prisma}=require('@prisma/client');
+ await assert.rejects(()=>fixture().db.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(649102601)`),error=>error.code==='P2010','regression fixture reproduces the unsupported void result from the old SQL');
+ const cssSource=fs.readFileSync(path.join(root,'app/components/DailyJewelleryQuiz.module.css'),'utf8');
+ assert(cssSource.includes('flex: 0 0 18px; width: 18px;'),'quiz checkbox must not inherit full-width input sizing');
  assert(rules.isQuizPreviewName(' Ghanshyam   JANGIR '));for(const value of ['Ghanshyam','Ghanshyam Jangid','Other'])assert(!rules.isQuizPreviewName(value));
  assert.equal(rules.quizIndiaTime(new Date('2026-11-19T18:29:59Z')).date,'2026-11-19');assert.equal(rules.quizIndiaTime(new Date('2026-11-19T18:30:00Z')).date,'2026-11-20');assert(!rules.validQuizDate('2026-02-29'));assert(rules.validQuizDate('2028-02-29'));
  assert.equal(rules.quizNotificationSlot(freshSettings(),new Date('2026-11-20T04:29:59Z')),null);assert.equal(rules.quizNotificationSlot(freshSettings(),new Date('2026-11-20T04:30:00Z')).slot,0);assert.equal(rules.quizNotificationSlot(freshSettings(),new Date('2026-11-20T14:30:00Z')),null);
