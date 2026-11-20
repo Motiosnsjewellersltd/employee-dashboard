@@ -93,6 +93,7 @@ model Employee {
   officialDutyHrDecisions  OfficialDutyRequest[] @relation("OfficialDutyHrDecider")
   registeredDevices        DeviceBinding[]
   assetHandovers           AssetHandover[]
+  dailyQuizAnswers         DailyQuizAnswer[]
 
   @@index([name])
   @@index([role])
@@ -595,4 +596,31 @@ model AssetHandoverAttachment {
   event     AssetHandoverEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
+}
+
+// Admin-managed quiz pilot. Access is restricted server-side to the selected test employee.
+model DailyQuizQuestion {
+  id String @id @default(cuid())
+  date String @unique
+  question String @db.Text
+  options Json
+  correctIndex Int
+  explanation String @db.Text
+  isPublished Boolean @default(false)
+  createdById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  answers DailyQuizAnswer[]
+}
+model DailyQuizAnswer {
+  id String @id @default(cuid())
+  questionId String
+  employeeId String
+  selectedIndex Int
+  isCorrect Boolean
+  answeredAt DateTime @default(now())
+  question DailyQuizQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  @@unique([questionId, employeeId])
+  @@index([employeeId, answeredAt])
 }

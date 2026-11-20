@@ -1,3 +1,4 @@
+import { DAILY_QUIZ_AUDIT_ACTIONS } from "@/lib/dailyQuizRules";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
     const to = String(url.searchParams.get("to") || "").trim();
 
     const where: any = {};
+    if (session.role !== "ADMIN") where.NOT = { action: { in: DAILY_QUIZ_AUDIT_ACTIONS } };
     if (action && action !== "All") where.action = action;
     if (search) where.OR = [{ actorName: { contains: search } }, { target: { contains: search } }, { details: { contains: search } }];
     if (from || to) {

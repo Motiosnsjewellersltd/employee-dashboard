@@ -1,5 +1,8 @@
 "use client";
 
+import AdminDailyJewelleryQuiz from "./AdminDailyJewelleryQuiz";
+import DailyJewelleryQuiz from "./DailyJewelleryQuiz";
+import { isQuizPreviewName } from "@/lib/dailyQuizRules";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isHalfDay, leaveDayTypeLabel } from "@/lib/leaveDayType";
 import NotificationDelivery from "./NotificationDelivery";
@@ -77,6 +80,7 @@ type Section =
   | "profile"
   | "schemes"
   | "incentiveReports"
+  | "dailyQuiz"
   | "assetHandover"
   | "changePassword";
 
@@ -401,6 +405,7 @@ function initialSection(user: User): Section {
   "notifications",
   "chat"
 ];
+  if (requested === "dailyQuiz" && (user.role === "ADMIN" || (user.role === "EMPLOYEE" && isQuizPreviewName(user.name)))) return requested;
   if (requested === "assetHandover" && user.role !== "EMPLOYEE") return requested;
   if (requested && common.includes(requested)) return requested;
   return fallback;
@@ -1425,6 +1430,7 @@ const canManageReports =
     ? employeeRows.filter(e => `${e.employeeCode || ""} ${e.name} ${e.mobile} ${e.designation || ""} ${e.department || ""} ${e.branch || ""}`.toLowerCase().includes(globalSearch.trim().toLowerCase())).slice(0, 8)
     : [];
   const sectionTitles: Record<Section, string> = {
+    dailyQuiz: "Daily Jewellery Quiz",
     assetHandover: "Asset Handover",
     dashboard: "Dashboard", employees: "Employees", add: "Add / Upload", leaves: "Leave Management", reminder: "Reminders", incentiveReports: "Incentive Reports",
     notifications: "Notifications", chat: "Chat", reset: "Reset Password", audit: "Audit Trail", loginHistory: "Login / Export",
@@ -1549,6 +1555,7 @@ floorTeam: "My Team",
         {showChat && <MenuItem panelIcons={isAdmin} label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
         {isAdmin && showResetPassword && canResetPassword && <MenuItem panelIcons={isAdmin} label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
         {isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <MenuItem panelIcons={isAdmin} label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
+        {session.role === "ADMIN" && <MenuItem panelIcons={isAdmin} label="Daily Jewellery Quiz" icon="💎" active={section === "dailyQuiz"} onClick={() => goto("dailyQuiz")} />}
         {session.role === "ADMIN" && <MenuItem panelIcons={isAdmin} label="Incentive Reports" icon="₹" active={section === "incentiveReports"} onClick={() => goto("incentiveReports")} />}
         {isSuperAdmin && <MenuItem panelIcons={isAdmin} label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
         {isAdmin && showRecycleBin && canManageRecycleBin && <MenuItem panelIcons={isAdmin} label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
@@ -1667,6 +1674,9 @@ floorTeam: "My Team",
       {section === "loginHistory" && isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <LoginExportCenter canViewLoginHistory={canViewLoginHistory} canExportData={canExportData} />}
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "assetHandover" && showAssetHandover && <AssetHandover employees={employeeRows} />}
+      {section === "dailyQuiz" && session.role === "ADMIN" && <AdminDailyJewelleryQuiz />}
+      {section === "dailyQuiz" && session.role === "EMPLOYEE" && isQuizPreviewName(session.name) && <DailyJewelleryQuiz standalone />}
+      {section === "profile" && session.role === "EMPLOYEE" && isQuizPreviewName(session.name) && <DailyJewelleryQuiz />}
       {section === "incentiveReports" && session.role === "ADMIN" && <AdminIncentiveReports />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}

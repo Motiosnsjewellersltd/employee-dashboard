@@ -1,3 +1,4 @@
+import { quizNotificationVisibility } from "@/lib/dailyQuizRules";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
@@ -30,6 +31,8 @@ export async function GET(req: NextRequest) {
       const where: any = {
         recipients: { some: { employeeId: session.id, clearedAt: null } }
       };
+      const quizVisibility = quizNotificationVisibility(session.role, session.id, session.name);
+      if (quizVisibility) where.AND = [quizVisibility];
       if (type && type !== "All") where.type = type;
       if (search) where.text = { contains: search };
       const createdAt = dateFilter(from, to);
@@ -62,6 +65,8 @@ export async function GET(req: NextRequest) {
     }
 
     const where: any = {};
+    const quizVisibility = quizNotificationVisibility(session.role, session.id, session.name);
+    if (quizVisibility) where.AND = [quizVisibility];
     if (session.role === "EMPLOYEE") where.recipients = { some: { employeeId: session.id } };
     if (type && type !== "All") where.type = type;
     if (search) where.text = { contains: search };

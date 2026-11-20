@@ -1,0 +1,29 @@
+.panel { position: relative; box-sizing: border-box; margin: 0 0 16px; padding: 20px; border: 1px solid #b9def7; border-radius: 16px; background: #fff; color: #052a4d; }
+.panel h2, .panel h3 { margin: 0 0 12px; color: #075f9e; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.date, .hint { color: #52718b; font-size: 13px; line-height: 1.5; }
+.question { margin: 16px 0; font-size: 19px; font-weight: 700; line-height: 1.6; white-space: pre-wrap; }
+.options { display: grid; gap: 10px; margin-bottom: 16px; }
+.option { box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border: 1px solid #c8e5f7; border-radius: 10px; background: #f5fbff; color: #052a4d; font: inherit; line-height: 1.5; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.selected { border-color: #1689cf; background: #e7f5ff; }
+.correct { border-color: #9bd9bc; background: #edf9f2; }
+.incorrect { border-color: #edbcc3; background: #fff2f4; }
+.option:disabled { cursor: default; opacity: 1; }
+.result { padding: 14px; border: 1px solid #c8e5f7; border-radius: 10px; background: #f5fbff; line-height: 1.6; }
+.result p { margin: 8px 0 0; white-space: pre-wrap; }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.error { color: #a52d43; line-height: 1.5; }
+.success { color: #217747; line-height: 1.5; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.form { min-width: 0; }
+.form label { display: grid; gap: 6px; margin: 12px 0; color: #075f9e; font-weight: 600; }
+.form input:not([type=checkbox]):not([type=radio]), .form select, .form textarea { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #b9def7; border-radius: 8px; color: #052a4d; background: #fff; font: inherit; }
+.form .toggle { display: flex; align-items: center; gap: 9px; }
+.hourGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.table { overflow: auto; max-height: 520px; }
+.table table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 10px; text-align: left; vertical-align: top; border-bottom: 1px solid #d3e8f7; }
+.table th { color: #075f9e; background: #edf8ff; }
+.table td small { display: block; margin-top: 4px; }
+.preview { padding: 12px; border: 1px solid #d3e8f7; border-radius: 10px; background: #f5fbff; }
+@media(max-width: 760px) { .panel { padding: 16px; } .grid { grid-template-columns: minmax(0,1fr); } .question { font-size: 17px; } }

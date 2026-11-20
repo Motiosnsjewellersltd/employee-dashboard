@@ -1,0 +1,9 @@
+.overlay { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.piece { position: absolute; display: block; opacity: 0; user-select: none; line-height: 1; }
+.balloon { bottom: -42px; font-size: 30px; animation: quiz-rise 2.5s ease-out forwards; }
+.confetti { top: -32px; font-size: 23px; animation: quiz-fall 2.4s ease-out forwards; }
+.sad { top: -38px; font-size: 27px; animation: quiz-sad 2.4s ease-out forwards; }
+@keyframes quiz-rise { 0% { opacity: 0; transform: translate(0, 0) rotate(-8deg); } 15% { opacity: 1; } 75% { opacity: .85; } 100% { opacity: 0; transform: translate(var(--drift), -540px) rotate(15deg); } }
+@keyframes quiz-fall { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 12% { opacity: 1; } 75% { opacity: .85; } 100% { opacity: 0; transform: translate(var(--drift), 540px) rotate(var(--turn)); } }
+@keyframes quiz-sad { 0% { opacity: 0; transform: translate(0, 0) scale(.65); } 15% { opacity: .85; transform: translate(0, 50px) scale(1); } 75% { opacity: .75; } 100% { opacity: 0; transform: translate(var(--drift), 480px) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .piece { animation: none; display: none; } }
