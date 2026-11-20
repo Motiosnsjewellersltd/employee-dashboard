@@ -127,7 +127,7 @@ async function sendOne(subscription: { endpoint: string; p256dh: string; auth: s
     title: String(payload.title || "Employee Dashboard").slice(0, 100),
     body: String(payload.body || "").slice(0, 1200),
     icon: payload.icon || "/icons/icon-192.png",
-    badge: payload.badge || "/icons/icon-192.png",
+    badge: payload.badge || "/icons/notification-badge-v1.png",
   };
   const body = encryptPayload(Buffer.from(JSON.stringify(compactPayload)), subscription.p256dh, subscription.auth);
   const token = createVapidJwt(subscription.endpoint, config.publicKey, config.privateKey, config.subject);

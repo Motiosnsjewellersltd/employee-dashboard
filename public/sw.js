@@ -1,5 +1,5 @@
-const CACHE_NAME = "motisons-employee-dashboard-v1";
-const APP_SHELL = ["/", "/motisons-logo.png", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE_NAME = "motisons-employee-dashboard-badge-v2";
+const APP_SHELL = ["/", "/motisons-logo.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/notification-badge-v1.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => undefined));
@@ -40,10 +40,14 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "Motisons Employee Dashboard";
+  // Android masks badge alpha: opaque app icons become a solid square.
+  // Also repair old queued payloads that still name the opaque launcher icon.
+  const badge = !data.badge || /\/(?:icons\/icon-(?:192|512)\.png|motisons-logo\.png)(?:[?#].*)?$/.test(data.badge)
+    ? "/icons/notification-badge-v1.png" : data.badge;
   const options = {
     body: data.body || "You have a new notification.",
     icon: data.icon || "/icons/icon-192.png",
-    badge: data.badge || "/icons/icon-192.png",
+    badge,
     tag: data.tag || "employee-dashboard-update",
     renotify: true,
     requireInteraction: false,
