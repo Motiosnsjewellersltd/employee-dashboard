@@ -1,3 +1,4 @@
+import { quizAudienceAllows } from "@/lib/dailyQuizReport";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { publicQuizQuestion, quizAccess, quizLock } from "@/lib/dailyQuiz";
@@ -14,7 +15,7 @@ export async function GET(req: Request) {
     const today = quizIndiaTime().date, date = new URL(req.url).searchParams.get("date") || today;
     if (!validQuizDate(date) || date > today) return reply({ ok: false, error: "This quiz date is not available." }, 400);
     const question = await prisma.dailyQuizQuestion.findUnique({ where: { date } });
-    if (!question?.isPublished) return reply({ ok: true, data: { today, quiz: null } });
+    if (!question?.isPublished || !quizAudienceAllows(question.audience, session.id)) return reply({ ok: true, data: { today, quiz: null } });
     const answer = await prisma.dailyQuizAnswer.findUnique({ where: { questionId_employeeId: { questionId: question.id, employeeId: session.id } } });
     return reply({ ok: true, data: { today, quiz: publicQuizQuestion(question, answer, today) } });
   } catch { return reply({ ok: false, error: "Could not load today's quiz." }, 503); }
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
       if (!access.settings.enabled || !access.settings.targetEmployeeId || access.target?.id !== session.id) return { denied: true };
       const today = quizIndiaTime().date;
       const question = await tx.dailyQuizQuestion.findUnique({ where: { id: body.questionId } });
-      if (!question?.isPublished || question.date !== today || !Array.isArray(question.options) || body.selectedIndex >= question.options.length) return { invalid: true };
+      if (!question?.isPublished || !quizAudienceAllows(question.audience, session.id) || question.date !== today || !Array.isArray(question.options) || body.selectedIndex >= question.options.length) return { invalid: true };
       if (question.updatedAt.toISOString() !== body.version) return { stale: true };
       const existing = await tx.dailyQuizAnswer.findUnique({ where: { questionId_employeeId: { questionId: question.id, employeeId: session.id } } });
       if (existing) return { duplicate: true };

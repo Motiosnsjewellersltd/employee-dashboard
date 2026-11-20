@@ -41,7 +41,7 @@ export function quizNotificationSlot(settings: QuizSettings, now = new Date()) {
   return { date, slot: Math.floor((minute - settings.startHour * 60) / settings.intervalMinutes) };
 }
 
-export const DAILY_QUIZ_AUDIT_ACTIONS = ["UPDATE_DAILY_QUIZ_PILOT_SETTINGS", "CREATE_DAILY_QUIZ_QUESTION", "UPDATE_DAILY_QUIZ_QUESTION"];
+export const DAILY_QUIZ_AUDIT_ACTIONS = ["UPDATE_DAILY_QUIZ_PILOT_SETTINGS", "CREATE_DAILY_QUIZ_QUESTION", "UPDATE_DAILY_QUIZ_QUESTION", "DELETE_DAILY_QUIZ_QUESTION"];
 // Additive filter: leaves every non-quiz notification's existing behavior unchanged.
 export function quizNotificationVisibility(role: string, employeeId: string, name: string) {
   if (role === "ADMIN") return undefined;

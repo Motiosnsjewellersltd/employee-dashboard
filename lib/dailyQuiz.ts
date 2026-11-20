@@ -1,3 +1,4 @@
+import { questionNotificationWhere, quizAudienceAllows } from "@/lib/dailyQuizReport";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -32,9 +33,10 @@ export async function runDailyQuizNotifications({ now = new Date(), manual = fal
     if (!manual && !scheduled) return { sent: 0, reason: "Outside notification hours (IST)." };
     const question = await tx.dailyQuizQuestion.findUnique({ where: { date: current.date } });
     if (!question?.isPublished) return { sent: 0, reason: "No published question for today." };
+    if (!quizAudienceAllows(question.audience, target.id)) return { sent: 0, reason: "The selected employee is not in this question audience." };
     const answer = await tx.dailyQuizAnswer.findUnique({ where: { questionId_employeeId: { questionId: question.id, employeeId: target.id } } });
     if (answer) return { sent: 0, reason: "Today's question is already answered; reminders stopped." };
-    const latest = await tx.notificationBlast.findFirst({ where: { filterType: "SYSTEM", filterValue: `DAILY_JEWELLERY_QUIZ:${current.date}`, recipients: { some: { employeeId: target.id } } }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
+    const latest = await tx.notificationBlast.findFirst({ where: { ...questionNotificationWhere(question.id, current.date), recipients: { some: { employeeId: target.id } } }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
     if (latest && now.getTime() - latest.createdAt.getTime() < settings.intervalMinutes * 60000) return { sent: 0, reason: "Notification gap has not elapsed." };
     // No catch-up burst: only one current message, even after a delayed job.
     const bucket = Math.floor(now.getTime() / 1800000);
@@ -42,7 +44,7 @@ export async function runDailyQuizNotifications({ now = new Date(), manual = fal
     if (await tx.notificationBlast.findUnique({ where: { id }, select: { id: true } })) return { sent: 0, reason: "This notification is already recorded." };
     const index = scheduled ? scheduled.slot % settings.messages.length : bucket % settings.messages.length;
     const text = settings.messages[index];
-    await tx.notificationBlast.create({ data: { id, type: "NOTICE", text, filterType: "SYSTEM", filterValue: `DAILY_JEWELLERY_QUIZ:${current.date}`, createdById: question.createdById, createdAt: now, recipients: { create: [{ employeeId: target.id }] } } });
+    await tx.notificationBlast.create({ data: { id, type: "NOTICE", text, filterType: "SYSTEM", filterValue: `DAILY_JEWELLERY_QUIZ:${current.date}:${question.id}`, createdById: question.createdById, createdAt: now, recipients: { create: [{ employeeId: target.id }] } } });
     return { sent: 1, reason: "App notification created for the test employee only.", id, targetId: target.id, text, date: current.date };
   });
   let pushError = false;

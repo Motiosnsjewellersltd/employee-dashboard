@@ -611,6 +611,7 @@ model DailyQuizQuestion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   answers DailyQuizAnswer[]
+  audience Json?
 }
 model DailyQuizAnswer {
   id String @id @default(cuid())
