@@ -69,3 +69,18 @@
 .riskOptions button { text-align: center; min-height: 65px; }
 .demoLabel { display: inline-block; padding: 5px 12px; border-radius: 100px; background: #e3f3ff; color: #075f9e; font-size: .9rem; font-weight: 700; }
 @media(max-width:480px) { .trainingScene { padding: 9px; gap: 10px; } .stepList li { padding: 9px; gap: 7px; } .imageOptions { gap: 6px; } .imageOptions button { padding: 5px; font-size: .875rem; } }
+.wordSlots { display: grid; gap: 5px; margin: 16px 0; }
+.wordSlots span { display: flex; align-items: center; justify-content: center; min-height: 44px; border: 1px solid #9bc9e9; border-radius: 9px; background: #f3faff; color: #06365b; font-size: clamp(1rem,4.5vw,1.7rem); font-weight: 800; }
+.letterTiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 14px 0; }
+.letterTiles button { width: 49px; min-height: 49px; border: 1px solid #8cbfe4; border-radius: 11px; background: #e9f6ff; color: #073a61; font: inherit; font-weight: 800; font-size: 1.4rem; }
+.letterTiles button:disabled { opacity: .35; }
+.wordPhoto { width: 130px; height: 130px; margin: 12px auto; }
+.lockRow { display: flex; justify-content: space-around; gap: 10px; margin: 12px 0 18px; }
+.lockRow > span { padding: 10px 14px; border: 1px solid #c5e1f3; border-radius: 12px; background: #f3faff; font-size: 1.7rem; text-align: center; }
+.lockRow small { display: block; color: #436984; font-size: .85rem; }
+.lockRow .lockOpen { border-color: #8ecdb1; background: #edf9f2; }
+.bingoBoard { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 15px 0; }
+.bingoBoard button { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; min-height: 105px; padding: 9px 5px; border: 1px solid #a3cfe9; border-radius: 13px; background: #f5fbff; color: #083c62; font: inherit; font-size: .95rem; overflow-wrap: anywhere; }
+.bingoBoard .bingoMarked { background: #e7f8ee; border: 2px solid #89cbaa; }
+.bingoPhoto { width: 70px; height: 65px; max-width: 100%; margin-bottom: 5px; }
+@media(max-width:400px) { .lockRow { gap: 6px; } .lockRow > span { padding: 8px 10px; } .bingoBoard { gap: 6px; } .bingoBoard button { font-size: .875rem; } }

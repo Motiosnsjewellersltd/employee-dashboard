@@ -1,3 +1,4 @@
+import { checkPuzzleStep, bingoLineSize } from "@/lib/quizPuzzleLogic";
 import { GAME_LIBRARY, QUESTION_LIBRARY } from "@/lib/quizActivityCatalog";
 import type { GameDefinition, PublicGame, GameSubmission, GameResult, QuizActivity, QuizVisual } from "@/lib/quizActivityTypes";
 export function parseActivity(input: unknown): QuizActivity | null {
@@ -32,6 +33,8 @@ export function shuffled<T>(values: T[], seed: string): T[] {
 }
 export function publicGame(game: GameDefinition, seed: string): PublicGame {
   const base = { id: game.id, kind: game.kind, title: game.title, icon: game.icon, character: game.character, seconds: 60, art: game.art };
+  if (game.kind === "word") return { ...base, words: game.words!.map((word, i) => ({ clue: word.clue, jewellery: word.jewellery, letters: shuffled(word.word.split(""), `${seed}:word:${i}`) })) };
+  if (game.kind === "bingo") return { ...base, bingo: { cells: shuffled(game.bingo!.cells, seed), clues: game.bingo!.clues.map(clue => clue.text) } };
   if (game.kind === "pairs") return { ...base, terms: game.pairs!.map(p => p.term), meanings: shuffled(game.pairs!.map(p => p.meaning), seed) };
   if (game.kind === "memory") return { ...base, cards: shuffled([...game.items!, ...game.items!], seed) };
   if (game.kind === "sequence") return { ...base, steps: shuffled(game.steps!, seed) };
@@ -43,7 +46,18 @@ export function gradeGame(game: GameDefinition, seed: string, submission: unknow
   if (!submission || typeof submission !== "object") throw new Error("Invalid game response.");
   const data = submission as GameSubmission, view = publicGame(game, seed);
   let total = 0, score = 0;
-  if (game.kind === "sequence") {
+  if (game.kind === "word") {
+    total = game.words!.length;
+    if (!Array.isArray(data.words) || data.words.length > total) throw new Error("Invalid word response.");
+    data.words.forEach((indices,i) => {
+      if (!Array.isArray(indices) || indices.length > view.words![i].letters.length || new Set(indices).size !== indices.length || indices.some(n=>!Number.isInteger(n)||n<0||n>=view.words![i].letters.length)) throw new Error("Invalid letter selection.");
+      if (indices.map(n=>view.words![i].letters[n]).join("") === game.words![i].word) score++;
+    });
+  } else if (game.kind === "bingo") {
+    if (!Array.isArray(data.cells) || data.cells.length > 9 || data.cells.some(n=>!Number.isInteger(n)||n<0||n>=9)||new Set(data.cells).size!==data.cells.length) throw new Error("Invalid Bingo cells.");
+    total = 3;
+    score = checkPuzzleStep(game, view, data).valid ? bingoLineSize(data.cells) : 0;
+  } else if (game.kind === "sequence") {
     total = game.steps!.length;
     if (!Array.isArray(data.order) || data.order.length !== total || data.order.some(n => !Number.isInteger(n) || n < 0 || n >= total) || new Set(data.order).size !== total) throw new Error("Invalid sequence order.");
     data.order.forEach((n, i) => { if (view.steps![n] === game.steps![i]) score++; });
@@ -66,5 +80,5 @@ export function gradeGame(game: GameDefinition, seed: string, submission: unknow
   }
   // The server owns the deadline; a late client cannot claim a perfect timed result.
   const isCorrect = score === total && !expired;
-  return { score, total, isCorrect, timedOut: expired, summary: `${score} / ${total} ${game.kind === "memory" || game.kind === "pairs" ? "जोड़ियाँ सही" : "जवाब सही"}${expired ? " · समय समाप्त" : ""}` };
+  return { score, total, isCorrect, timedOut: expired, summary: game.kind === "bingo" ? isCorrect ? "Bingo! एक line पूरी 🎯" : `${score} / 3 cells · line अधूरी${expired ? " · समय समाप्त" : ""}` : `${score} / ${total} ${game.kind === "memory" || game.kind === "pairs" ? "जोड़ियाँ सही" : "जवाब सही"}${expired ? " · समय समाप्त" : ""}` };
 }

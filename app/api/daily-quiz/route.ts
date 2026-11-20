@@ -1,3 +1,4 @@
+import { checkPuzzleStep } from "@/lib/quizPuzzleLogic";
 import { parseActivity, publicGame, gradeGame } from "@/lib/quizActivity";
 import { quizAudienceAllows } from "@/lib/dailyQuizReport";
 import { requireSession } from "@/lib/auth";
@@ -49,6 +50,10 @@ export async function POST(req: Request) {
         }
         if (!attempt || attempt.version !== body.version) return { notStarted: true };
         const seed = `${question.id}:${session.id}:${attempt.startedAt.toISOString()}`;
+        if (body.action === "checkStep") {
+          if (!["escape", "bingo"].includes(activity.definition.kind) || !body.gameSubmission || typeof body.gameSubmission !== "object" || now.getTime() > attempt.startedAt.getTime() + 65000) return { invalid: true };
+          return { step: checkPuzzleStep(activity.definition, publicGame(activity.definition, seed), body.gameSubmission) };
+        }
         const result = gradeGame(activity.definition, seed, body.gameSubmission, now.getTime() > attempt.startedAt.getTime() + 65000);
         const answer = await tx.dailyQuizAnswer.create({ data: { questionId: question.id, employeeId: session.id, selectedIndex: result.isCorrect ? 0 : 1, isCorrect: result.isCorrect, gameResult: { ...result, submission: body.gameSubmission } } });
         return { today, quiz: publicQuizQuestion(question, answer, today) };

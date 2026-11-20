@@ -2096,7 +2096,11 @@ export const GAME_LIBRARY: GameDefinition[] = [
         ],
         "correctIndex": 0,
         "art": "pearlPhoto",
-        "imageChoices": ["softPouch", "mixedStorage", "hardBox"]
+        "imageChoices": [
+          "softPouch",
+          "mixedStorage",
+          "hardBox"
+        ]
       },
       {
         "question": "Pearls को routine wear के बाद किससे साफ करें?",
@@ -2273,5 +2277,272 @@ export const GAME_LIBRARY: GameDefinition[] = [
         "art": "scale"
       }
     ]
+  },
+  {
+    "id": "word-terms-1",
+    "kind": "word",
+    "title": "Word Builder · Jewellery Terms",
+    "icon": "🔤",
+    "art": "thinkingMan",
+    "words": [
+      {
+        "clue": "Diamond के inclusions और blemishes से जुड़ा शब्द",
+        "word": "CLARITY"
+      },
+      {
+        "clue": "Gemstone के वजन की इकाई",
+        "word": "CARAT"
+      },
+      {
+        "clue": "धातुओं का मिश्रण",
+        "word": "ALLOY"
+      },
+      {
+        "clue": "Diamond की तराश से जुड़ा शब्द",
+        "word": "CUT"
+      },
+      {
+        "clue": "Metal की शुद्धता के लिए English शब्द",
+        "word": "PURITY"
+      }
+    ]
+  },
+  {
+    "id": "word-items-1",
+    "kind": "word",
+    "title": "Word Builder · Item Names",
+    "icon": "🔤",
+    "art": "thinkingMan",
+    "words": [
+      {
+        "clue": "उंगली में पहना जाने वाला item",
+        "word": "RING",
+        "jewellery": 0
+      },
+      {
+        "clue": "गले में पहनी जाने वाली कड़ीदार jewellery",
+        "word": "CHAIN",
+        "jewellery": 5
+      },
+      {
+        "clue": "कलाई में पहनी जाने वाली चूड़ी",
+        "word": "BANGLE",
+        "jewellery": 4
+      },
+      {
+        "clue": "कान के पास बैठने वाले छोटे earrings",
+        "word": "STUDS",
+        "jewellery": 2
+      },
+      {
+        "clue": "Chain से लटकने वाला ornament",
+        "word": "PENDANT",
+        "jewellery": 6
+      }
+    ]
+  },
+  {
+    "id": "word-items-2",
+    "kind": "word",
+    "title": "Word Builder · More Item Names",
+    "icon": "🔤",
+    "art": "thinkingMan",
+    "words": [
+      {
+        "clue": "गले में पहना जाने वाला पूरा jewellery piece",
+        "word": "NECKLACE",
+        "jewellery": 8
+      },
+      {
+        "clue": "कलाई का लचीला jewellery item",
+        "word": "BRACELET"
+      },
+      {
+        "clue": "टखने में पहना जाने वाला item",
+        "word": "ANKLET"
+      },
+      {
+        "clue": "कान में पहना जाने वाला ornament",
+        "word": "EARRING",
+        "jewellery": 3
+      },
+      {
+        "clue": "घंटी जैसे आकार वाला earring",
+        "word": "JHUMKA",
+        "jewellery": 7
+      }
+    ]
+  },
+  {
+    "id": "two-truths-myth-1",
+    "kind": "myth",
+    "title": "दो सच, एक Myth",
+    "icon": "🤔",
+    "art": "detectiveWoman",
+    "rounds": [
+      {
+        "question": "गलत statement चुनें।",
+        "options": [
+          "1 carat = 0.2 gram",
+          "2 carat = 0.4 gram",
+          "Carat gold की purity की इकाई है"
+        ],
+        "correctIndex": 2
+      },
+      {
+        "question": "गलत statement चुनें।",
+        "options": [
+          "18K gold theoretically 75% gold है",
+          "Karat और carat का मतलब हमेशा एक है",
+          "22K का सामान्य fineness mark 916 है"
+        ],
+        "correctIndex": 1
+      },
+      {
+        "question": "गलत statement चुनें।",
+        "options": [
+          "Pearls पर steam cleaner हमेशा safe है",
+          "Pearls को soft cloth से gently साफ कर सकते हैं",
+          "Pearls को अलग soft pouch में रख सकते हैं"
+        ],
+        "correctIndex": 0
+      }
+    ]
+  },
+  {
+    "id": "jewellery-escape-1",
+    "kind": "escape",
+    "title": "Jewellery Escape Room",
+    "icon": "🔓",
+    "art": "designMan",
+    "rounds": [
+      {
+        "question": "Lock 1 · 18K gold का fineness mark चुनें।",
+        "options": [
+          "916",
+          "750",
+          "585"
+        ],
+        "correctIndex": 1
+      },
+      {
+        "question": "Lock 2 · 2 carat gemstone का वजन?",
+        "options": [
+          "0.4 gram",
+          "2 gram",
+          "4 gram"
+        ],
+        "correctIndex": 0
+      },
+      {
+        "question": "Lock 3 · सही jewellery सुझाने से पहले क्या करें?",
+        "options": [
+          "सबसे महँगा item निकालें",
+          "बिना पूछे bill बनाएँ",
+          "ज़रूरत और budget समझें"
+        ],
+        "correctIndex": 2
+      },
+      {
+        "question": "Lock 4 · Handover पर क्या match करें?",
+        "options": [
+          "केवल box colour",
+          "Item, quantity और invoice",
+          "केवल shopping bag"
+        ],
+        "correctIndex": 1
+      }
+    ]
+  },
+  {
+    "id": "jewellery-bingo-1",
+    "kind": "bingo",
+    "title": "Jewellery Bingo",
+    "icon": "🎯",
+    "art": "pointingWoman",
+    "bingo": {
+      "cells": [
+        {
+          "id": "carat",
+          "label": "Carat"
+        },
+        {
+          "id": "clarity",
+          "label": "Clarity"
+        },
+        {
+          "id": "karat",
+          "label": "Karat"
+        },
+        {
+          "id": "ring",
+          "label": "Ring",
+          "jewellery": 0
+        },
+        {
+          "id": "pendant",
+          "label": "Pendant",
+          "jewellery": 6
+        },
+        {
+          "id": "bangle",
+          "label": "Bangle",
+          "jewellery": 4
+        },
+        {
+          "id": "chain",
+          "label": "Chain",
+          "jewellery": 5
+        },
+        {
+          "id": "studs",
+          "label": "Studs",
+          "jewellery": 2
+        },
+        {
+          "id": "jhumka",
+          "label": "Jhumka",
+          "jewellery": 7
+        }
+      ],
+      "clues": [
+        {
+          "text": "Gemstone के वजन की इकाई",
+          "target": "carat"
+        },
+        {
+          "text": "Chain से लटकने वाला ornament",
+          "target": "pendant"
+        },
+        {
+          "text": "उंगली में पहना जाने वाला item",
+          "target": "ring"
+        },
+        {
+          "text": "Gold की purity के लिए term",
+          "target": "karat"
+        },
+        {
+          "text": "कलाई में पहनी जाने वाली चूड़ी",
+          "target": "bangle"
+        },
+        {
+          "text": "Diamond inclusions / blemishes से जुड़ी quality",
+          "target": "clarity"
+        },
+        {
+          "text": "गले में पहना जाने वाला कड़ीदार item",
+          "target": "chain"
+        },
+        {
+          "text": "कान के पास बैठने वाले छोटे earrings",
+          "target": "studs"
+        },
+        {
+          "text": "घंटी जैसे आकार वाला earring",
+          "target": "jhumka"
+        }
+      ]
+    }
   }
 ];
