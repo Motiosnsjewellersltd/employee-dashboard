@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       const where: any = {
         recipients: { some: { employeeId: session.id, clearedAt: null } }
       };
-      const quizVisibility = quizNotificationVisibility(session.role, session.id, session.name);
+      const quizVisibility = quizNotificationVisibility(session.role, session.id, session.name, "center");
       if (quizVisibility) where.AND = [quizVisibility];
       if (type && type !== "All") where.type = type;
       if (search) where.text = { contains: search };
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     if (designation && designation !== "All" && department && department !== "All") where.recipients = { some: { employee: { designation, department } } };
 
     if (session.role === "EMPLOYEE") {
-      await prisma.messageRecipient.updateMany({ where: { employeeId: session.id, readAt: null }, data: { readAt: new Date() } });
+      await prisma.messageRecipient.updateMany({ where: { employeeId: session.id, readAt: null, blast: quizVisibility }, data: { readAt: new Date() } });
     }
 
     const rows = await prisma.notificationBlast.findMany({
@@ -147,15 +147,16 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const id = String(body.id || "").trim();
     const now = new Date();
+    const visibleBlast = quizNotificationVisibility(session.role, session.id, session.name, "center");
 
     if (id) {
       await (prisma as any).messageRecipient.updateMany({
-        where: { employeeId: session.id, blastId: id, clearedAt: null, readAt: null },
+        where: { employeeId: session.id, blastId: id, clearedAt: null, readAt: null, blast: visibleBlast },
         data: { readAt: now }
       });
     } else {
       await (prisma as any).messageRecipient.updateMany({
-        where: { employeeId: session.id, clearedAt: null, readAt: null },
+        where: { employeeId: session.id, clearedAt: null, readAt: null, blast: visibleBlast },
         data: { readAt: now }
       });
     }
@@ -167,8 +168,9 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE() {
   try {
     const session = await requireSession();
+    const visibleBlast = quizNotificationVisibility(session.role, session.id, session.name, "center");
     await (prisma as any).messageRecipient.updateMany({
-      where: { employeeId: session.id, clearedAt: null },
+      where: { employeeId: session.id, clearedAt: null, blast: visibleBlast },
       data: { clearedAt: new Date(), readAt: new Date() }
     });
     return ok();

@@ -64,7 +64,7 @@ async function main(){
  // New pilot visibility filters do not remove ordinary/null-filter notification history.
  function match(row,where){if(!where)return true;return Object.entries(where).every(([key,v])=>{if(key==='OR')return v.some(x=>match(row,x));if(key==='NOT')return !match(row,v);if(key==='recipients')return row.ids.includes(v.some.employeeId);if(v&&typeof v==='object'&&'startsWith'in v)return typeof row[key]==='string'&&row[key].startsWith(v.startsWith);return row[key]===v;});}
  for(const role of ['HR','EMPLOYEE']){const filter=rules.quizNotificationVisibility(role,'other','Other');assert(match({filterValue:null},filter));assert(match({filterValue:'LEAVE_MANAGER_APPROVED'},filter));assert(!match({filterValue:'DAILY_JEWELLERY_QUIZ:2026-11-20',ids:['g']},filter));}
- assert(match({filterValue:'DAILY_JEWELLERY_QUIZ:2026-11-20',ids:['g']},rules.quizNotificationVisibility('EMPLOYEE','g','Ghanshyam Jangir')));assert(!match({filterValue:'DAILY_JEWELLERY_QUIZ:2026-11-20',ids:['g']},rules.quizNotificationVisibility('EMPLOYEE','g2','Ghanshyam Jangir')));
+ assert(!match({filterValue:'DAILY_JEWELLERY_QUIZ:2026-11-20',ids:['g']},rules.quizNotificationVisibility('EMPLOYEE','g','Ghanshyam Jangir')));assert(!match({filterValue:'DAILY_JEWELLERY_QUIZ:2026-11-20',ids:['g']},rules.quizNotificationVisibility('EMPLOYEE','g2','Ghanshyam Jangir')));
  // JWT is verified with actual signatures and a local test key, never external HTTP.
  const jose=await import('jose'),{publicKey,privateKey}=await jose.generateKeyPair('RS256'),jwk=await jose.exportJWK(publicKey);jwk.kid='quiz-test';const local=jose.createLocalJWKSet({keys:[jwk]});
  const auth=load('lib/dailyQuizSchedulerAuth.ts',{jose:{...jose,createRemoteJWKSet:()=>local}});

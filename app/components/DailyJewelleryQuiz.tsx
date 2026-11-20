@@ -81,7 +81,6 @@ export default function DailyJewelleryQuiz({ standalone = false, onDone }: { sta
       <h2>{resultQuiz.answer.isCorrect ? "सही जवाब!" : "इस बार जवाब गलत है"}</h2>
       {resultQuiz.correctIndex !== undefined && <p className={styles.answerText}><b>सही जवाब:</b> {resultQuiz.options[resultQuiz.correctIndex]}</p>}
       {resultQuiz.explanation && <p className={styles.explanation}>{resultQuiz.explanation}</p>}
-      <p className={styles.hint}>आपका जवाब save हो गया है।</p>
       <button type="button" className={`primary ${styles.okButton}`} autoFocus onClick={finish}>OK</button>
     </div>
   </QuizPopup>;

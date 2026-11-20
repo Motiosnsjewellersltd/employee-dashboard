@@ -55,9 +55,9 @@ export async function runDailyQuizNotifications({ now = new Date(), manual = fal
     if (await tx.notificationBlast.findUnique({ where: { id }, select: { id: true } })) return { sent: 0, started: true, reason: "This notification is already recorded." };
     const index = manual || !latest ? 0 : scheduled ? scheduled.slot % settings.messages.length : bucket % settings.messages.length;
     const text = settings.messages[index];
-    await tx.notificationBlast.create({ data: { id, type: "NOTICE", text, filterType: "SYSTEM", filterValue: `DAILY_JEWELLERY_QUIZ:${question.date}:${question.id}`, createdById: question.createdById, createdAt: now, recipients: { create: [{ employeeId: target.id }] } } });
+    await tx.notificationBlast.create({ data: { id, type: "NOTICE", text, filterType: "SYSTEM", filterValue: `DAILY_JEWELLERY_QUIZ:${question.date}:${question.id}`, createdById: question.createdById, createdAt: now, recipients: { create: [{ employeeId: target.id, clearedAt: now }] } } });
     if (manual) await tx.dailyQuizQuestion.update({ where: { id: question.id }, data: { notificationsStartedAt: now, updatedAt: question.updatedAt } });
-    return { sent: 1, started: true, reason: "App notification created for Ghanshyam Jangir. Future reminders are enabled.", id, targetId: target.id, text, date: question.date };
+    return { sent: 1, started: true, reason: "Quiz notification prepared for Ghanshyam Jangir. Future reminders are enabled.", id, targetId: target.id, text, date: question.date };
   });
   let pushError = false, pushStatus: string | null = null;
   if ("id" in result && result.id && result.targetId && result.text) {
@@ -67,7 +67,7 @@ export async function runDailyQuizNotifications({ now = new Date(), manual = fal
       catch { /* Recording/reading phone transport status is supplementary to the saved app alert. */ }
     }
   }
-  const phoneDetail = result.sent && manual ? pushStatus === "ACCEPTED" ? " Push service accepted the phone notification." : pushStatus === "NO_SUBSCRIPTION" ? " Phone push has no active subscription; allow notifications on the employee device." : pushStatus === "NOT_CONFIGURED" ? " Phone push is not configured." : pushStatus === "FAILED" || pushError ? " Phone push failed; the app alert is saved." : " Phone delivery is not confirmed." : "";
+  const phoneDetail = result.sent && manual ? pushStatus === "ACCEPTED" ? " Push service accepted the phone notification." : pushStatus === "NO_SUBSCRIPTION" ? " Phone push has no active subscription; allow notifications on the employee device." : pushStatus === "NOT_CONFIGURED" ? " Phone push is not configured." : pushStatus === "FAILED" || pushError ? " Phone push failed; delivery tracking is saved." : " Phone delivery is not confirmed." : "";
   const status = { checkedAt: now.toISOString(), sent: result.sent, started: result.started, reason: result.reason + phoneDetail, pushError, pushStatus };
   await prisma.permissionSetting.upsert({ where: { key: DAILY_QUIZ_LAST_RUN }, create: { key: DAILY_QUIZ_LAST_RUN, value: JSON.stringify(status) }, update: { value: JSON.stringify(status) } }).catch(() => null);
   return status;

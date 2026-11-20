@@ -42,12 +42,12 @@ export function quizNotificationSlot(settings: QuizSettings, now = new Date()) {
 }
 
 export const DAILY_QUIZ_AUDIT_ACTIONS = ["UPDATE_DAILY_QUIZ_PILOT_SETTINGS", "CREATE_DAILY_QUIZ_QUESTION", "UPDATE_DAILY_QUIZ_QUESTION", "DELETE_DAILY_QUIZ_QUESTION"];
-// Additive filter: leaves every non-quiz notification's existing behavior unchanged.
-export function quizNotificationVisibility(role: string, employeeId: string, name: string) {
-  if (role === "ADMIN") return undefined;
+// Quiz pushes retain a private delivery ledger, never an employee bell/history alert.
+// Admin Sent History remains available for delivery troubleshooting.
+export function quizNotificationVisibility(role: string, _employeeId: string, _name: string, view: "center" | "history" = "history") {
+  if (role === "ADMIN" && view === "history") return undefined;
   return { OR: [
     { filterValue: null },
-    { NOT: { filterValue: { startsWith: "DAILY_JEWELLERY_QUIZ:" } } },
-    ...(role === "EMPLOYEE" && isQuizPreviewName(name) ? [{ recipients: { some: { employeeId } } }] : [])
+    { NOT: { filterValue: { startsWith: "DAILY_JEWELLERY_QUIZ:" } } }
   ] };
 }
