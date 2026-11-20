@@ -1491,6 +1491,14 @@ floorTeam: "My Team",
     return true;
   });
 
+  function quizReturnHome() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("quizDate");
+    url.searchParams.set("section", "profile");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    goto("profile");
+  }
+
   function goto(s: Section) {
     setSection(s);
     setMenuOpen(false);
@@ -1675,8 +1683,8 @@ floorTeam: "My Team",
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "assetHandover" && showAssetHandover && <AssetHandover employees={employeeRows} />}
       {section === "dailyQuiz" && session.role === "ADMIN" && <AdminDailyJewelleryQuiz />}
-      {section === "dailyQuiz" && session.role === "EMPLOYEE" && isQuizPreviewName(session.name) && <DailyJewelleryQuiz standalone />}
-      {section === "profile" && session.role === "EMPLOYEE" && isQuizPreviewName(session.name) && <DailyJewelleryQuiz />}
+      {section === "dailyQuiz" && session.role === "EMPLOYEE" && isQuizPreviewName(session.name) && <DailyJewelleryQuiz standalone onDone={quizReturnHome} />}
+      {section === "profile" && session.role === "EMPLOYEE" && isQuizPreviewName(session.name) && <DailyJewelleryQuiz onDone={quizReturnHome} />}
       {section === "incentiveReports" && session.role === "ADMIN" && <AdminIncentiveReports />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}

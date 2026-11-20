@@ -28,3 +28,13 @@
 .table td small { display: block; margin-top: 4px; }
 .preview { padding: 12px; border: 1px solid #d3e8f7; border-radius: 10px; background: #f5fbff; }
 @media(max-width: 760px) { .panel { padding: 16px; } .grid { grid-template-columns: minmax(0,1fr); } .question { font-size: 17px; } }
+.quizDialog { position: fixed; box-sizing: border-box; inset: 0; width: min(560px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100dvh - 32px); margin: auto; padding: 0; overflow: hidden; border: 1px solid #b9def7; border-radius: 18px; background: #fff; color: #052a4d; box-shadow: 0 18px 60px rgb(7 67 111 / 22%); }
+.quizDialog::backdrop { background: rgb(3 31 51 / 48%); }
+.quizDialogBody { position: relative; z-index: 1; box-sizing: border-box; max-height: calc(100dvh - 34px); padding: 22px; overflow-y: auto; overscroll-behavior: contain; }
+.quizDialog h2 { margin: 0 0 12px; color: #075f9e; font-size: 22px; line-height: 1.4; }
+.resultDialog { width: min(460px, calc(100vw - 24px)); text-align: center; }
+.resultIcon { font-size: 48px; margin-bottom: 12px; }
+.answerText { line-height: 1.5; overflow-wrap: anywhere; }
+.explanation { font-size: 15px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.okButton { display: block; position: relative; z-index: 3; width: min(220px, 100%); margin: 18px auto 0; }
+@media(max-width: 560px) { .quizDialogBody { padding: 18px; } .quizDialog h2 { font-size: 20px; } }
