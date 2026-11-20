@@ -117,7 +117,9 @@ function encryptPayload(payload: Buffer, clientPublicKey: string, clientAuthSecr
   return Buffer.concat([salt, recordSize, Buffer.from([senderPublicKey.length]), senderPublicKey, ciphertext]);
 }
 
-async function sendOne(subscription: { endpoint: string; p256dh: string; auth: string }, payload: PushPayload) {
+async function sendOne(subscription: { endpoint: string; p256dh: string; auth: string }, payload: PushPayload, expiresAt?: number) {
+  const ttl = expiresAt === undefined ? 86400 : Math.min(86400, Math.floor((expiresAt - Date.now()) / 1000));
+  if (!Number.isFinite(ttl) || ttl <= 0) return { ok: false, status: 0 };
   const config = vapidConfig();
   if (!config) return { ok: false, status: 0 };
   const compactPayload: PushPayload = {
@@ -135,7 +137,7 @@ async function sendOne(subscription: { endpoint: string; p256dh: string; auth: s
       Authorization: `vapid t=${token}, k=${config.publicKey}`,
       "Content-Encoding": "aes128gcm",
       "Content-Type": "application/octet-stream",
-      TTL: "86400",
+      TTL: String(ttl),
       Urgency: "high",
     },
     body,
@@ -145,7 +147,7 @@ async function sendOne(subscription: { endpoint: string; p256dh: string; auth: s
 
 // Optional blast ID records transport acceptance against the existing app notification.
 // Legacy calls without a blast ID keep their previous behavior.
-export async function sendPushToEmployees(employeeIds: string[], payload: PushPayload, blastId?: string) {
+export async function sendPushToEmployees(employeeIds: string[], payload: PushPayload, blastId?: string, options?: { expiresAt?: number }) {
   const ids = Array.from(new Set(employeeIds.filter(Boolean)));
   if (!ids.length) return;
   const attemptedAt = new Date();
@@ -169,7 +171,7 @@ export async function sendPushToEmployees(employeeIds: string[], payload: PushPa
     const summary = results.get(subscription.employeeId);
     if (summary) summary.attempted++;
     try {
-      const result = await sendOne(subscription, payload);
+      const result = await sendOne(subscription, payload, options?.expiresAt);
       if (result.ok && summary) { summary.accepted++; summary.acceptedAt ||= new Date(); }
       if (result.status === 404 || result.status === 410) expiredIds.push(subscription.id);
     } catch { /* A failed device must never stop the main dashboard action. */ }
