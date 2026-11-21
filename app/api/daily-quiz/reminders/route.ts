@@ -1,12 +1,16 @@
 import { requireSession } from "@/lib/auth";
-import { authenticateDailyQuizScheduler } from "@/lib/dailyQuizSchedulerAuth";
+import { authenticateDailyQuizScheduler, type DailyQuizSchedulerAuthFailure } from "@/lib/dailyQuizSchedulerAuth";
 import { runDailyQuizNotifications } from "@/lib/dailyQuiz";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export async function POST(req: Request) {
   let manual = false, questionId = "";
   if (req.headers.has("authorization")) {
-    if (!(await authenticateDailyQuizScheduler(req))) return Response.json({ ok: false, error: "Unauthorized scheduler." }, { status: 401 });
+    let failure: DailyQuizSchedulerAuthFailure | undefined;
+    if (!(await authenticateDailyQuizScheduler(req, detail => { failure = detail; }))) {
+      console.warn("Quiz reminder scheduler authentication rejected", failure);
+      return Response.json({ ok: false, error: "Unauthorized scheduler.", ...failure }, { status: 401 });
+    }
   } else {
     try { if ((await requireSession()).role !== "ADMIN") return Response.json({ ok: false, error: "Admin only." }, { status: 403 }); }
     catch { return Response.json({ ok: false, error: "Unauthorized." }, { status: 401 }); }

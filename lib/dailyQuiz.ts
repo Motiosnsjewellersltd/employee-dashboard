@@ -27,9 +27,11 @@ export function publicQuizQuestion(question: { id: string; date: string; updated
   return { activity: activityView, ...(answer?.gameResult ? { gameResult: answer.gameResult } : {}), id: question.id, date: question.date, version: question.updatedAt.toISOString(), question: question.question, options: question.options, canAnswer: question.date === today && !answer, answer: answer ? { selectedIndex: answer.selectedIndex, isCorrect: answer.isCorrect, answeredAt: answer.answeredAt } : null, ...(answer || question.date < today ? { correctIndex: question.correctIndex, explanation: question.explanation } : {}) };
 }
 export async function runDailyQuizNotifications({ now = new Date(), manual = false, questionId = "" }: { now?: Date; manual?: boolean; questionId?: string } = {}) {
+  let intervalMinutes = 0, keepChecking = false;
   const result = await prisma.$transaction(async tx => {
     await quizLock(tx);
     const { settings, targets } = await quizAccess(tx);
+    intervalMinutes = settings.intervalMinutes;
     if (!settings.enabled || !settings.notificationsEnabled) return { sent: 0, started: false, reason: "Quiz or notifications are paused." };
     if (!targets.length) return { sent: 0, started: false, reason: "No eligible employees are selected." };
     const current = quizIndiaTime(now), scheduled = quizNotificationSlot(settings, now);
@@ -49,6 +51,7 @@ export async function runDailyQuizNotifications({ now = new Date(), manual = fal
       await tx.dailyQuizQuestion.update({ where: { id: question.id }, data: { notificationsStartedAt: now, updatedAt: question.updatedAt } });
       return { sent: 0, started: true, reason: `Notifications enabled for ${question.date}; first check runs on that date during the configured hours.` };
     }
+    keepChecking = question.date === current.date && Boolean(scheduled);
     const notices = await tx.notificationBlast.findMany({ where: questionNotificationWhere(question.id, question.date), orderBy: { createdAt: "desc" }, select: { createdAt: true, recipients: { select: { employeeId: true } } } });
     const latest = new Map<string, Date>();
     for (const notice of notices) for (const recipient of notice.recipients) if (!latest.has(recipient.employeeId)) latest.set(recipient.employeeId, notice.createdAt);
@@ -57,8 +60,12 @@ export async function runDailyQuizNotifications({ now = new Date(), manual = fal
       if (manual) await tx.dailyQuizQuestion.update({ where: { id: question.id }, data: { notificationsStartedAt: now, updatedAt: question.updatedAt } });
       return { sent: 0, started: true, reason: manual ? "An existing notification was found; future reminders are now enabled." : "Notification gap has not elapsed." };
     }
-    const targetIds = due.map(person => person.id).sort(), bucket = Math.floor(now.getTime() / 1800000);
-    const id = "daily-quiz-" + createHash("sha256").update(manual ? `first:${question.id}:${targetIds.join(",")}` : `${question.id}:${targetIds.join(",")}:${bucket}`).digest("hex");
+    const targetIds = due.map(person => person.id).sort();
+    // Use the actual latest ledger state: minute tests and gap changes must not collide
+    // with an earlier reminder in the same half-hour. The transaction lock serializes scans.
+    const bucket = Math.floor(now.getTime() / (settings.intervalMinutes * 60000));
+    const previous = targetIds.map(id => `${id}:${latest.get(id)?.getTime() || 0}`).join(",");
+    const id = "daily-quiz-" + createHash("sha256").update(manual ? `first:${question.id}:${targetIds.join(",")}` : `${question.id}:${previous}:${bucket}`).digest("hex");
     if (await tx.notificationBlast.findUnique({ where: { id }, select: { id: true } })) return { sent: 0, started: true, reason: "This notification is already recorded." };
     const index = manual || !latest.size ? 0 : scheduled ? scheduled.slot % settings.messages.length : bucket % settings.messages.length;
     const isGame = parseActivity(question.activity)?.type === "game";
@@ -77,13 +84,21 @@ export async function runDailyQuizNotifications({ now = new Date(), manual = fal
     const activeQuestion = await prisma.dailyQuizQuestion.findUnique({ where: { id: result.questionId } });
     const ids = result.targetIds.filter(id => activeQuestion?.isPublished && activeQuestion.date === quizIndiaTime(now).date && activeQuestion.date === result.date && quizAudienceAllows(activeQuestion.audience, id) && permitted.has(id) && !answeredIds.has(id));
     if (ids.length) await sendPushToEmployees(ids, { title: result.isGame ? "🎮 आज का Jewellery Game" : "💎 आज का Jewellery सवाल", body: result.text, url: `/?section=dailyQuiz&quizDate=${result.date}`, tag: result.id }, result.id, { expiresAt: Date.parse(`${result.date}T00:00:00Z`) + 86400000 - 330 * 60000 }).catch(() => { pushError = true; });
-    if (manual && ids.length === 1) {
+    if (ids.length === 1) {
       try { pushStatus = (await prisma.messageRecipient.findUnique({ where: { blastId_employeeId: { blastId: result.id, employeeId: ids[0] } }, select: { pushStatus: true } }))?.pushStatus || null; }
       catch { /* Transport status does not prove phone delivery. */ }
     }
   }
-  const phoneDetail = result.sent && manual ? pushStatus === "ACCEPTED" ? " Push service accepted the phone notification." : pushStatus === "NO_SUBSCRIPTION" ? " Phone push has no active subscription; allow notifications on the employee device." : pushStatus === "NOT_CONFIGURED" ? " Phone push is not configured." : pushStatus === "FAILED" || pushError ? " Phone push failed; delivery tracking is saved." : " Phone delivery is not confirmed." : "";
-  const status = { checkedAt: now.toISOString(), sent: result.sent, started: result.started, reason: result.reason + phoneDetail, pushError, pushStatus };
-  await prisma.permissionSetting.upsert({ where: { key: DAILY_QUIZ_LAST_RUN }, create: { key: DAILY_QUIZ_LAST_RUN, value: JSON.stringify(status) }, update: { value: JSON.stringify(status) } }).catch(() => null);
+  const phoneDetail = result.sent ? pushStatus === "ACCEPTED" ? " Push service accepted the phone notification." : pushStatus === "NO_SUBSCRIPTION" ? " Phone push has no active subscription; allow notifications on the employee device." : pushStatus === "NOT_CONFIGURED" ? " Phone push is not configured." : pushStatus === "FAILED" || pushError ? " Phone push failed; delivery tracking is saved." : " Phone delivery is not confirmed." : "";
+  const status = { checkedAt: now.toISOString(), sent: result.sent, started: result.started, reason: result.reason + phoneDetail, pushError, pushStatus, intervalMinutes, checkAgainInSeconds: keepChecking ? 60 : null };
+  // Preserve the last actual send when a later minute check only reports "gap not elapsed".
+  let lastNotification = null;
+  try {
+    const previous = await prisma.permissionSetting.findUnique({ where: { key: DAILY_QUIZ_LAST_RUN } });
+    lastNotification = JSON.parse(previous?.value || "null")?.lastNotification || null;
+  } catch { /* Diagnostics must not stop notifications. */ }
+  if (result.sent) lastNotification = { checkedAt: status.checkedAt, sent: result.sent, reason: status.reason, pushStatus, pushError };
+  const savedStatus = { ...status, lastNotification };
+  await prisma.permissionSetting.upsert({ where: { key: DAILY_QUIZ_LAST_RUN }, create: { key: DAILY_QUIZ_LAST_RUN, value: JSON.stringify(savedStatus) }, update: { value: JSON.stringify(savedStatus) } }).catch(() => null);
   return status;
 }
