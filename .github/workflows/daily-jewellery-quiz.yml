@@ -30,7 +30,7 @@ jobs:
           for attempt in range(30):
               try:
                   with urllib.request.urlopen(base + '/api/daily-quiz/health', timeout=15) as response:
-                      if json.load(response).get('version') == 'daily-jewellery-quiz-reminders-v3':
+                      if json.load(response).get('version') == 'daily-jewellery-quiz-reminders-v4':
                           break
               except Exception:
                   pass
@@ -39,16 +39,20 @@ jobs:
               raise SystemExit('Quiz deployment is not ready. Re-run after Vercel deployment completes.')
           url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']
           url += ('&' if '?' in url else '?') + urllib.parse.urlencode({'audience': 'motisons-daily-jewellery-quiz'})
-          # Stay active while today has unanswered recipients. GitHub schedules can
-          # arrive hours late; an active runner checks each minute without an open app.
-          # Each run is bounded to four hours; a pending scheduled run takes over.
+          # A successful no-send scan is idle, not a reason to stop the scheduler.
+          # Admin can publish/start another question, resume or change its gap later.
+          # The API independently enforces dates, hours, audience and answer-stop.
+          # Bound each runner to four hours; queued scheduled runs can take over.
+          deadline = time.monotonic() + 4 * 60 * 60
           for tick in range(240):
+              if time.monotonic() >= deadline:
+                  break
               for retry in range(3):
                   try:
                       request = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
                       with urllib.request.urlopen(request, timeout=20) as response:
                           token = json.load(response)['value']
-                      print('::add-mask::' + token)
+                      print('::add-mask::' + token, flush=True)
                       request = urllib.request.Request(base + '/api/daily-quiz/reminders', data=b'{}', method='POST', headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
                       with urllib.request.urlopen(request, timeout=80) as response:
                           result = json.load(response)
@@ -76,8 +80,9 @@ jobs:
               if not result.get('ok'):
                   raise SystemExit('Quiz reminder check failed.')
               data = result['data']
-              print(json.dumps(data))
-              if data.get('checkAgainInSeconds') != 60 or tick == 239:
+              print(json.dumps(data), flush=True)
+              if tick == 239:
                   break
-              time.sleep(60)
+              print('Reminder worker active; next check in up to 60 seconds.', flush=True)
+              time.sleep(min(60, max(0, deadline - time.monotonic())))
           PYTHON

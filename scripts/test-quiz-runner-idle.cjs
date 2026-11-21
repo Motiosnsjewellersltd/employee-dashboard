@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict');
+const {fixture,rules,now}=require('./test-daily-jewellery-quiz.cjs');
+(async()=>{
+ const f=fixture();f.config({...rules.DEFAULT_QUIZ_SETTINGS,targetEmployeeId:'g',intervalMinutes:1});
+ let status=await f.service.runDailyQuizNotifications({now});assert.equal(status.sent,0,'no question at deployment is harmless');
+ const q=f.addQuestion({notificationsStartedAt:null});
+ status=await f.service.runDailyQuizNotifications({now});assert.equal(status.sent,0);assert.equal(status.started,false);
+ status=await f.service.runDailyQuizNotifications({now,manual:true,questionId:q.id});assert.equal(status.sent,1);
+ status=await f.service.runDailyQuizNotifications({now:new Date(+now+60000)});assert.equal(status.sent,1,'same active runner can send the second notification after Admin activation');
+ assert.equal(f.pushes().length,2);
+ await f.employee.POST(f.req({questionId:q.id,selectedIndex:0}));
+ assert.equal((await f.service.runDailyQuizNotifications({now:new Date(+now+120000)})).sent,0,'keeping the runner alive never overrides answer-stop');
+ f.user({id:'admin',role:'ADMIN'});assert.equal((await f.admin.DELETE(f.req({id:q.id}))).status,200);
+ const next=f.addQuestion({id:'replacement',notificationsStartedAt:null});
+ assert.equal((await f.service.runDailyQuizNotifications({now:new Date(+now+180000)})).sent,0,'replacement must still be explicitly started');
+ assert.equal((await f.service.runDailyQuizNotifications({now:new Date(+now+180000),manual:true,questionId:next.id})).sent,1);
+ assert.equal((await f.service.runDailyQuizNotifications({now:new Date(+now+240000)})).sent,1,'replacement reminders work without waiting for another workflow start');
+ assert.equal((await f.service.runDailyQuizNotifications({now:new Date('2026-11-20T18:30:00Z')})).sent,0,'idle runner cannot send the previous day question');
+ console.log('PASS: real service startup without a question, publish after startup, explicit activation then second minute reminder, answer-stop, deletion/recreation/activation/new reminders, and IST date cutoff. DB/push mocked.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
