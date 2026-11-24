@@ -10,7 +10,7 @@ const reply = (body: unknown, status = 200) => Response.json(body, { status, hea
 async function sessionUser() { try { return await requireSession(); } catch { return null; } }
 export async function GET(req: Request) {
   const session = await sessionUser(); if (!session) return reply({ ok: false, error: "Unauthorized." }, 401);
-  if (session.role !== "EMPLOYEE") return reply({ ok: false, error: "Employee only." }, 403);
+  if (!["EMPLOYEE", "HR"].includes(session.role)) return reply({ ok: false, error: "Employee only." }, 403);
   try {
     const access = await quizAccess();
     if (!access.settings.enabled || !access.targets.some(person => person.id === session.id)) return reply({ ok: false, error: "Quiz is not available for this account." }, 403);
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 }
 export async function POST(req: Request) {
   const session = await sessionUser(); if (!session) return reply({ ok: false, error: "Unauthorized." }, 401);
-  if (session.role !== "EMPLOYEE") return reply({ ok: false, error: "Employee only." }, 403);
+  if (!["EMPLOYEE", "HR"].includes(session.role)) return reply({ ok: false, error: "Employee only." }, 403);
   let body; try { body = await req.json(); } catch { return reply({ ok: false, error: "Invalid answer." }, 400); }
   if (typeof body?.questionId !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(body.questionId) || typeof body?.version !== "string" || !Number.isFinite(Date.parse(body.version)) ) return reply({ ok: false, error: "Select one answer." }, 400);
   try {

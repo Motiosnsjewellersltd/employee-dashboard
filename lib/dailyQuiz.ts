@@ -11,7 +11,7 @@ export async function quizLock(db: QuizDb) {
   await db.$queryRaw(Prisma.sql`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(649102601)`);
 }
 export async function quizCandidates(db: QuizDb = prisma) {
-  const rows = await db.employee.findMany({ where: { role: "EMPLOYEE", status: "ACTIVE", deletedAt: null, exitDate: null }, select: { id: true, name: true, role: true, employeeCode: true, branch: true, department: true, designation: true, status: true, deletedAt: true, exitDate: true }, orderBy: [{ department: "asc" }, { name: "asc" }] });
+  const rows = await db.employee.findMany({ where: { role: { in: ["EMPLOYEE", "HR"] }, status: "ACTIVE", deletedAt: null, exitDate: null }, select: { id: true, name: true, role: true, employeeCode: true, branch: true, department: true, designation: true, status: true, deletedAt: true, exitDate: true }, orderBy: [{ department: "asc" }, { name: "asc" }] });
   return rows.filter(quizEligibleEmployee);
 }
 export async function quizAccess(db: QuizDb = prisma) {

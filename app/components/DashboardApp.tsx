@@ -404,13 +404,14 @@ function initialSection(user: User): Section {
   "notifications",
   "chat"
 ];
-  if (requested === "dailyQuiz" && (user.role === "ADMIN" || user.role === "EMPLOYEE")) return requested;
+  if (requested === "dailyQuiz" && (["ADMIN", "HR", "EMPLOYEE"].includes(user.role))) return requested;
   if (requested === "assetHandover" && user.role !== "EMPLOYEE") return requested;
   if (requested && common.includes(requested)) return requested;
   return fallback;
 }
 
 function hrSectionAllowed(section: Section, permissions: Record<string, string>) {
+  if (section === "dailyQuiz") return true;
   if (section === "incentiveReports") return false;
   const enabled = (key: string) => permissions[key] === "true";
   const rules: Partial<Record<Section, boolean>> = {
@@ -1493,9 +1494,10 @@ floorTeam: "My Team",
   function quizReturnHome() {
     const url = new URL(window.location.href);
     url.searchParams.delete("quizDate");
-    url.searchParams.set("section", "profile");
+    const home = session?.role === "HR" ? firstHrSection(rolePermissions) : "profile";
+    url.searchParams.set("section", home);
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
-    goto("profile");
+    goto(home);
   }
 
   function goto(s: Section) {
@@ -1562,7 +1564,7 @@ floorTeam: "My Team",
         {showChat && <MenuItem panelIcons={isAdmin} label="Chat" icon="✉" active={section === "chat"} onClick={() => goto("chat")} />}
         {isAdmin && showResetPassword && canResetPassword && <MenuItem panelIcons={isAdmin} label="Reset Password" icon="🔑" active={section === "reset"} onClick={() => goto("reset")} />}
         {isAdmin && showLoginExport && (canViewLoginHistory || canExportData) && <MenuItem panelIcons={isAdmin} label="Login / Export" icon="⇩" active={section === "loginHistory"} onClick={() => goto("loginHistory")} />}
-        {session.role === "ADMIN" && <MenuItem panelIcons={isAdmin} label="Daily Jewellery Quiz" icon="💎" active={section === "dailyQuiz"} onClick={() => goto("dailyQuiz")} />}
+        {(session.role === "ADMIN" || session.role === "HR") && <MenuItem panelIcons={isAdmin} label="Daily Jewellery Quiz" icon="💎" active={section === "dailyQuiz"} onClick={() => goto("dailyQuiz")} />}
         {session.role === "ADMIN" && <MenuItem panelIcons={isAdmin} label="Incentive Reports" icon="₹" active={section === "incentiveReports"} onClick={() => goto("incentiveReports")} />}
         {isSuperAdmin && <MenuItem panelIcons={isAdmin} label="Permissions" icon="⚙" active={section === "permissions"} onClick={() => goto("permissions")} />}
         {isAdmin && showRecycleBin && canManageRecycleBin && <MenuItem panelIcons={isAdmin} label="Recycle Bin" icon="♻" active={section === "recycle"} onClick={() => goto("recycle")} />}
@@ -1682,8 +1684,9 @@ floorTeam: "My Team",
       {section === "permissions" && isSuperAdmin && <PermissionsPanel session={session} />}
       {section === "assetHandover" && showAssetHandover && <AssetHandover employees={employeeRows} />}
       {section === "dailyQuiz" && session.role === "ADMIN" && <AdminDailyJewelleryQuiz />}
-      {section === "dailyQuiz" && session.role === "EMPLOYEE" && <DailyJewelleryQuiz standalone onDone={quizReturnHome} />}
+      {section === "dailyQuiz" && (session.role === "EMPLOYEE" || session.role === "HR") && <DailyJewelleryQuiz standalone onDone={quizReturnHome} />}
       {section === "profile" && session.role === "EMPLOYEE" && <DailyJewelleryQuiz onDone={quizReturnHome} />}
+      {section === "dashboard" && session.role === "HR" && <DailyJewelleryQuiz onDone={quizReturnHome} />}
       {section === "incentiveReports" && session.role === "ADMIN" && <AdminIncentiveReports />}
       {section === "recycle" && isAdmin && showRecycleBin && canManageRecycleBin && <RecycleBin />}
       {section === "profile" && session.role === "EMPLOYEE" && <MyProfile user={employeeRows.find(employee => employee.id === session.id) || employeeRows.find(employee => employee.mobile === session.mobile) || session} leaves={profileLeaves} loading={profileLoading} loadLeaves={loadProfileLeaves} showProfileLeaveData={employeeFeatures.profileLeavesVisible} />}

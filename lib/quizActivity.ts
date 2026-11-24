@@ -1,3 +1,4 @@
+import { editableGame, validateGameContent } from "@/lib/quizGameContent";
 import { checkPuzzleStep, bingoLineSize } from "@/lib/quizPuzzleLogic";
 import { GAME_LIBRARY, QUESTION_LIBRARY } from "@/lib/quizActivityCatalog";
 import type { GameDefinition, PublicGame, GameSubmission, GameResult, QuizActivity, QuizVisual } from "@/lib/quizActivityTypes";
@@ -7,18 +8,21 @@ export function parseActivity(input: unknown): QuizActivity | null {
   if (x.type === "question" && ["diamond", "gold", "scale", "customer", "man", "child", "cartoon"].includes(String(x.visual))) return { type: "question", visual: x.visual as QuizVisual };
   if (x.type === "game" && x.definition && typeof x.definition === "object") {
     const definition = GAME_LIBRARY.find(g => g.id === (x.definition as Record<string, unknown>).id);
-    // Only curated immutable game definitions are accepted; arbitrary client answer keys are ignored.
+    if (definition && x.contentVersion === 1) {
+      try { return { type: "game", definition: validateGameContent(x.definition), contentVersion: 1 }; } catch { return null; }
+    }
+    // Legacy activities retain their original curated content.
     if (definition) return { type: "game", definition };
   }
   return null;
 }
-export function activityForSave(input: unknown): QuizActivity | null {
+export function activityForSave(input: unknown, library: GameDefinition[] = GAME_LIBRARY): QuizActivity | null {
   if (!input) return null;
   const data = input as Record<string, unknown>;
   if (data.type === "game") {
-    const definition = GAME_LIBRARY.find(g => g.id === data.gameId);
+    const definition = library.find(g => g.id === data.gameId);
     if (!definition) throw new Error("Select a valid game from the library.");
-    return { type: "game", definition };
+    return { type: "game", definition: editableGame(definition), contentVersion: 1 };
   }
   const activity = parseActivity(input);
   if (!activity) throw new Error("Select a valid question illustration.");
@@ -39,7 +43,7 @@ export function publicGame(game: GameDefinition, seed: string): PublicGame {
   if (game.kind === "memory") return { ...base, cards: shuffled([...game.items!, ...game.items!], seed) };
   if (game.kind === "sequence") return { ...base, steps: shuffled(game.steps!, seed) };
   if (game.rounds && game.kind !== "shape") return { ...base, rounds: game.rounds.map(({ correctIndex: _key, explanation: _explanation, ...round }) => ({ ...round, question: round.question || "" })) };
-  if (game.kind === "shape") return { ...base, rounds: game.rounds!.map(r => ({ question: "यह कौन-सी Diamond Shape है?", shape: r.shape, options: r.options })) };
+  if (game.kind === "shape") return { ...base, rounds: game.rounds!.map(r => ({ question: r.question || "यह कौन-सी Diamond Shape है?", shape: r.shape, options: r.options })) };
   return { ...base, rounds: game.questionIds!.map(index => { const q = QUESTION_LIBRARY[index]; return { question: q.question, options: q.options }; }) };
 }
 export function gradeGame(game: GameDefinition, seed: string, submission: unknown, expired = false): GameResult {

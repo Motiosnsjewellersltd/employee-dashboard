@@ -54,9 +54,9 @@ export function quizNotificationVisibility(role: string, _employeeId: string, _n
 }
 
 export function quizEligibleEmployee(person: { role: string; status: string; deletedAt?: unknown; exitDate?: unknown; department?: string | null; designation?: string | null }) {
-  if (person.role !== "EMPLOYEE" || person.status !== "ACTIVE" || person.deletedAt || person.exitDate) return false;
+  if (!["EMPLOYEE", "HR"].includes(person.role) || person.status !== "ACTIVE" || person.deletedAt || person.exitDate) return false;
   const text = `${person.department || ""} ${person.designation || ""}`.toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, " ");
-  return !(/\b(drivers?|driving|security|securtiy|securty|pantry|pantery|hr)\b|\bh r\b|\bhuman resources?\b|मानव संसाधन|ड्राइवर|सिक्योरिटी|सुरक्षा|पैंट्री/.test(text));
+  return !(/\b(drivers?|driving|security|securtiy|securty|pantry|pantery)\b|ड्राइवर|सिक्योरिटी|सुरक्षा|पैंट्री/.test(text));
 }
 export function selectedQuizIds(settings: QuizSettings) {
   return settings.selectedEmployeeIds !== undefined ? settings.selectedEmployeeIds : settings.targetEmployeeId ? [settings.targetEmployeeId] : [];

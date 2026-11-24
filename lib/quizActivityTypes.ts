@@ -12,4 +12,4 @@ export type GameDefinition = { id: string; kind: GameKind; title: string; icon: 
 export type PublicGame = { id: string; kind: GameKind; title: string; icon: string; character?: "lady" | "man" | "child" | "cartoon"; seconds: number; words?: PublicWordPuzzle[]; bingo?: PublicBingo; terms?: string[]; meanings?: string[]; rounds?: PublicRound[]; steps?: string[]; art?: TrainingArt; cards?: number[] };
 export type GameSubmission = { choices?: number[]; flips?: number[]; order?: number[]; words?: number[][]; cells?: number[] };
 export type GameResult = { score: number; total: number; isCorrect: boolean; timedOut: boolean; summary: string };
-export type QuizActivity = { type: "question"; visual: QuizVisual } | { type: "game"; definition: GameDefinition };
+export type QuizActivity = { type: "question"; visual: QuizVisual } | { type: "game"; definition: GameDefinition; contentVersion?: 1 };

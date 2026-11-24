@@ -1,5 +1,7 @@
-import { activityForSave, publicGame } from "@/lib/quizActivity";
-import { GAME_LIBRARY, QUESTION_LIBRARY } from "@/lib/quizActivityCatalog";
+import { gameLibrary, gameRevision, GAME_LIBRARY_KEY } from "@/lib/quizGameLibrary";
+import { validateGameContent } from "@/lib/quizGameContent";
+import { activityForSave, publicGame, parseActivity } from "@/lib/quizActivity";
+import { QUESTION_LIBRARY } from "@/lib/quizActivityCatalog";
 import { Prisma } from "@prisma/client";
 import { questionNotificationWhere, quizQuestionReport } from "@/lib/dailyQuizReport";
 import { requireSession } from "@/lib/auth";
@@ -16,22 +18,37 @@ export async function GET(req?: Request) {
   const date = req ? new URL(req.url).searchParams.get("date") || "" : "";
   if (date && !validQuizDate(date)) return reply({ ok: false, error: "Invalid report date." }, 400);
   try {
-    const [access, questions, lastRun] = await Promise.all([quizAccess(), prisma.dailyQuizQuestion.findMany({ where: date ? { date } : undefined, orderBy: { date: "desc" }, take: 120, include: { answers: { select: { employeeId: true, selectedIndex: true, isCorrect: true, answeredAt: true, employee: { select: { name: true } } } } } }), prisma.permissionSetting.findUnique({ where: { key: DAILY_QUIZ_LAST_RUN } })]);
+    const [access, questions, lastRun, games] = await Promise.all([quizAccess(), prisma.dailyQuizQuestion.findMany({ where: date ? { date } : undefined, orderBy: { date: "desc" }, take: 120, include: { answers: { select: { employeeId: true, selectedIndex: true, isCorrect: true, answeredAt: true, employee: { select: { name: true } } } } } }), prisma.permissionSetting.findUnique({ where: { key: DAILY_QUIZ_LAST_RUN } }), gameLibrary()]);
     let status = null; try { status = JSON.parse(lastRun?.value || "null"); } catch { /* unavailable */ }
-    return reply({ ok: true, data: { today: quizIndiaTime().date, settings: access.settings, candidates: access.candidates.map(({ id, name, employeeCode, branch, department, designation }) => ({ id, name, employeeCode, branch, department, designation })), target: access.target ? { id: access.target.id, name: access.target.name, employeeCode: access.target.employeeCode } : null, catalog: { games: GAME_LIBRARY.map(game => ({ ...game, preview: publicGame(game, "admin-preview") })), questions: QUESTION_LIBRARY }, questions: questions.map(question => ({ ...question, report: quizQuestionReport(question, access.targets.map(person => ({ employeeId: person.id, name: person.name }))) })), lastRun: status } });
+    return reply({ ok: true, data: { today: quizIndiaTime().date, settings: access.settings, candidates: access.candidates.map(({ id, name, employeeCode, branch, department, designation }) => ({ id, name, employeeCode, branch, department, designation })), target: access.target ? { id: access.target.id, name: access.target.name, employeeCode: access.target.employeeCode } : null, catalog: { games: games.map(game => ({ ...game, revision: gameRevision(game), preview: publicGame(game, "admin-preview") })), questions: QUESTION_LIBRARY }, questions: questions.map(question => { const activity = parseActivity(question.activity); return { ...question, gamePreview: activity?.type === "game" ? publicGame(activity.definition, "admin-preview") : null, report: quizQuestionReport(question, access.targets.map(person => ({ employeeId: person.id, name: person.name }))) }; }), lastRun: status } });
   } catch { return reply({ ok: false, error: "Could not load quiz management. Check the quiz database setup." }, 503); }
 }
 export async function POST(req: Request) {
   const session = await authorize(); if (!session) return reply({ ok: false, error: "Admin only." }, 403);
   let body; try { body = await req.json(); } catch { return reply({ ok: false, error: "Invalid request." }, 400); }
   try {
+    if (body?.action === "gameContent") {
+      const definition = validateGameContent(body.game);
+      await prisma.$transaction(async tx => {
+        await quizLock(tx);
+        const current = (await gameLibrary(tx)).find(game => game.id === definition.id)!;
+        if (body.revision !== gameRevision(current)) throw new Error("Other changes were saved for this game. Refresh before editing again.");
+        const row = await tx.permissionSetting.findUnique({ where: { key: GAME_LIBRARY_KEY } });
+        const saved = JSON.parse(row?.value || "{}");
+        saved[definition.id] = definition;
+        const value = JSON.stringify(saved);
+        await tx.permissionSetting.upsert({ where: { key: GAME_LIBRARY_KEY }, create: { key: GAME_LIBRARY_KEY, value }, update: { value } });
+        await tx.activityLog.create({ data: { actorId: session.id, actorName: session.name, action: "UPDATE_DAILY_QUIZ_GAME_CONTENT", target: definition.id, details: JSON.stringify({ title: definition.title }) } });
+      });
+      return reply({ ok: true, data: { game: { ...definition, revision: gameRevision(definition), preview: publicGame(definition, "admin-preview") } } });
+    }
     if (body?.action === "settings") {
       const settings = validateQuizSettings(body.settings);
       await prisma.$transaction(async tx => {
         await quizLock(tx);
         const candidates = await quizCandidates(tx);
         const ids = selectedQuizIds(settings);
-        if (ids.some(id => !candidates.some(person => person.id === id))) throw new Error("Select eligible active employees; Driver, Security, Pantry and HR cannot be selected.");
+        if (ids.some(id => !candidates.some(person => person.id === id))) throw new Error("Select eligible active employees; Driver, Security and Pantry cannot be selected.");
         // Explicitly empty means nobody. Keep legacy single-selection data compatible.
         settings.selectedEmployeeIds = ids;
         settings.targetEmployeeId = ids[0] || "";
@@ -44,7 +61,7 @@ export async function POST(req: Request) {
       return reply({ ok: true, data: { settings } });
     }
     if (body?.action === "question") {
-      const activity = activityForSave(body.question?.activity);
+      const activity = activityForSave(body.question?.activity, await gameLibrary());
       const data = validateQuizQuestion(activity?.type === "game" ? { ...body.question, question: activity.definition.title, options: ["Game complete", "Try again", "Not played"], correctIndex: 0, explanation: "Game result" } : body.question);
       const id = typeof body.id === "string" ? body.id : "";
       if (id && !/^[a-zA-Z0-9_-]{1,100}$/.test(id)) throw new Error("Invalid question.");
